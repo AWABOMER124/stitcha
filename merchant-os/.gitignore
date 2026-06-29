@@ -39,3 +39,25 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Flutter parent directory files (not part of this repo)
+../android/
+../ios/
+../lib/
+../linux/
+../macos/
+../web/
+../windows/
+../build/
+../test/
+../.dart_tool/
+../.idea/
+../pubspec.lock
+../pubspec.yaml
+../analysis_options.yaml
+../l10n.yaml
+../doctor.txt
+../.metadata
+../.gitignore
+../.flutter-plugins-dependencies
+../*.iml

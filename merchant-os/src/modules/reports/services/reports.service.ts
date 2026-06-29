@@ -1,67 +1,21 @@
-import * as reportsRepo from '../repositories/reports.repository';
-import prisma from '@/lib/db/prisma';
+import * as repo from '../repositories/reports.repository';
+import { getDateBounds } from '../types';
+import type { DateRange } from '../types';
 
-/**
- * Reports service — read-only business analytics.
- */
+export async function getFullReport(merchantId: string, range: DateRange) {
+  const bounds = getDateBounds(range);
 
-export async function getDashboardOverview(merchantId: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [summary, dailyRevenue, ordersByStatus, hourlyOrders, topProducts, topCustomers, branchStats, financialSummary] =
+    await Promise.all([
+      repo.getSalesSummary(merchantId, bounds),
+      repo.getDailyRevenue(merchantId, bounds),
+      repo.getOrdersByStatus(merchantId, bounds),
+      repo.getHourlyOrders(merchantId, bounds),
+      repo.getTopProducts(merchantId, bounds, 10),
+      repo.getTopCustomers(merchantId, bounds, 10),
+      repo.getBranchStats(merchantId, bounds),
+      repo.getFinancialSummary(merchantId, bounds),
+    ]);
 
-  const [sales, pendingOrders, lowStockCount] = await Promise.all([
-    reportsRepo.getSalesOverview(merchantId, { from: today, to: tomorrow }),
-    prisma.order.count({
-      where: { merchantId, status: { in: ['NEW', 'ACCEPTED', 'PREPARING'] } },
-    }),
-    prisma.inventoryItem.count({
-      where: {
-        merchantId,
-        trackInventory: true,
-        quantity: { lte: 5 },
-      },
-    }),
-  ]);
-
-  return {
-    todayOrders: sales.orderCount,
-    todayRevenue: sales.totalSales,
-    avgOrderValue: sales.avgOrderValue,
-    pendingOrders,
-    lowStockItems: lowStockCount,
-  };
-}
-
-export async function getSalesReport(
-  merchantId: string,
-  dateRange: { from: Date; to: Date }
-) {
-  const [overview, byDay, byStatus] = await Promise.all([
-    reportsRepo.getSalesOverview(merchantId, dateRange),
-    reportsRepo.getSalesByDay(merchantId, 30),
-    reportsRepo.getOrdersByStatus(merchantId, dateRange),
-  ]);
-  return { overview, dailySales: byDay, ordersByStatus: byStatus };
-}
-
-export async function getInventoryReport(merchantId: string) {
-  const [totalItems, lowStock, outOfStock] = await Promise.all([
-    prisma.inventoryItem.count({ where: { merchantId } }),
-    prisma.inventoryItem.count({
-      where: { merchantId, trackInventory: true, quantity: { gt: 0, lte: 5 } },
-    }),
-    prisma.inventoryItem.count({
-      where: { merchantId, trackInventory: true, quantity: { lte: 0 } },
-    }),
-  ]);
-  return { totalItems, lowStock, outOfStock };
-}
-
-export async function getTopProductsReport(
-  merchantId: string,
-  dateRange: { from: Date; to: Date }
-) {
-  return reportsRepo.getTopProducts(merchantId, dateRange, 10);
+  return { summary, dailyRevenue, ordersByStatus, hourlyOrders, topProducts, topCustomers, branchStats, financialSummary };
 }
