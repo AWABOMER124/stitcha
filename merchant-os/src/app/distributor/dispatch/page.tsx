@@ -1,0 +1,85 @@
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth/config';
+import { getPendingDispatchAction, getAllDriversAction } from '@/modules/drivers/actions';
+import { DispatchClient } from './_client';
+
+export const dynamic = 'force-dynamic';
+
+export default async function DispatchPage() {
+  const session = await auth();
+  if (!session?.user?.distributorId) redirect('/login');
+
+  const [ordersRes, driversRes] = await Promise.all([
+    getPendingDispatchAction(),
+    getAllDriversAction(),
+  ]);
+
+  const orders = ordersRes.success ? ordersRes.data : [];
+  const drivers = driversRes.success ? driversRes.data : [];
+
+  const availableDrivers = (drivers as any[]).filter(
+    (d) => d.isActive && (d.status === 'ONLINE' || d.status === 'OFFLINE'),
+  );
+
+  return (
+    <div dir="rtl" className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">لوحة الإرسال</h1>
+        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">تعيين سائقين للطلبات الجاهزة للتوصيل</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h2 className="font-bold text-[var(--foreground)] mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+            طلبات تحتاج سائق
+            <span className="text-sm font-normal text-[var(--muted-foreground)]">({(orders as any[]).length})</span>
+          </h2>
+          <DispatchClient initialOrders={orders as any[]} initialDrivers={availableDrivers as any[]} />
+        </div>
+
+        <div>
+          <h2 className="font-bold text-[var(--foreground)] mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+            السائقون المتاحون
+            <span className="text-sm font-normal text-[var(--muted-foreground)]">({availableDrivers.length})</span>
+          </h2>
+          <div className="space-y-3">
+            {availableDrivers.length === 0 ? (
+              <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-10 text-center text-sm text-[var(--muted-foreground)]">
+                لا يوجد سائقون متاحون الآن
+              </div>
+            ) : (
+              availableDrivers.map((d: any) => (
+                <div
+                  key={d.id}
+                  className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-center gap-4"
+                >
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-[var(--primary)]/10 flex items-center justify-center font-bold text-[var(--primary)]">
+                      {d.name.charAt(0)}
+                    </div>
+                    <div
+                      className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-[var(--card)] ${d.status === 'ONLINE' ? 'bg-emerald-500' : 'bg-stone-400'}`}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-[var(--foreground)] truncate">{d.name}</p>
+                    <p className="text-xs text-[var(--muted-foreground)]">{d.phone}</p>
+                  </div>
+                  <div className="text-xs text-[var(--muted-foreground)] text-left">
+                    <div className="flex items-center gap-1">
+                      <span className="text-amber-400">★</span>
+                      <span>{Number(d.rating).toFixed(1)}</span>
+                    </div>
+                    <p className="mt-0.5">{d.totalDeliveries} توصيلة</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

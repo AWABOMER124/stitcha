@@ -1,0 +1,1183 @@
+// ============================================================================
+// Waslak Merchant OS — Prisma Schema
+// Multi-tenant SaaS platform for merchants
+// (restaurants, cafes, groceries, pharmacies, retail stores)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum BusinessType {
+  RESTAURANT
+  CAFE
+  GROCERY
+  PHARMACY
+  RETAIL
+  OTHER
+}
+
+enum StoreType {
+  FOOD_MENU
+  ONLINE_STORE
+  SERVICES
+  BOOKING
+  OTHER
+}
+
+enum MerchantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum DistributorStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum UserRole {
+  PLATFORM_OWNER
+  DISTRIBUTOR_OWNER
+  DISTRIBUTOR_ADMIN
+  MERCHANT_OWNER
+  MERCHANT_ADMIN
+  BRANCH_MANAGER
+  CASHIER
+  INVENTORY_MANAGER
+  DELIVERY_STAFF
+}
+
+enum OrderStatus {
+  NEW
+  ACCEPTED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REJECTED
+}
+
+enum DeliveryMethod {
+  PICKUP
+  MERCHANT_DELIVERY
+  WASLAK_DELIVERY
+  EXTERNAL_DELIVERY
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  ONLINE
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum StockMovementType {
+  ADJUSTMENT
+  SALE
+  RETURN
+  RESTOCK
+  DAMAGE
+  TRANSFER
+}
+
+enum NotificationType {
+  NEW_ORDER
+  ORDER_STATUS
+  LOW_STOCK
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  SMS
+  EMAIL
+  PUSH
+}
+
+enum CustomerSegment {
+  NEW
+  REGULAR
+  VIP
+  INACTIVE
+  BLOCKED
+}
+
+enum PromoType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_DELIVERY
+}
+
+// ============================================================================
+// AUTH MODELS (NextAuth.js v5 compatible)
+// ============================================================================
+
+/// Platform user — can be linked to distributors and/or merchants
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String?
+  phone         String?
+  role          UserRole  @default(CASHIER)
+  emailVerified DateTime?
+  image         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  merchantUsers    MerchantUser[]
+  distributorUsers DistributorUser[]
+  accounts         Account[]
+  sessions         Session[]
+
+  @@map("users")
+}
+
+/// OAuth / credentials accounts (NextAuth adapter)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+/// Browser sessions (NextAuth adapter)
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ============================================================================
+// DISTRIBUTOR (الموزع)
+// ============================================================================
+
+/// A distributor manages multiple merchants and their stores on their behalf
+model Distributor {
+  id    String            @id @default(cuid())
+  name  String
+  slug  String            @unique
+  email String?
+  phone String?
+  logo  String?
+
+  status         DistributorStatus @default(PENDING)
+  commissionRate Decimal           @default(0) @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users           DistributorUser[]
+  merchants       Merchant[]
+  commissionPlans CommissionPlan[]
+  transactions    FinancialTransaction[]
+  settlements     Settlement[]
+  deliveryZones   DeliveryZone[]
+  drivers         Driver[]
+
+  @@index([slug])
+  @@index([status])
+  @@map("distributors")
+}
+
+/// Staff members of a distributor
+model DistributorUser {
+  id            String @id @default(cuid())
+  userId        String
+  distributorId String
+  role          UserRole
+
+  isOwner  Boolean @default(false)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, distributorId])
+  @@index([distributorId])
+  @@index([userId])
+  @@map("distributor_users")
+}
+
+// ============================================================================
+// TENANT & ACCESS CONTROL
+// ============================================================================
+
+/// A merchant (business) is the primary tenant boundary
+model Merchant {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  description String?
+  logo        String?
+  coverImage  String?
+  phone       String?
+  email       String?
+  address     String?
+
+  businessType BusinessType
+  storeType    StoreType      @default(ONLINE_STORE)
+  status       MerchantStatus @default(PENDING)
+
+  currency String @default("SDG")
+  timezone String @default("Africa/Khartoum")
+
+  isActive Boolean @default(true)
+
+  // Optional: null means direct platform merchant (no distributor)
+  distributorId String?
+
+  // Finance
+  commissionPlanId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  distributor        Distributor?        @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  commissionPlan     CommissionPlan?     @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  users              MerchantUser[]
+  branches           Branch[]
+  products           Product[]
+  categories         Category[]
+  orders             Order[]
+  customers          Customer[]
+  inventoryItems     InventoryItem[]
+  storefrontSettings StorefrontSettings?
+  notificationLogs   NotificationLog[]
+  roles              Role[]
+  transactions       FinancialTransaction[]
+  settlements        Settlement[]
+  promoCodes         PromoCode[]
+  loyaltyConfig      LoyaltyConfig?
+
+  @@index([slug])
+  @@index([status])
+  @@index([distributorId])
+  @@index([commissionPlanId])
+  @@map("merchants")
+}
+
+/// Join between User and Merchant — carries the user's role within a merchant
+model MerchantUser {
+  id         String   @id @default(cuid())
+  userId     String
+  merchantId String
+  roleId     String?
+  role       UserRole
+
+  isOwner  Boolean @default(false)
+  isActive Boolean @default(true)
+
+  branchId String? // Optional: scope staff to a specific branch
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchant     Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  assignedRole Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  branch       Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, merchantId])
+  @@index([merchantId])
+  @@index([userId])
+  @@index([branchId])
+  @@map("merchant_users")
+}
+
+/// Custom role definition — merchant-scoped or system-wide
+model Role {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  merchantId  String? // null = system-wide role
+
+  isSystem Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  permissions   RolePermission[]
+  merchantUsers MerchantUser[]
+  merchant      Merchant?        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("roles")
+}
+
+/// Granular permission definition (system-managed)
+model Permission {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  module      String  // e.g. "orders", "products", "inventory"
+  action      String  // e.g. "create", "read", "update", "delete"
+  description String?
+
+  // Relations
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+/// Many-to-many join between Role and Permission
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================================================
+// BRANCHES
+// ============================================================================
+
+/// Physical branch / location belonging to a merchant
+model Branch {
+  id         String  @id @default(cuid())
+  merchantId String
+  name       String
+  address    String?
+  phone      String?
+  email      String?
+  lat        Float?
+  lng        Float?
+
+  isMain   Boolean @default(false)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  merchant       Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantUsers  MerchantUser[]
+  inventoryItems InventoryItem[]
+  orders         Order[]
+
+  @@index([merchantId])
+  @@map("branches")
+}
+
+// ============================================================================
+// CATALOG
+// ============================================================================
+
+/// Product category — supports self-referencing parent/child hierarchy
+model Category {
+  id          String  @id @default(cuid())
+  merchantId  String
+  name        String
+  slug        String
+  description String?
+  image       String?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  parentId String? // Self-relation for subcategories
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  merchant Merchant   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  products Product[]
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+
+  @@unique([merchantId, slug])
+  @@index([merchantId])
+  @@index([parentId])
+  @@map("categories")
+}
+
+/// A product listed in the merchant's catalog
+model Product {
+  id         String @id @default(cuid())
+  merchantId String
+  categoryId String
+
+  name        String
+  slug        String
+  description String?
+  images      Json   @default("[]") // Array of image URLs
+
+  price          Decimal  @db.Decimal(10, 2)
+  compareAtPrice Decimal? @db.Decimal(10, 2) // Strike-through / original price
+
+  sku     String?
+  barcode String?
+
+  isActive   Boolean @default(true)
+  isFeatured Boolean @default(false)
+  sortOrder  Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  merchant      Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  category      Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  modifiers     ProductModifier[]
+  inventoryItem InventoryItem?
+  orderItems    OrderItem[]
+
+  @@unique([merchantId, slug])
+  @@index([merchantId])
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("products")
+}
+
+/// Modifier group for a product (e.g. "Size", "Add-ons")
+model ProductModifier {
+  id        String  @id @default(cuid())
+  productId String
+  name      String
+  required  Boolean @default(false)
+
+  minSelections Int @default(0)
+  maxSelections Int @default(1)
+
+  options Json // Array of { name: string, price: number }
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_modifiers")
+}
+
+// ============================================================================
+// INVENTORY
+// ============================================================================
+
+/// Tracks stock level for a single product (optionally per-branch)
+model InventoryItem {
+  id         String  @id @default(cuid())
+  productId  String  @unique
+  merchantId String
+  branchId   String?
+
+  quantity         Int @default(0)
+  reservedQuantity Int @default(0)
+
+  lowStockThreshold Int     @default(5)
+  trackInventory    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  merchant       Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  branch         Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  stockMovements StockMovement[]
+
+  @@index([merchantId])
+  @@index([branchId])
+  @@index([productId])
+  @@map("inventory_items")
+}
+
+/// Immutable log of every stock change
+model StockMovement {
+  id              String            @id @default(cuid())
+  inventoryItemId String
+  type            StockMovementType
+
+  quantity         Int // Can be negative (e.g. sale, damage)
+  previousQuantity Int
+  newQuantity      Int
+
+  reason    String? // Human-readable reason
+  reference String? // e.g. order number
+
+  createdById String? // userId who made the change
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryItemId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+// ============================================================================
+// CUSTOMERS
+// ============================================================================
+
+/// A customer scoped to a single merchant (CRM-style)
+model Customer {
+  id         String          @id @default(cuid())
+  merchantId String
+  name       String
+  phone      String
+  email      String?
+  notes      String?
+  address    String?
+  segment    CustomerSegment @default(NEW)
+  isBlocked  Boolean         @default(false)
+
+  totalOrders Int      @default(0)
+  totalSpent  Decimal  @default(0) @db.Decimal(10, 2)
+  lastOrderAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  merchant       Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  addresses      CustomerAddress[]
+  orders         Order[]
+  loyaltyAccount LoyaltyAccount?
+
+  @@unique([merchantId, phone])
+  @@index([merchantId])
+  @@index([phone])
+  @@index([segment])
+  @@map("customers")
+}
+
+/// Saved delivery address for a customer
+model CustomerAddress {
+  id         String  @id @default(cuid())
+  customerId String
+  label      String  // e.g. "Home", "Work"
+  address    String
+  area       String?
+  city       String?
+  lat        Float?
+  lng        Float?
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_addresses")
+}
+
+// ============================================================================
+// ORDERS
+// ============================================================================
+
+/// The central order entity — scoped to a merchant
+model Order {
+  id          String @id @default(cuid())
+  merchantId  String
+  orderNumber String
+  customerId  String
+  branchId    String?
+
+  status OrderStatus @default(NEW)
+
+  subtotal    Decimal @db.Decimal(10, 2)
+  deliveryFee Decimal @default(0) @db.Decimal(10, 2)
+  discount    Decimal @default(0) @db.Decimal(10, 2)
+  tax         Decimal @default(0) @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  deliveryMethod DeliveryMethod @default(PICKUP)
+  paymentMethod  PaymentMethod  @default(CASH)
+
+  notes         String?
+  internalNotes String?
+
+  // Denormalized customer snapshot (in case customer record changes)
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+
+  estimatedReadyAt DateTime?
+  completedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  merchant      Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer      Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch        Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+  delivery      Delivery?
+  payment       Payment?
+
+  @@unique([merchantId, orderNumber])
+  @@index([merchantId])
+  @@index([status])
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([orderNumber])
+  @@map("orders")
+}
+
+/// Line item within an order — stores a snapshot of the product at order time
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String? // May be null if product was deleted
+
+  productSnapshot Json // { name, price, image } at time of order
+
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
+  modifiers Json?   // Selected modifiers with prices
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+/// Immutable audit trail of order status transitions
+model OrderStatusHistory {
+  id      String      @id @default(cuid())
+  orderId String
+  status  OrderStatus
+
+  note        String?
+  changedById String? // userId
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_status_history")
+}
+
+// ============================================================================
+// DELIVERY & PAYMENT
+// ============================================================================
+
+/// Delivery details attached to an order (1-to-1)
+model Delivery {
+  id      String         @id @default(cuid())
+  orderId String         @unique
+  type    DeliveryMethod
+  status  DeliveryStatus @default(PENDING)
+
+  address String?
+  area    String?
+  city    String?
+  lat     Float?
+  lng     Float?
+
+  driverName  String?
+  driverPhone String?
+
+  estimatedDeliveryAt DateTime?
+  deliveredAt         DateTime?
+
+  fee   Decimal @default(0) @db.Decimal(10, 2)
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("deliveries")
+}
+
+/// Payment record attached to an order (1-to-1)
+model Payment {
+  id      String        @id @default(cuid())
+  orderId String        @unique
+  method  PaymentMethod
+  status  PaymentStatus @default(PENDING)
+
+  amount         Decimal  @db.Decimal(10, 2)
+  transactionRef String?
+  paidAt         DateTime?
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+/// Log of every notification sent within a merchant's scope
+model NotificationLog {
+  id         String              @id @default(cuid())
+  merchantId String
+  type       NotificationType
+  channel    NotificationChannel
+
+  recipient String // phone, email, or userId
+  title     String
+  body      String
+
+  isRead   Boolean @default(false)
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notification_logs")
+}
+
+// ============================================================================
+// STOREFRONT
+// ============================================================================
+
+/// Per-merchant storefront configuration (1-to-1 with Merchant)
+model StorefrontSettings {
+  id         String @id @default(cuid())
+  merchantId String @unique
+
+  theme       Json?   // { primaryColor, accentColor, layout, ... }
+  bannerImage String?
+  welcomeText String?
+
+  isOpen Boolean @default(true)
+
+  minimumOrderAmount Decimal @default(0) @db.Decimal(10, 2)
+
+  deliveryEnabled Boolean @default(true)
+  pickupEnabled   Boolean @default(true)
+
+  workingHours Json? // { sunday: { open: "09:00", close: "22:00" }, ... }
+  socialLinks  Json? // { facebook, instagram, twitter, whatsapp }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@map("storefront_settings")
+}
+
+// ============================================================================
+// FINANCE — Commission Plans, Transactions, Settlements, Delivery Zones
+// ============================================================================
+
+enum CommissionType {
+  PERCENTAGE
+  FLAT_FEE
+  HYBRID
+  SUBSCRIPTION
+}
+
+enum TransactionType {
+  COMMISSION
+  SUBSCRIPTION_FEE
+  DELIVERY_FEE
+  ADJUSTMENT
+  REFUND
+  SETTLEMENT_PAYOUT
+}
+
+enum TransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+enum SettlementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Commission plan defines how a distributor charges merchants
+model CommissionPlan {
+  id            String         @id @default(cuid())
+  distributorId String
+  name          String
+  description   String?
+  type          CommissionType
+  rate          Decimal        @db.Decimal(5, 2)
+  minFee        Decimal        @default(0) @db.Decimal(10, 2)
+  currency      String         @default("SDG")
+  isDefault     Boolean        @default(false)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  merchants   Merchant[]
+
+  @@index([distributorId])
+  @@map("commission_plans")
+}
+
+/// Immutable financial transaction log (distributor-scoped)
+model FinancialTransaction {
+  id            String               @id @default(cuid())
+  distributorId String
+  merchantId    String?
+  orderId       String?
+  settlementId  String?
+
+  type      TransactionType
+  direction TransactionDirection
+  amount    Decimal              @db.Decimal(10, 2)
+  currency  String               @default("SDG")
+
+  description String?
+  reference   String?
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  merchant    Merchant?   @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  settlement  Settlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+
+  @@index([distributorId])
+  @@index([merchantId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("financial_transactions")
+}
+
+/// Settlement batch — summarises a merchant's payable balance for a period
+model Settlement {
+  id            String           @id @default(cuid())
+  distributorId String
+  merchantId    String
+  status        SettlementStatus @default(PENDING)
+  totalOrders   Int              @default(0)
+  grossAmount   Decimal          @db.Decimal(10, 2)
+  commission    Decimal          @db.Decimal(10, 2)
+  fees          Decimal          @default(0) @db.Decimal(10, 2)
+  netAmount     Decimal          @db.Decimal(10, 2)
+  currency      String           @default("SDG")
+  periodFrom    DateTime
+  periodTo      DateTime
+  notes         String?
+  paidAt        DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  distributor  Distributor            @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  merchant     Merchant               @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  transactions FinancialTransaction[]
+
+  @@index([distributorId])
+  @@index([merchantId])
+  @@index([status])
+  @@map("settlements")
+}
+
+/// Delivery zone with pricing — used for last-mile fee calculation
+model DeliveryZone {
+  id            String   @id @default(cuid())
+  distributorId String
+  name          String
+  description   String?
+  baseFee       Decimal  @db.Decimal(10, 2)
+  perKmFee      Decimal  @default(0) @db.Decimal(10, 2)
+  maxDistanceKm Float?
+  estimatedTime String?
+  currency      String   @default("SDG")
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId])
+  @@map("delivery_zones")
+}
+
+// ============================================================================
+// DRIVERS — Driver Management & Real-time Tracking
+// ============================================================================
+
+enum DriverStatus {
+  OFFLINE
+  ONLINE
+  BUSY
+  ON_BREAK
+}
+
+enum VehicleType {
+  MOTORCYCLE
+  CAR
+  BICYCLE
+  VAN
+}
+
+model Driver {
+  id              String       @id @default(cuid())
+  distributorId   String
+  name            String
+  phone           String
+  nationalId      String?
+  photo           String?
+  vehicleType     VehicleType  @default(MOTORCYCLE)
+  vehiclePlate    String?
+  status          DriverStatus @default(OFFLINE)
+  isActive        Boolean      @default(true)
+  isVerified      Boolean      @default(false)
+  rating          Decimal      @default(5.0) @db.Decimal(3, 2)
+  totalDeliveries Int          @default(0)
+  currentLat      Float?
+  currentLng      Float?
+  lastSeenAt      DateTime?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  distributor  Distributor         @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  assignments  DriverAssignment[]
+  locationLogs DriverLocationLog[]
+  earnings     DriverEarning[]
+
+  @@unique([distributorId, phone])
+  @@index([distributorId])
+  @@index([status])
+  @@map("drivers")
+}
+
+model DriverAssignment {
+  id          String    @id @default(cuid())
+  driverId    String
+  orderId     String    @unique
+  assignedAt  DateTime  @default(now())
+  acceptedAt  DateTime?
+  pickedUpAt  DateTime?
+  deliveredAt DateTime?
+  notes       String?
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([orderId])
+  @@map("driver_assignments")
+}
+
+model DriverLocationLog {
+  id        String   @id @default(cuid())
+  driverId  String
+  lat       Float
+  lng       Float
+  speed     Float?
+  bearing   Float?
+  accuracy  Float?
+  timestamp DateTime @default(now())
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, timestamp])
+  @@map("driver_location_logs")
+}
+
+model DriverEarning {
+  id          String   @id @default(cuid())
+  driverId    String
+  orderId     String?
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @default("SDG")
+  type        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@map("driver_earnings")
+}
+
+model ProofOfDelivery {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  driverId      String
+  photoUrl      String?
+  recipientName String?
+  notes         String?
+  deliveredAt   DateTime @default(now())
+  lat           Float?
+  lng           Float?
+
+  @@map("proof_of_deliveries")
+}
+
+// ============================================================================
+// CRM MODELS
+// ============================================================================
+
+model PromoCode {
+  id             String    @id @default(cuid())
+  merchantId     String
+  code           String
+  type           PromoType
+  value          Decimal   @db.Decimal(10, 2)
+  minOrderAmount Decimal?  @db.Decimal(10, 2)
+  maxDiscount    Decimal?  @db.Decimal(10, 2)
+  usageLimit     Int?
+  usageCount     Int       @default(0)
+  isActive       Boolean   @default(true)
+  startsAt       DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, code])
+  @@index([merchantId])
+  @@map("promo_codes")
+}
+
+model LoyaltyAccount {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  merchantId String
+  points     Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer     Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@index([merchantId])
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyTransaction {
+  id               String   @id @default(cuid())
+  loyaltyAccountId String
+  orderId          String?
+  points           Int
+  type             String
+  description      String?
+  createdAt        DateTime @default(now())
+
+  account LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id], onDelete: Cascade)
+
+  @@index([loyaltyAccountId])
+  @@map("loyalty_transactions")
+}
+
+model LoyaltyConfig {
+  id                  String   @id @default(cuid())
+  merchantId          String   @unique
+  isEnabled           Boolean  @default(false)
+  pointsPerOrder      Int      @default(10)
+  pointsPerSDG        Decimal  @default(1) @db.Decimal(10, 2)
+  redemptionThreshold Int      @default(100)
+  redemptionValueSDG  Decimal  @default(5) @db.Decimal(10, 2)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty_configs")
+}
