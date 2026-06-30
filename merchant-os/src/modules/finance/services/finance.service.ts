@@ -173,3 +173,17 @@ export async function getFinanceSummary(distributorId: string) {
 export async function getMerchantFinanceSummaries(distributorId: string) {
   return financeRepo.getMerchantFinanceSummaries(distributorId);
 }
+
+// ── Merchant-Facing Finance ───────────────────────────────────────────────────
+
+export async function getMerchantFinanceOverview(merchantId: string) {
+  return financeRepo.getMerchantFinanceOverview(merchantId);
+}
+
+export async function getMerchantTransactions(merchantId: string, filters: FinanceFilterInput) {
+  return financeRepo.findMerchantTransactions(merchantId, filters);
+}
+
+export async function getMerchantSettlements(merchantId: string, filters: FinanceFilterInput) {
+  return financeRepo.findMerchantSettlements(merchantId, filters);
+}

@@ -1,0 +1,68 @@
+{
+  "@@locale": "ar",
+  "appName": "وصلك",
+
+  "loginTitle": "تسجيل الدخول",
+  "loginSubtitle": "أهلاً بك مجدداً في عائلة وصلك",
+  "phoneNumber": "رقم الهاتف",
+  "password": "كلمة المرور",
+  "forgotPassword": "نسيت كلمة المرور؟",
+  "loginButton": "دخول",
+  "noAccount": "لا تمتلك حساباً؟",
+  "createNewAccount": "إنشاء حساب جديد",
+
+  "welcomeBack": "أهلاً بك، {name}",
+  "@welcomeBack": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "welcomeMessage": "أهلاً بك مجدداً",
+  "searchHint": "ابحث عن مطعم أو وجبة...",
+  "categories": "التصنيفات",
+  "featuredStores": "المتاجر المتميزة",
+  "seeAll": "عرض الكل",
+  "allStores": "كل المتاجر",
+
+  "orderHistory": "تاريخ الطلبات",
+  "orderStatus": "حالة الطلب",
+  "trackOrder": "تتبع الطلب",
+  "ongoingOrders": "طلبات جارية",
+  "completedOrders": "طلبات مكتملة",
+  "orderReceived": "تم استلام الطلب",
+  "orderPreparing": "جاري التجهيز",
+  "outForDelivery": "المندوب في الطريق",
+  "orderDelivered": "تم التوصيل بنجاح",
+  "orderCancelled": "تم إلغاء الطلب",
+  "myOrders": "طلباتي",
+
+  "yourWallet": "محفظتي",
+  "currentBalance": "الرصيد الحالي",
+  "topUp": "شحن الرصيد",
+  "transactions": "العمليات الأخيرة",
+  "noTransactions": "لا يوجد عمليات سابقة",
+  "transactionHistory": "سجل العمليات",
+  "viewAll": "عرض الكل",
+
+  "cart": "سلة التسوق",
+  "myCart": "سلتي",
+  "emptyCart": "السلة فارغة، أضف بعض الوجبات!",
+  "subtotal": "المجموع الفرعي",
+  "deliveryFee": "رسوم التوصيل",
+  "total": "الإجمالي",
+  "checkout": "إتمام الطلب",
+  "promoCode": "كود الخصم",
+  "apply": "تطبيق",
+  "deliveryAddress": "عنوان التوصيل",
+  "paymentMethod": "طريقة الدفع",
+  "totalProducts": "إجمالي المنتجات",
+  "totalAmount": "المبلغ الإجمالي",
+
+  "profile": "الملف الشخصي",
+  "settings": "الإعدادات",
+  "helpSupport": "الدعم والمساندة",
+  "chatWithSupport": "تحدث مع الدعم",
+  "language": "اللغة",
+  "logout": "تسجيل الخروج"
+}
+

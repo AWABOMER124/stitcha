@@ -148,3 +148,27 @@ export async function getPendingDispatchOrders(distributorId: string) {
     orderBy: { createdAt: 'asc' },
   });
 }
+
+export async function getDriverEarnings(driverId: string, page: number, limit: number) {
+  const skip = (page - 1) * limit;
+
+  const [data, total, agg] = await Promise.all([
+    prisma.driverEarning.findMany({
+      where: { driverId },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.driverEarning.count({ where: { driverId } }),
+    prisma.driverEarning.aggregate({
+      where: { driverId },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  return {
+    data,
+    total: Number(agg._sum.amount ?? 0),
+    pagination: { page, limit, count: total, totalPages: Math.ceil(total / limit) },
+  };
+}

@@ -105,3 +105,17 @@ export async function getPendingDispatchAction(): Promise<ActionResult<unknown[]
     return { success: false, error: e instanceof Error ? e.message : 'Failed' };
   }
 }
+
+export async function getDriverEarningsAction(
+  driverId: string,
+  page = 1,
+  limit = 30,
+): Promise<ActionResult<unknown>> {
+  try {
+    await getDistributorId();
+    const data = await driversService.getDriverEarnings(driverId, page, limit);
+    return { success: true, data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed' };
+  }
+}

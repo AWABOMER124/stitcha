@@ -48,3 +48,7 @@ export async function getStats(distributorId: string) {
 export async function getPendingDispatch(distributorId: string) {
   return repo.getPendingDispatchOrders(distributorId);
 }
+
+export async function getDriverEarnings(driverId: string, page: number, limit: number) {
+  return repo.getDriverEarnings(driverId, page, limit);
+}

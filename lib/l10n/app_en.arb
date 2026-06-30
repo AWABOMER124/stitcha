@@ -1,0 +1,65 @@
+{
+  "@@locale": "en",
+  "appName": "Wassalk",
+
+  "// Auth": "",
+  "loginTitle": "Login",
+  "loginSubtitle": "Welcome back to Wassalk family",
+  "phoneNumber": "Phone Number",
+  "password": "Password",
+  "forgotPassword": "Forgot Password?",
+  "loginButton": "Login",
+  "noAccount": "Don't have an account?",
+  "createNewAccount": "Create new account",
+
+  "// Home": "",
+  "welcomeBack": "Welcome back, {name}",
+  "@welcomeBack": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "searchHint": "Search for restaurant or dish...",
+  "categories": "Categories",
+  "featuredStores": "Featured Stores",
+  "seeAll": "See All",
+  "allStores": "All Stores",
+
+  "// Orders": "",
+  "orderHistory": "Order History",
+  "orderStatus": "Order Status",
+  "trackOrder": "Track Order",
+  "ongoingOrders": "Ongoing Orders",
+  "completedOrders": "Completed Orders",
+  "orderReceived": "Order Received",
+  "orderPreparing": "Preparing Order",
+  "outForDelivery": "Out for Delivery",
+  "orderDelivered": "Order Delivered",
+  "orderCancelled": "Order Cancelled",
+
+  "// Wallet": "",
+  "yourWallet": "My Wallet",
+  "currentBalance": "Current Balance",
+  "topUp": "Top Up",
+  "transactions": "Recent Transactions",
+  "noTransactions": "No previous transactions",
+
+  "// Cart & Checkout": "",
+  "cart": "Cart",
+  "emptyCart": "Cart is empty, add some meals!",
+  "subtotal": "Subtotal",
+  "deliveryFee": "Delivery Fee",
+  "total": "Total",
+  "checkout": "Checkout",
+  "promoCode": "Promo Code",
+  "apply": "Apply",
+
+  "// Profile & Support": "",
+  "profile": "Profile",
+  "settings": "Settings",
+  "helpSupport": "Help & Support",
+  "chatWithSupport": "Chat with Support",
+  "language": "Language",
+  "logout": "Logout"
+}
+

@@ -182,3 +182,47 @@ export async function getMerchantFinanceSummariesAction(): Promise<ActionResult<
     return { success: false, error: e instanceof Error ? e.message : 'Failed' };
   }
 }
+
+// ── Merchant-Facing Finance ───────────────────────────────────────────────────
+
+async function getMerchantId(): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.merchantId) redirect('/login');
+  return session.user.merchantId;
+}
+
+export async function getMerchantFinanceOverviewAction(): Promise<ActionResult<unknown>> {
+  try {
+    const merchantId = await getMerchantId();
+    const data = await financeService.getMerchantFinanceOverview(merchantId);
+    return { success: true, data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed' };
+  }
+}
+
+export async function getMerchantTransactionsAction(
+  filters: unknown,
+): Promise<ActionResult<unknown>> {
+  try {
+    const merchantId = await getMerchantId();
+    const parsed = financeFilterSchema.parse(filters);
+    const data = await financeService.getMerchantTransactions(merchantId, parsed);
+    return { success: true, data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed' };
+  }
+}
+
+export async function getMerchantSettlementsAction(
+  filters: unknown,
+): Promise<ActionResult<unknown>> {
+  try {
+    const merchantId = await getMerchantId();
+    const parsed = financeFilterSchema.parse(filters);
+    const data = await financeService.getMerchantSettlements(merchantId, parsed);
+    return { success: true, data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed' };
+  }
+}

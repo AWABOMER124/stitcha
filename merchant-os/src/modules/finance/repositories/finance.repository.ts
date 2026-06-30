@@ -294,3 +294,131 @@ export async function getMerchantFinanceSummaries(distributorId: string) {
     };
   });
 }
+
+// ── Merchant-Facing Finance ───────────────────────────────────────────────────
+
+export async function getMerchantFinanceOverview(merchantId: string) {
+  const [merchant, ordersAgg, ordersThisMonth, settlements, lastSettlement] = await Promise.all([
+    prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: {
+        name: true,
+        currency: true,
+        commissionPlan: {
+          select: { name: true, type: true, rate: true, minFee: true },
+        },
+      },
+    }),
+    prisma.order.aggregate({
+      where: { merchantId, status: 'DELIVERED' },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+    prisma.order.aggregate({
+      where: {
+        merchantId,
+        status: 'DELIVERED',
+        completedAt: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        },
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    }),
+    prisma.settlement.count({ where: { merchantId, status: 'PENDING' } }),
+    prisma.settlement.findFirst({
+      where: { merchantId, status: 'COMPLETED' },
+      orderBy: { paidAt: 'desc' },
+      select: { paidAt: true, netAmount: true, currency: true },
+    }),
+  ]);
+
+  const totalRevenue = Number(ordersAgg._sum.total ?? 0);
+  const totalOrders = ordersAgg._count.id;
+  const monthRevenue = Number(ordersThisMonth._sum.total ?? 0);
+  const monthOrders = ordersThisMonth._count.id;
+
+  const plan = merchant?.commissionPlan;
+  let estimatedCommission = 0;
+  if (plan) {
+    if (plan.type === 'PERCENTAGE') {
+      estimatedCommission = (monthRevenue * Number(plan.rate)) / 100;
+    } else if (plan.type === 'FLAT_FEE') {
+      estimatedCommission = Number(plan.rate) * monthOrders;
+    } else if (plan.type === 'HYBRID') {
+      estimatedCommission = Math.max(
+        (monthRevenue * Number(plan.rate)) / 100,
+        Number(plan.minFee) * monthOrders,
+      );
+    } else if (plan.type === 'SUBSCRIPTION') {
+      estimatedCommission = Number(plan.rate);
+    }
+  }
+
+  return {
+    currency: merchant?.currency ?? 'SDG',
+    commissionPlan: plan
+      ? { name: plan.name, type: plan.type, rate: Number(plan.rate), minFee: Number(plan.minFee) }
+      : null,
+    totalRevenue,
+    totalOrders,
+    monthRevenue,
+    monthOrders,
+    estimatedCommission,
+    estimatedNet: monthRevenue - estimatedCommission,
+    pendingSettlements: settlements,
+    lastSettlement: lastSettlement
+      ? { paidAt: lastSettlement.paidAt, netAmount: Number(lastSettlement.netAmount), currency: lastSettlement.currency }
+      : null,
+  };
+}
+
+export async function findMerchantTransactions(merchantId: string, filters: FinanceFilterInput) {
+  const { page, limit, dateFrom, dateTo, type } = filters;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.FinancialTransactionWhereInput = {
+    merchantId,
+    ...(type && { type: type as Prisma.EnumTransactionTypeFilter }),
+    ...((dateFrom || dateTo) && {
+      createdAt: {
+        ...(dateFrom && { gte: dateFrom }),
+        ...(dateTo && { lte: dateTo }),
+      },
+    }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.financialTransaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.financialTransaction.count({ where }),
+  ]);
+
+  return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+}
+
+export async function findMerchantSettlements(merchantId: string, filters: FinanceFilterInput) {
+  const { page, limit, status } = filters;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.SettlementWhereInput = {
+    merchantId,
+    ...(status && { status: status as Prisma.EnumSettlementStatusFilter }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.settlement.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.settlement.count({ where }),
+  ]);
+
+  return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+}

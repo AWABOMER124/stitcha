@@ -93,6 +93,25 @@ export default async function DriverProfilePage({ params }: { params: Promise<{ 
 
         <div className="lg:col-span-2 space-y-5">
           <DriverProfileClient driver={driver} />
+
+          {/* Finance quick link */}
+          <Link
+            href={`/distributor/drivers/${id}/earnings`}
+            className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 hover:border-[var(--primary)]/40 hover:shadow-sm transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💰</span>
+              <div>
+                <p className="font-semibold text-[var(--foreground)] group-hover:text-[var(--primary)] transition-colors">
+                  الأرباح والمستحقات
+                </p>
+                <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                  عرض سجل مكاسب السائق التفصيلي
+                </p>
+              </div>
+            </div>
+            <span className="text-[var(--muted-foreground)] group-hover:text-[var(--primary)] transition-colors">←</span>
+          </Link>
         </div>
       </div>
     </div>
