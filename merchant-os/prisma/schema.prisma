@@ -56,6 +56,8 @@ enum UserRole {
   CASHIER
   INVENTORY_MANAGER
   DELIVERY_STAFF
+  CUSTOMER_SERVICE
+  FINANCE_AGENT
 }
 
 enum OrderStatus {
@@ -313,6 +315,7 @@ model Merchant {
   settlements        Settlement[]
   promoCodes         PromoCode[]
   loyaltyConfig      LoyaltyConfig?
+  conversations      Conversation[]
 
   @@index([slug])
   @@index([status])
@@ -1180,4 +1183,52 @@ model LoyaltyConfig {
   merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
 
   @@map("loyalty_configs")
+}
+
+// ============================================================================
+// INBOX — Customer conversations
+// ============================================================================
+
+enum InboxChannel {
+  WEB
+  WHATSAPP
+  MESSENGER
+  INSTAGRAM
+}
+
+enum ConvStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+model Conversation {
+  id            String       @id @default(cuid())
+  merchantId    String
+  channel       InboxChannel @default(WEB)
+  customerName  String?
+  customerPhone String?
+  status        ConvStatus   @default(OPEN)
+  assignedToId  String?
+  messages      InboxMessage[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  merchant      Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@index([status])
+  @@map("conversations")
+}
+
+model InboxMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  content        String
+  isFromCustomer Boolean      @default(true)
+  senderName     String?
+  sentAt         DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("inbox_messages")
 }

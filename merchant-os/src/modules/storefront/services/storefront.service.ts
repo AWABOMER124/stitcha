@@ -8,6 +8,11 @@ import { nanoid } from 'nanoid';
  * Storefront service — public-facing operations.
  */
 
+export const getMerchantBySlug = storefrontRepo.getMerchantBySlug;
+export const getCategoriesForStore = storefrontRepo.getCategories;
+export const getProductsForStore = (merchantId: string) =>
+  storefrontRepo.getProducts(merchantId);
+
 /** Get full store data by slug */
 export async function getStoreData(slug: string) {
   const merchant = await storefrontRepo.getMerchantBySlug(slug);

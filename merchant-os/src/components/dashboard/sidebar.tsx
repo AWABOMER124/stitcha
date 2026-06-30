@@ -8,22 +8,28 @@ import { usePathname } from "next/navigation";
  */
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: "📊" },
+  { label: "الرئيسية", href: "/dashboard", icon: "📊" },
   { label: "لوحة التشغيل", href: "/dashboard/fulfillment", icon: "⚡" },
-  { label: "Orders", href: "/dashboard/orders", icon: "📦" },
-  { label: "Products", href: "/dashboard/products", icon: "🛍️" },
-  { label: "Categories", href: "/dashboard/categories", icon: "📂" },
-  { label: "Inventory", href: "/dashboard/inventory", icon: "📋" },
-  { label: "Customers", href: "/dashboard/customers", icon: "👥" },
+  { label: "الطلبات", href: "/dashboard/orders", icon: "📦" },
+  { label: "المنتجات", href: "/dashboard/products", icon: "🛍️" },
+  { label: "الفئات", href: "/dashboard/categories", icon: "📂" },
+  { label: "المخزون", href: "/dashboard/inventory", icon: "📋" },
+  { label: "— المتجر الإلكتروني —", href: "/dashboard/storefront", icon: "🌐", section: true },
+  { label: "إعدادات المتجر", href: "/dashboard/storefront", icon: "🌐" },
+  { label: "تخصيص الهوية", href: "/dashboard/storefront/customize", icon: "🎨" },
+  { label: "مولّد AI", href: "/dashboard/storefront/ai", icon: "🤖" },
+  { label: "صندوق الوارد", href: "/dashboard/inbox", icon: "💬" },
+  { label: "— إدارة العملاء —", href: "/dashboard/crm", icon: "🎯", section: true },
   { label: "إدارة العملاء (CRM)", href: "/dashboard/crm", icon: "🎯" },
   { label: "أكواد الخصم", href: "/dashboard/crm/promos", icon: "🎟️" },
   { label: "نقاط الولاء", href: "/dashboard/crm/loyalty", icon: "⭐" },
-  { label: "Branches", href: "/dashboard/branches", icon: "🏪" },
-  { label: "Staff", href: "/dashboard/staff", icon: "👤" },
-  { label: "Delivery", href: "/dashboard/delivery", icon: "🚚" },
-  { label: "Reports", href: "/dashboard/reports", icon: "📈" },
-  { label: "Notifications", href: "/dashboard/notifications", icon: "🔔" },
-  { label: "Settings", href: "/dashboard/settings", icon: "⚙️" },
+  { label: "— عمليات —", href: "/dashboard/branches", icon: "🏪", section: true },
+  { label: "الفروع", href: "/dashboard/branches", icon: "🏪" },
+  { label: "الموظفون", href: "/dashboard/staff", icon: "👤" },
+  { label: "التوصيل", href: "/dashboard/delivery", icon: "🚚" },
+  { label: "التقارير", href: "/dashboard/reports", icon: "📈" },
+  { label: "الإشعارات", href: "/dashboard/notifications", icon: "🔔" },
+  { label: "الإعدادات", href: "/dashboard/settings", icon: "⚙️" },
 ];
 
 export function DashboardSidebar() {
@@ -67,11 +73,17 @@ export function DashboardSidebar() {
       <nav className="flex-1 overflow-y-auto p-3">
         <ul className="space-y-1">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || 
+            if ((item as any).section) {
+              return (
+                <li key={item.label} className="pt-3 pb-1 px-2">
+                  <span className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">{item.label}</span>
+                </li>
+              );
+            }
+            const isActive = pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            
             return (
-              <li key={item.href}>
+              <li key={item.href + item.label}>
                 <Link
                   href={item.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${

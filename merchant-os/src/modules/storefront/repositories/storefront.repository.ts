@@ -41,8 +41,13 @@ export async function getProducts(merchantId: string, categoryId?: string, searc
     },
     select: {
       id: true, name: true, slug: true, description: true, images: true,
-      price: true, compareAtPrice: true, isFeatured: true,
+      price: true, compareAtPrice: true, isFeatured: true, categoryId: true,
       category: { select: { id: true, name: true, slug: true } },
+      modifiers: {
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+        select: { id: true, name: true, required: true, minSelections: true, maxSelections: true, options: true },
+      },
     },
     orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
   });
