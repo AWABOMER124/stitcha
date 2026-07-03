@@ -6,6 +6,11 @@ COPY merchant-os/package.json merchant-os/package-lock.json* ./
 RUN npm ci
 
 COPY merchant-os/ .
+
+# prisma.config.ts resolves DATABASE_URL eagerly via env() on every Prisma
+# CLI call, but .env is intentionally excluded from the build context, so
+# `generate`/`build` fail at build time without a live DB — placeholder only.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
