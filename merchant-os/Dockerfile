@@ -6,6 +6,11 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
+
+# prisma.config.ts requires DATABASE_URL to resolve at load time even for
+# `generate`/`build`, which don't need a live connection — .env is excluded
+# from the build context on purpose, so supply a placeholder here.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
