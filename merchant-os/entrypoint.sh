@@ -1,9 +1,12 @@
 #!/bin/sh
 set -e
 
-echo "▶ Marking migrations as applied (idempotent)..."
-npx prisma migrate resolve --applied 20260627000000_add_distributor_and_store_type 2>/dev/null || true
-
+# Fresh database: `migrate deploy` applies 0_init (the full schema baseline).
+#
+# NOTE: If you are deploying against a database whose schema was created with
+# `prisma db push` (no migration history), baseline it ONCE before the first
+# deploy so migrate does not try to re-create existing tables:
+#   npx prisma migrate resolve --applied 0_init
 echo "▶ Running database migrations..."
 npx prisma migrate deploy
 
