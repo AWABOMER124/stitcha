@@ -1,9 +1,22 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth/config";
 
-/**
- * Root page — redirects to dashboard or login
- */
-export default function HomePage() {
-  // TODO: Check auth status and redirect accordingly
-  redirect("/login");
+export default async function HomePage() {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  const role = session.user.role;
+
+  if (role === "PLATFORM_OWNER") {
+    redirect("/admin");
+  }
+
+  if (role === "DISTRIBUTOR_OWNER" || role === "DISTRIBUTOR_ADMIN") {
+    redirect("/distributor/dashboard");
+  }
+
+  redirect("/dashboard");
 }
