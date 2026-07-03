@@ -1,31 +1,67 @@
-/**
- * @module S3Provider
- * @description Stub S3 storage provider — not yet implemented.
- * TODO: Integrate with AWS SDK v3 (@aws-sdk/client-s3).
- */
-
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import * as path from 'path';
 import type { StorageProvider } from '../types';
 
+interface S3Config {
+  bucket: string;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  cdnUrl?: string;
+}
+
 export class S3Provider implements StorageProvider {
-  // TODO: Accept S3 configuration (bucket, region, credentials)
-  // constructor(private config: S3Config) {}
+  private client: S3Client;
+  private bucket: string;
+  private cdnUrl: string;
 
-  async upload(_file: Buffer, _filename: string, _mimeType: string): Promise<string> {
-    // TODO: Implement S3 upload using @aws-sdk/client-s3
-    // 1. Create PutObjectCommand with bucket, key, body, content-type
-    // 2. Send via S3Client
-    // 3. Return the public URL or signed URL
-    throw new Error('S3Provider.upload() is not implemented. Install @aws-sdk/client-s3 and configure credentials.');
+  constructor(config: S3Config) {
+    this.bucket = config.bucket;
+    this.cdnUrl = config.cdnUrl ?? `https://${config.bucket}.s3.${config.region}.amazonaws.com`;
+    this.client = new S3Client({
+      region: config.region,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+    });
   }
 
-  async delete(_path: string): Promise<void> {
-    // TODO: Implement S3 delete using DeleteObjectCommand
-    throw new Error('S3Provider.delete() is not implemented. Install @aws-sdk/client-s3 and configure credentials.');
+  async upload(file: Buffer, filename: string, mimeType: string): Promise<string> {
+    const ext = path.extname(filename) || this.extFromMime(mimeType);
+    const key = `uploads/${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
+
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: file,
+        ContentType: mimeType,
+      })
+    );
+
+    return key;
   }
 
-  getUrl(_path: string): string {
-    // TODO: Return CloudFront or S3 bucket URL
-    // Example: `https://${this.config.bucket}.s3.${this.config.region}.amazonaws.com/${path}`
-    throw new Error('S3Provider.getUrl() is not implemented. Install @aws-sdk/client-s3 and configure credentials.');
+  async delete(key: string): Promise<void> {
+    await this.client.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key })
+    );
+  }
+
+  getUrl(key: string): string {
+    return `${this.cdnUrl}/${key}`;
+  }
+
+  private extFromMime(mimeType: string): string {
+    const map: Record<string, string> = {
+      'image/jpeg': '.jpg',
+      'image/png': '.png',
+      'image/gif': '.gif',
+      'image/webp': '.webp',
+      'image/svg+xml': '.svg',
+      'application/pdf': '.pdf',
+    };
+    return map[mimeType] ?? '';
   }
 }

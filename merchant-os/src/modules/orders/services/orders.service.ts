@@ -125,7 +125,20 @@ export async function createOrder(merchantId: string, data: CreateOrderInput) {
     };
   });
 
-  const deliveryFee = data.deliveryMethod === 'PICKUP' ? 0 : 0; // TODO: calculate delivery fee
+  let deliveryFee = 0;
+  if (data.deliveryMethod !== 'PICKUP') {
+    const merchantRecord = await prisma.merchant.findUnique({
+      where: { id: merchantId },
+      select: { distributorId: true },
+    });
+    if (merchantRecord?.distributorId) {
+      const zone = await prisma.deliveryZone.findFirst({
+        where: { distributorId: merchantRecord.distributorId, isActive: true },
+        orderBy: { sortOrder: 'asc' },
+      });
+      if (zone) deliveryFee = Number(zone.baseFee);
+    }
+  }
   const total = subtotal + deliveryFee;
 
   const order = await ordersRepo.create(merchantId, {
