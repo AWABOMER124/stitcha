@@ -29,7 +29,9 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/session");
         const session = await res.json();
         const role = session?.user?.role as string | undefined;
-        if (role === "DISTRIBUTOR_OWNER" || role === "DISTRIBUTOR_ADMIN") {
+        if (role === "PLATFORM_OWNER") {
+          window.location.href = "/admin";
+        } else if (role === "DISTRIBUTOR_OWNER" || role === "DISTRIBUTOR_ADMIN") {
           window.location.href = "/distributor/dashboard";
         } else {
           window.location.href = "/dashboard";
