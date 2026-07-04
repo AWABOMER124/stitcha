@@ -246,17 +246,40 @@ model Distributor {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users           DistributorUser[]
-  merchants       Merchant[]
-  commissionPlans CommissionPlan[]
-  transactions    FinancialTransaction[]
-  settlements     Settlement[]
-  deliveryZones   DeliveryZone[]
-  drivers         Driver[]
+  users             DistributorUser[]
+  merchants         Merchant[]
+  commissionPlans   CommissionPlan[]
+  transactions      FinancialTransaction[]
+  settlements       Settlement[]
+  deliveryZones     DeliveryZone[]
+  drivers           Driver[]
+  deliveryCompanies DeliveryCompany[]
 
   @@index([slug])
   @@index([status])
   @@map("distributors")
+}
+
+/// External delivery company a distributor can hand off orders to
+/// (as opposed to delivering with the distributor's own Driver fleet).
+model DeliveryCompany {
+  id          String  @id @default(cuid())
+  distributorId String
+  name        String
+  contactName String?
+  phone       String?
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  deliveries  Delivery[]
+  drivers     Driver[]
+  merchants   Merchant[] @relation("MerchantPreferredDeliveryCompany")
+
+  @@index([distributorId])
+  @@map("delivery_companies")
 }
 
 /// Staff members of a distributor
@@ -313,12 +336,16 @@ model Merchant {
   // Finance
   commissionPlanId String?
 
+  // Default external delivery company for this merchant's orders (optional)
+  preferredDeliveryCompanyId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
   distributor        Distributor?        @relation(fields: [distributorId], references: [id], onDelete: SetNull)
   commissionPlan     CommissionPlan?     @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  preferredDeliveryCompany DeliveryCompany? @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
   users              MerchantUser[]
   branches           Branch[]
   products           Product[]
@@ -784,6 +811,10 @@ model Delivery {
   driverName  String?
   driverPhone String?
 
+  // Set when handed off to an external delivery company instead of an
+  // internal Driver — the two are mutually exclusive in practice.
+  deliveryCompanyId String?
+
   estimatedDeliveryAt DateTime?
   deliveredAt         DateTime?
 
@@ -794,7 +825,8 @@ model Delivery {
   updatedAt DateTime @updatedAt
 
   // Relations
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deliveryCompany DeliveryCompany? @relation(fields: [deliveryCompanyId], references: [id], onDelete: SetNull)
 
   @@map("deliveries")
 }
@@ -1038,6 +1070,7 @@ enum VehicleType {
 model Driver {
   id              String       @id @default(cuid())
   distributorId   String
+  deliveryCompanyId String?
   name            String
   phone           String
   nationalId      String?
@@ -1056,7 +1089,8 @@ model Driver {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  distributor  Distributor         @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  distributor     Distributor      @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  deliveryCompany DeliveryCompany? @relation(fields: [deliveryCompanyId], references: [id], onDelete: SetNull)
   assignments  DriverAssignment[]
   locationLogs DriverLocationLog[]
   earnings     DriverEarning[]

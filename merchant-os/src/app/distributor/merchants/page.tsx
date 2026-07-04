@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/config';
 import prisma from '@/lib/db/prisma';
 import Link from 'next/link';
+import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
+import { DeliveryCompanySelect, StatusToggle } from './_row-actions';
 
 const STORE_TYPE_LABELS: Record<string, string> = {
   FOOD_MENU: 'Food Menu',
@@ -22,21 +24,27 @@ export default async function DistributorMerchantsPage() {
   const session = await auth();
   if (!session?.user?.distributorId) redirect('/login');
 
-  const merchants = await prisma.merchant.findMany({
-    where: { distributorId: session.user.distributorId },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      storeType: true,
-      status: true,
-      email: true,
-      phone: true,
-      createdAt: true,
-      _count: { select: { orders: true, products: true } },
-    },
-  });
+  const [merchants, companiesRes] = await Promise.all([
+    prisma.merchant.findMany({
+      where: { distributorId: session.user.distributorId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        storeType: true,
+        status: true,
+        email: true,
+        phone: true,
+        createdAt: true,
+        preferredDeliveryCompanyId: true,
+        _count: { select: { orders: true, products: true, branches: true, users: true } },
+      },
+    }),
+    getDeliveryCompaniesAction(),
+  ]);
+
+  const deliveryCompanies = companiesRes.success ? (companiesRes.data as any[]) : [];
 
   return (
     <div className="space-y-6">
@@ -67,46 +75,61 @@ export default async function DistributorMerchantsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)]">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
-                <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Merchant</th>
-                <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Store Type</th>
-                <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Status</th>
-                <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Orders</th>
-                <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Products</th>
-                <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {merchants.map((m) => (
-                <tr key={m.id} className="hover:bg-[var(--muted)]/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-[var(--foreground)]">{m.name}</p>
-                    <p className="text-xs text-[var(--muted-foreground)]">{m.email ?? m.slug}</p>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--muted-foreground)]">
-                    {STORE_TYPE_LABELS[m.storeType] ?? m.storeType}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[m.status] ?? ''}`}>
-                      {m.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right text-[var(--foreground)]">{m._count.orders}</td>
-                  <td className="px-4 py-3 text-right text-[var(--foreground)]">{m._count.products}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/distributor/merchants/${m.id}`}
-                      className="text-xs font-medium text-[var(--primary)] hover:underline"
-                    >
-                      Manage
-                    </Link>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Merchant</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Store Type</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Status</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Branches</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Users</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Orders</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Delivery Co.</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {merchants.map((m) => (
+                  <tr key={m.id} className="hover:bg-[var(--muted)]/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-[var(--foreground)]">{m.name}</p>
+                      <p className="text-xs text-[var(--muted-foreground)]">{m.email ?? m.slug}</p>
+                    </td>
+                    <td className="px-4 py-3 text-[var(--muted-foreground)]">
+                      {STORE_TYPE_LABELS[m.storeType] ?? m.storeType}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[m.status] ?? ''}`}>
+                        {m.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-[var(--foreground)]">{m._count.branches}</td>
+                    <td className="px-4 py-3 text-right text-[var(--foreground)]">{m._count.users}</td>
+                    <td className="px-4 py-3 text-right text-[var(--foreground)]">{m._count.orders}</td>
+                    <td className="px-4 py-3">
+                      <DeliveryCompanySelect
+                        merchantId={m.id}
+                        preferredDeliveryCompanyId={m.preferredDeliveryCompanyId}
+                        deliveryCompanies={deliveryCompanies}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <Link
+                          href={`/distributor/merchants/${m.id}`}
+                          className="text-xs font-medium text-[var(--primary)] hover:underline"
+                        >
+                          Manage
+                        </Link>
+                        <StatusToggle merchantId={m.id} status={m.status} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

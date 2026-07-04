@@ -46,6 +46,30 @@ export async function findByMerchant(merchantId: string) {
   });
 }
 
+/** Find all staff users linked to a distributor */
+export async function findByDistributor(distributorId: string) {
+  return prisma.distributorUser.findMany({
+    where: { distributorId },
+    include: { user: true },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+/** Link a user to a distributor (upsert to handle re-invites) */
+export async function linkToDistributor(
+  userId: string,
+  distributorId: string,
+  role: UserRole,
+  isOwner = false,
+) {
+  return prisma.distributorUser.upsert({
+    where: { userId_distributorId: { userId, distributorId } },
+    create: { userId, distributorId, role, isOwner, isActive: true },
+    update: { role, isActive: true },
+    include: { user: true },
+  });
+}
+
 /** Create a new user with hashed password */
 export async function create(data: CreateUserInput) {
   const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);

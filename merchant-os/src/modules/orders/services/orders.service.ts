@@ -188,3 +188,16 @@ export async function updateOrderStatus(
 export async function getTodayOverview(merchantId: string) {
   return ordersRepo.getTodayStats(merchantId);
 }
+
+/** Orders across every merchant owned by a distributor */
+export async function getOrdersForDistributor(
+  distributorId: string,
+  filters: { tab: ordersRepo.DistributorOrderTab; search?: string; page?: number; limit?: number },
+) {
+  return ordersRepo.findAllForDistributor(distributorId, filters);
+}
+
+/** Assign (or clear) the external delivery company handling an order */
+export async function assignOrderDeliveryCompany(distributorId: string, orderId: string, deliveryCompanyId: string | null) {
+  return ordersRepo.assignOrderDeliveryCompany(distributorId, orderId, deliveryCompanyId);
+}

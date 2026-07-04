@@ -17,9 +17,11 @@ const navItems: NavItem[] = [
   { type: "section", label: "بياناتي" },
   { type: "link", label: "اللوحة العامة", href: "/distributor/dashboard", icon: "📊" },
   { type: "link", label: "التجار", href: "/distributor/merchants", icon: "🏪" },
+  { type: "link", label: "المستخدمون", href: "/distributor/users", icon: "👤" },
   { type: "link", label: "لوحة الإرسال", href: "/distributor/dispatch", icon: "🚀" },
   { type: "divider" },
   { type: "section", label: "الطلبيات والتشغيل" },
+  { type: "link", label: "الطلبيات", href: "/distributor/orders", icon: "📋" },
   { type: "link", label: "الموافقات", href: "/distributor/approvals", icon: "✅" },
   { type: "link", label: "السائقون", href: "/distributor/drivers", icon: "🏍️" },
   {

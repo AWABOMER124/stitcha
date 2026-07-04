@@ -230,3 +230,74 @@ export async function getTodayStats(merchantId: string) {
     pendingOrders: pending,
   };
 }
+
+const ACTIVE_STATUSES: OrderStatus[] = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY'];
+const ARCHIVED_STATUSES: OrderStatus[] = ['DELIVERED', 'CANCELLED', 'REJECTED'];
+
+export type DistributorOrderTab = 'active' | 'archived' | 'all';
+
+/** Orders across every merchant owned by a distributor — the "طلبيات" registry, distinct from per-merchant order lists. */
+export async function findAllForDistributor(
+  distributorId: string,
+  filters: { tab: DistributorOrderTab; search?: string; page?: number; limit?: number },
+) {
+  const { tab, search, page = 1, limit = 20 } = filters;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.OrderWhereInput = {
+    merchant: { distributorId },
+    ...(tab === 'active' && { status: { in: ACTIVE_STATUSES } }),
+    ...(tab === 'archived' && { status: { in: ARCHIVED_STATUSES } }),
+    ...(search && {
+      OR: [
+        { orderNumber: { contains: search, mode: 'insensitive' as const } },
+        { customerName: { contains: search, mode: 'insensitive' as const } },
+        { customerPhone: { contains: search } },
+      ],
+    }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        merchant: { select: { id: true, name: true } },
+        delivery: { include: { deliveryCompany: { select: { id: true, name: true } } } },
+      },
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    data: serializePrismaArray(data),
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+}
+
+/** Assign (or clear) which external delivery company handles a specific order, scoped to the calling distributor. */
+export async function assignOrderDeliveryCompany(
+  distributorId: string,
+  orderId: string,
+  deliveryCompanyId: string | null,
+) {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, merchant: { distributorId } },
+    select: { id: true },
+  });
+  if (!order) throw new Error('Order not found');
+
+  if (deliveryCompanyId) {
+    const company = await prisma.deliveryCompany.findFirst({ where: { id: deliveryCompanyId, distributorId } });
+    if (!company) throw new Error('Delivery company not found');
+  }
+
+  const delivery = await prisma.delivery.upsert({
+    where: { orderId },
+    create: { orderId, type: 'EXTERNAL_DELIVERY', deliveryCompanyId },
+    update: { deliveryCompanyId },
+  });
+  return serializePrismaObject(delivery);
+}

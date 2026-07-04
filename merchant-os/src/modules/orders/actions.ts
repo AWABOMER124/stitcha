@@ -1,10 +1,21 @@
 'use server';
 
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth/config';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import * as ordersService from './services/orders.service';
 import { createOrderSchema, updateOrderStatusSchema, orderFilterSchema } from './schemas/orders.schemas';
 import type { ActionResult, PaginatedResult } from '@/lib/types';
 import type { Order, OrderStatus } from '@prisma/client';
+import type { DistributorOrderTab } from './repositories/orders.repository';
+
+async function getDistributorId(): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.distributorId) redirect('/login');
+  const role = session.user.role;
+  if (role !== 'DISTRIBUTOR_OWNER' && role !== 'DISTRIBUTOR_ADMIN') redirect('/dashboard');
+  return session.user.distributorId;
+}
 
 // ============================================================================
 // Orders Module — Server Actions
@@ -79,5 +90,37 @@ export async function getTodayOverviewAction(): Promise<ActionResult<{ totalOrde
     return { success: true, data: overview };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to get today overview' };
+  }
+}
+
+// ============================================================================
+// Distributor-wide order registry — across every merchant the distributor owns
+// ============================================================================
+
+export async function getDistributorOrdersAction(
+  tab: DistributorOrderTab,
+  search?: string,
+  page = 1,
+  limit = 20,
+): Promise<ActionResult<unknown>> {
+  try {
+    const distributorId = await getDistributorId();
+    const data = await ordersService.getOrdersForDistributor(distributorId, { tab, search, page, limit });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to get orders' };
+  }
+}
+
+export async function assignOrderDeliveryCompanyAction(
+  orderId: string,
+  deliveryCompanyId: string | null,
+): Promise<ActionResult<unknown>> {
+  try {
+    const distributorId = await getDistributorId();
+    const data = await ordersService.assignOrderDeliveryCompany(distributorId, orderId, deliveryCompanyId);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to assign delivery company' };
   }
 }
