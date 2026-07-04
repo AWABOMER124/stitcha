@@ -1,19 +1,21 @@
 import prisma from '@/lib/db/prisma';
 import type { CustomerSegment } from '@prisma/client';
 import type { UpdateCustomerInput, CreatePromoCodeInput, UpdateLoyaltyConfigInput } from '../schemas/crm.schemas';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 // ── Customers ─────────────────────────────────────────────────────────────────
 
 export async function findAllCustomers(merchantId: string, segment?: CustomerSegment) {
-  return prisma.customer.findMany({
+  const customers = await prisma.customer.findMany({
     where: { merchantId, ...(segment && { segment }) },
     include: { loyaltyAccount: { select: { points: true } } },
     orderBy: [{ totalOrders: 'desc' }, { createdAt: 'desc' }],
   });
+  return serializePrismaArray(customers);
 }
 
 export async function findCustomerById(merchantId: string, id: string) {
-  return prisma.customer.findFirst({
+  const customer = await prisma.customer.findFirst({
     where: { id, merchantId },
     include: {
       loyaltyAccount: {
@@ -21,10 +23,12 @@ export async function findCustomerById(merchantId: string, id: string) {
       },
     },
   });
+  return serializePrismaObject(customer);
 }
 
 export async function updateCustomer(id: string, data: UpdateCustomerInput) {
-  return prisma.customer.update({ where: { id }, data });
+  const customer = await prisma.customer.update({ where: { id }, data });
+  return serializePrismaObject(customer);
 }
 
 export async function getCustomerStats(merchantId: string) {
@@ -54,31 +58,34 @@ export async function getCustomerStats(merchantId: string) {
 }
 
 export async function getOrdersForCustomer(merchantId: string, customerId: string) {
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     where: { merchantId, customerId },
     orderBy: { createdAt: 'desc' },
     take: 20,
     select: { id: true, orderNumber: true, status: true, total: true, createdAt: true },
   });
+  return serializePrismaArray(orders);
 }
 
 // ── Promo Codes ───────────────────────────────────────────────────────────────
 
 export async function findAllPromoCodes(merchantId: string) {
-  return prisma.promoCode.findMany({
+  const promos = await prisma.promoCode.findMany({
     where: { merchantId },
     orderBy: { createdAt: 'desc' },
   });
+  return serializePrismaArray(promos);
 }
 
 export async function findPromoByCode(merchantId: string, code: string) {
-  return prisma.promoCode.findUnique({
+  const promo = await prisma.promoCode.findUnique({
     where: { merchantId_code: { merchantId, code: code.toUpperCase() } },
   });
+  return serializePrismaObject(promo);
 }
 
 export async function createPromoCode(merchantId: string, data: CreatePromoCodeInput) {
-  return prisma.promoCode.create({
+  const promo = await prisma.promoCode.create({
     data: {
       ...data,
       merchantId,
@@ -87,14 +94,19 @@ export async function createPromoCode(merchantId: string, data: CreatePromoCodeI
       expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
     },
   });
+  return serializePrismaObject(promo);
 }
 
-export async function togglePromoCode(id: string, isActive: boolean) {
-  return prisma.promoCode.update({ where: { id }, data: { isActive } });
+export async function togglePromoCode(merchantId: string, id: string, isActive: boolean) {
+  const result = await prisma.promoCode.updateMany({ where: { id, merchantId }, data: { isActive } });
+  if (result.count === 0) throw new Error('Promo code not found');
+  return result;
 }
 
-export async function deletePromoCode(id: string) {
-  return prisma.promoCode.delete({ where: { id } });
+export async function deletePromoCode(merchantId: string, id: string) {
+  const result = await prisma.promoCode.deleteMany({ where: { id, merchantId } });
+  if (result.count === 0) throw new Error('Promo code not found');
+  return result;
 }
 
 export async function validatePromoCode(merchantId: string, code: string, orderAmount: number) {
@@ -121,15 +133,17 @@ export async function validatePromoCode(merchantId: string, code: string, orderA
 // ── Loyalty ───────────────────────────────────────────────────────────────────
 
 export async function getLoyaltyConfig(merchantId: string) {
-  return prisma.loyaltyConfig.findUnique({ where: { merchantId } });
+  const config = await prisma.loyaltyConfig.findUnique({ where: { merchantId } });
+  return serializePrismaObject(config);
 }
 
 export async function upsertLoyaltyConfig(merchantId: string, data: UpdateLoyaltyConfigInput) {
-  return prisma.loyaltyConfig.upsert({
+  const config = await prisma.loyaltyConfig.upsert({
     where: { merchantId },
     create: { merchantId, ...data },
     update: data,
   });
+  return serializePrismaObject(config);
 }
 
 export async function addLoyaltyPoints(customerId: string, merchantId: string, points: number, orderId?: string) {

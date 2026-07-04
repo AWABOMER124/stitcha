@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import type { Order, OrderStatus, Prisma, DeliveryMethod, PaymentMethod } from '@prisma/client';
 import type { OrderFilterInput } from '../schemas/orders.schemas';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 // ============================================================================
 // Orders Repository — Data access layer
@@ -17,18 +18,20 @@ const orderIncludes = {
 
 /** Find an order by ID with all relations */
 export async function findById(merchantId: string, id: string) {
-  return prisma.order.findFirst({
+  const order = await prisma.order.findFirst({
     where: { id, merchantId },
     include: orderIncludes,
   });
+  return serializePrismaObject(order);
 }
 
 /** Find an order by order number */
 export async function findByOrderNumber(merchantId: string, orderNumber: string) {
-  return prisma.order.findFirst({
+  const order = await prisma.order.findFirst({
     where: { merchantId, orderNumber },
     include: orderIncludes,
   });
+  return serializePrismaObject(order);
 }
 
 /** Find all orders with pagination and filters */
@@ -73,7 +76,7 @@ export async function findAll(merchantId: string, filters: OrderFilterInput) {
   ]);
 
   return {
-    data,
+    data: serializePrismaArray(data),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 }
@@ -105,7 +108,7 @@ export async function create(
     }[];
   }
 ) {
-  return prisma.order.create({
+  const order = await prisma.order.create({
     data: {
       merchantId,
       orderNumber: data.orderNumber,
@@ -155,6 +158,7 @@ export async function create(
     },
     include: orderIncludes,
   });
+  return serializePrismaObject(order);
 }
 
 /** Update order status and add history entry */
@@ -183,7 +187,7 @@ export async function updateStatus(
       },
     });
 
-    return order;
+    return serializePrismaObject(order);
   });
 }
 
@@ -222,7 +226,7 @@ export async function getTodayStats(merchantId: string) {
 
   return {
     totalOrders,
-    revenue: revenue._sum.total ?? 0,
+    revenue: Number(revenue._sum.total ?? 0),
     pendingOrders: pending,
   };
 }

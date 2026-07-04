@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError } from '@/lib/errors';
 import * as storefrontRepo from '../repositories/storefront.repository';
 import type { PlaceOrderInput } from '../schemas/storefront.schemas';
 import { nanoid } from 'nanoid';
+import { serializePrismaObject } from '@/lib/serialization';
 
 /**
  * Storefront service — public-facing operations.
@@ -150,5 +151,5 @@ export async function getOrderStatus(orderId: string) {
     },
   });
   if (!order) throw new NotFoundError('Order');
-  return order;
+  return serializePrismaObject(order);
 }

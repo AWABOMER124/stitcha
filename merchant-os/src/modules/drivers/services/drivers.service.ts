@@ -18,12 +18,12 @@ export async function createDriver(distributorId: string, input: CreateDriverInp
 
 export async function updateDriver(distributorId: string, id: string, input: UpdateDriverInput) {
   await getDriver(distributorId, id);
-  return repo.updateDriver(id, input);
+  return repo.updateDriver(distributorId, id, input);
 }
 
 export async function deleteDriver(distributorId: string, id: string) {
   await getDriver(distributorId, id);
-  return repo.deleteDriver(id);
+  return repo.deleteDriver(distributorId, id);
 }
 
 export async function getOnlineDrivers(distributorId: string) {

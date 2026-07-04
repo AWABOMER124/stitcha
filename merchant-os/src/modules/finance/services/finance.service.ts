@@ -45,7 +45,7 @@ export async function deleteCommissionPlan(distributorId: string, id: string) {
   if (plan.merchants.length > 0) {
     throw new Error(`Cannot delete plan with ${plan.merchants.length} assigned merchant(s)`);
   }
-  return financeRepo.deleteCommissionPlan(id);
+  return financeRepo.deleteCommissionPlan(distributorId, id);
 }
 
 export async function assignCommissionPlan(
@@ -132,7 +132,7 @@ export async function markSettlementPaid(distributorId: string, id: string) {
   const settlement = await financeRepo.findSettlementById(distributorId, id);
   if (!settlement) throw new NotFoundError('Settlement not found');
   if (settlement.status === 'COMPLETED') throw new Error('Settlement already completed');
-  return financeRepo.updateSettlementStatus(id, 'COMPLETED', new Date());
+  return financeRepo.updateSettlementStatus(distributorId, id, 'COMPLETED', new Date());
 }
 
 // ── Delivery Zones ────────────────────────────────────────────────────────────
@@ -155,13 +155,13 @@ export async function updateDeliveryZone(
 ) {
   const zone = await prisma.deliveryZone.findFirst({ where: { id, distributorId } });
   if (!zone) throw new NotFoundError('Delivery zone not found');
-  return financeRepo.updateDeliveryZone(id, input);
+  return financeRepo.updateDeliveryZone(distributorId, id, input);
 }
 
 export async function deleteDeliveryZone(distributorId: string, id: string) {
   const zone = await prisma.deliveryZone.findFirst({ where: { id, distributorId } });
   if (!zone) throw new NotFoundError('Delivery zone not found');
-  return financeRepo.deleteDeliveryZone(id);
+  return financeRepo.deleteDeliveryZone(distributorId, id);
 }
 
 // ── Finance Overview ──────────────────────────────────────────────────────────

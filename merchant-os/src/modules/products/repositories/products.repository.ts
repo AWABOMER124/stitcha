@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import type { Product, Prisma } from '@prisma/client';
 import type { CreateProductInput, UpdateProductInput, ProductFilterInput } from '../schemas/products.schemas';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 // ============================================================================
 // Products Repository — Data access layer
@@ -10,20 +11,22 @@ import type { CreateProductInput, UpdateProductInput, ProductFilterInput } from 
  * Find a product by ID, scoped to a merchant.
  */
 export async function findById(merchantId: string, id: string): Promise<Product | null> {
-  return prisma.product.findFirst({
+  const product = await prisma.product.findFirst({
     where: { id, merchantId },
     include: { category: true, modifiers: true },
   });
+  return serializePrismaObject(product);
 }
 
 /**
  * Find a product by slug, scoped to a merchant.
  */
 export async function findBySlug(merchantId: string, slug: string): Promise<Product | null> {
-  return prisma.product.findFirst({
+  const product = await prisma.product.findFirst({
     where: { merchantId, slug },
     include: { category: true, modifiers: true },
   });
+  return serializePrismaObject(product);
 }
 
 /**
@@ -59,7 +62,7 @@ export async function findAll(merchantId: string, filters: ProductFilterInput) {
   ]);
 
   return {
-    data,
+    data: serializePrismaArray(data),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 }
@@ -68,17 +71,18 @@ export async function findAll(merchantId: string, filters: ProductFilterInput) {
  * Find all products in a specific category.
  */
 export async function findByCategory(merchantId: string, categoryId: string): Promise<Product[]> {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { merchantId, categoryId, isActive: true },
     orderBy: { sortOrder: 'asc' },
   });
+  return serializePrismaArray(products);
 }
 
 /**
  * Create a new product with auto-generated slug.
  */
 export async function create(merchantId: string, data: CreateProductInput & { slug: string }): Promise<Product> {
-  return prisma.product.create({
+  const product = await prisma.product.create({
     data: {
       merchantId,
       name: data.name,
@@ -96,27 +100,30 @@ export async function create(merchantId: string, data: CreateProductInput & { sl
     },
     include: { category: true },
   });
+  return serializePrismaObject(product);
 }
 
 /**
  * Update an existing product.
  */
 export async function update(merchantId: string, id: string, data: UpdateProductInput): Promise<Product> {
-  return prisma.product.update({
+  const product = await prisma.product.update({
     where: { id, merchantId },
     data,
     include: { category: true },
   });
+  return serializePrismaObject(product);
 }
 
 /**
  * Soft-delete a product (set isActive = false).
  */
 export async function softDelete(merchantId: string, id: string): Promise<Product> {
-  return prisma.product.update({
+  const product = await prisma.product.update({
     where: { id, merchantId },
     data: { isActive: false },
   });
+  return serializePrismaObject(product);
 }
 
 /**

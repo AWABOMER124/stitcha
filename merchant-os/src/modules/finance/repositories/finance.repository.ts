@@ -7,22 +7,25 @@ import type {
   UpdateDeliveryZoneInput,
   FinanceFilterInput,
 } from '../schemas/finance.schemas';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 // ── Commission Plans ──────────────────────────────────────────────────────────
 
 export async function findAllCommissionPlans(distributorId: string) {
-  return prisma.commissionPlan.findMany({
+  const plans = await prisma.commissionPlan.findMany({
     where: { distributorId },
     include: { _count: { select: { merchants: true } } },
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
   });
+  return serializePrismaArray(plans);
 }
 
 export async function findCommissionPlanById(distributorId: string, id: string) {
-  return prisma.commissionPlan.findFirst({
+  const plan = await prisma.commissionPlan.findFirst({
     where: { id, distributorId },
     include: { merchants: { select: { id: true, name: true, status: true } } },
   });
+  return serializePrismaObject(plan);
 }
 
 export async function createCommissionPlan(distributorId: string, data: CreateCommissionPlanInput) {
@@ -32,9 +35,10 @@ export async function createCommissionPlan(distributorId: string, data: CreateCo
       data: { isDefault: false },
     });
   }
-  return prisma.commissionPlan.create({
+  const plan = await prisma.commissionPlan.create({
     data: { ...data, distributorId },
   });
+  return serializePrismaObject(plan);
 }
 
 export async function updateCommissionPlan(
@@ -48,11 +52,16 @@ export async function updateCommissionPlan(
       data: { isDefault: false },
     });
   }
-  return prisma.commissionPlan.update({ where: { id }, data });
+  const result = await prisma.commissionPlan.updateMany({ where: { id, distributorId }, data });
+  if (result.count === 0) throw new Error('Commission plan not found');
+  const plan = await prisma.commissionPlan.findUnique({ where: { id } });
+  return serializePrismaObject(plan);
 }
 
-export async function deleteCommissionPlan(id: string) {
-  return prisma.commissionPlan.delete({ where: { id } });
+export async function deleteCommissionPlan(distributorId: string, id: string) {
+  const result = await prisma.commissionPlan.deleteMany({ where: { id, distributorId } });
+  if (result.count === 0) throw new Error('Commission plan not found');
+  return result;
 }
 
 export async function assignCommissionPlanToMerchant(merchantId: string, planId: string | null) {
@@ -91,7 +100,7 @@ export async function findAllTransactions(distributorId: string, filters: Financ
     prisma.financialTransaction.count({ where }),
   ]);
 
-  return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return { data: serializePrismaArray(data), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 
 // ── Settlements ───────────────────────────────────────────────────────────────
@@ -120,17 +129,18 @@ export async function findAllSettlements(distributorId: string, filters: Finance
     prisma.settlement.count({ where }),
   ]);
 
-  return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return { data: serializePrismaArray(data), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 
 export async function findSettlementById(distributorId: string, id: string) {
-  return prisma.settlement.findFirst({
+  const settlement = await prisma.settlement.findFirst({
     where: { id, distributorId },
     include: {
       merchant: true,
       transactions: { orderBy: { createdAt: 'desc' } },
     },
   });
+  return serializePrismaObject(settlement);
 }
 
 export async function createSettlement(
@@ -148,7 +158,7 @@ export async function createSettlement(
     currency: string;
   },
 ) {
-  return prisma.settlement.create({
+  const settlement = await prisma.settlement.create({
     data: {
       distributorId,
       merchantId: data.merchantId,
@@ -164,37 +174,53 @@ export async function createSettlement(
     },
     include: { merchant: { select: { id: true, name: true } } },
   });
+  return serializePrismaObject(settlement);
 }
 
-export async function updateSettlementStatus(id: string, status: SettlementStatus, paidAt?: Date) {
-  return prisma.settlement.update({
-    where: { id },
+export async function updateSettlementStatus(
+  distributorId: string,
+  id: string,
+  status: SettlementStatus,
+  paidAt?: Date,
+) {
+  const result = await prisma.settlement.updateMany({
+    where: { id, distributorId },
     data: {
       status,
       ...(paidAt && { paidAt }),
     },
   });
+  if (result.count === 0) throw new Error('Settlement not found');
+  const settlement = await prisma.settlement.findUnique({ where: { id } });
+  return serializePrismaObject(settlement);
 }
 
 // ── Delivery Zones ────────────────────────────────────────────────────────────
 
 export async function findAllDeliveryZones(distributorId: string) {
-  return prisma.deliveryZone.findMany({
+  const zones = await prisma.deliveryZone.findMany({
     where: { distributorId },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
+  return serializePrismaArray(zones);
 }
 
 export async function createDeliveryZone(distributorId: string, data: CreateDeliveryZoneInput) {
-  return prisma.deliveryZone.create({ data: { ...data, distributorId } });
+  const zone = await prisma.deliveryZone.create({ data: { ...data, distributorId } });
+  return serializePrismaObject(zone);
 }
 
-export async function updateDeliveryZone(id: string, data: UpdateDeliveryZoneInput) {
-  return prisma.deliveryZone.update({ where: { id }, data });
+export async function updateDeliveryZone(distributorId: string, id: string, data: UpdateDeliveryZoneInput) {
+  const result = await prisma.deliveryZone.updateMany({ where: { id, distributorId }, data });
+  if (result.count === 0) throw new Error('Delivery zone not found');
+  const zone = await prisma.deliveryZone.findUnique({ where: { id } });
+  return serializePrismaObject(zone);
 }
 
-export async function deleteDeliveryZone(id: string) {
-  return prisma.deliveryZone.delete({ where: { id } });
+export async function deleteDeliveryZone(distributorId: string, id: string) {
+  const result = await prisma.deliveryZone.deleteMany({ where: { id, distributorId } });
+  if (result.count === 0) throw new Error('Delivery zone not found');
+  return result;
 }
 
 // ── Finance Summary ───────────────────────────────────────────────────────────
@@ -398,7 +424,7 @@ export async function findMerchantTransactions(merchantId: string, filters: Fina
     prisma.financialTransaction.count({ where }),
   ]);
 
-  return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return { data: serializePrismaArray(data), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }
 
 export async function findMerchantSettlements(merchantId: string, filters: FinanceFilterInput) {
@@ -420,5 +446,5 @@ export async function findMerchantSettlements(merchantId: string, filters: Finan
     prisma.settlement.count({ where }),
   ]);
 
-  return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return { data: serializePrismaArray(data), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
 }

@@ -1,4 +1,5 @@
 import prisma from '@/lib/db/prisma';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 /**
  * Storefront repository — public-facing data access, no auth required.
@@ -27,7 +28,7 @@ export async function getCategories(merchantId: string) {
 }
 
 export async function getProducts(merchantId: string, categoryId?: string, search?: string) {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       merchantId,
       isActive: true,
@@ -51,16 +52,18 @@ export async function getProducts(merchantId: string, categoryId?: string, searc
     },
     orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
   });
+  return serializePrismaArray(products);
 }
 
 export async function getProduct(merchantId: string, productSlug: string) {
-  return prisma.product.findFirst({
+  const product = await prisma.product.findFirst({
     where: { merchantId, slug: productSlug, isActive: true },
     include: {
       category: { select: { id: true, name: true, slug: true } },
       modifiers: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
     },
   });
+  return serializePrismaObject(product);
 }
 
 export async function getStorefrontSettings(merchantId: string) {

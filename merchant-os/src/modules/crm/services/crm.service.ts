@@ -35,12 +35,12 @@ export async function createPromoCode(merchantId: string, input: CreatePromoCode
   return repo.createPromoCode(merchantId, input);
 }
 
-export async function togglePromoCode(id: string, isActive: boolean) {
-  return repo.togglePromoCode(id, isActive);
+export async function togglePromoCode(merchantId: string, id: string, isActive: boolean) {
+  return repo.togglePromoCode(merchantId, id, isActive);
 }
 
-export async function deletePromoCode(id: string) {
-  return repo.deletePromoCode(id);
+export async function deletePromoCode(merchantId: string, id: string) {
+  return repo.deletePromoCode(merchantId, id);
 }
 
 export async function validatePromo(merchantId: string, code: string, orderAmount: number) {

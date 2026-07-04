@@ -1,8 +1,9 @@
 import prisma from '@/lib/db/prisma';
 import type { CreateDriverInput, UpdateDriverInput, AssignDriverInput, UpdateLocationInput } from '../schemas/drivers.schemas';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 export async function findAllDrivers(distributorId: string) {
-  return prisma.driver.findMany({
+  const drivers = await prisma.driver.findMany({
     where: { distributorId },
     include: {
       _count: { select: { assignments: true } },
@@ -14,10 +15,11 @@ export async function findAllDrivers(distributorId: string) {
     },
     orderBy: [{ status: 'asc' }, { name: 'asc' }],
   });
+  return serializePrismaArray(drivers);
 }
 
 export async function findDriverById(distributorId: string, id: string) {
-  return prisma.driver.findFirst({
+  const driver = await prisma.driver.findFirst({
     where: { id, distributorId },
     include: {
       assignments: {
@@ -35,24 +37,31 @@ export async function findDriverById(distributorId: string, id: string) {
       _count: { select: { assignments: true } },
     },
   });
+  return serializePrismaObject(driver);
 }
 
 export async function createDriver(distributorId: string, data: CreateDriverInput) {
-  return prisma.driver.create({
+  const driver = await prisma.driver.create({
     data: { ...data, distributorId },
   });
+  return serializePrismaObject(driver);
 }
 
-export async function updateDriver(id: string, data: UpdateDriverInput) {
-  return prisma.driver.update({ where: { id }, data });
+export async function updateDriver(distributorId: string, id: string, data: UpdateDriverInput) {
+  const result = await prisma.driver.updateMany({ where: { id, distributorId }, data });
+  if (result.count === 0) throw new Error('Driver not found');
+  const driver = await prisma.driver.findUnique({ where: { id } });
+  return serializePrismaObject(driver);
 }
 
-export async function deleteDriver(id: string) {
-  return prisma.driver.delete({ where: { id } });
+export async function deleteDriver(distributorId: string, id: string) {
+  const result = await prisma.driver.deleteMany({ where: { id, distributorId } });
+  if (result.count === 0) throw new Error('Driver not found');
+  return result;
 }
 
 export async function findOnlineDrivers(distributorId: string) {
-  return prisma.driver.findMany({
+  const drivers = await prisma.driver.findMany({
     where: { distributorId, status: 'ONLINE', isActive: true },
     select: {
       id: true,
@@ -71,6 +80,7 @@ export async function findOnlineDrivers(distributorId: string) {
       },
     },
   });
+  return serializePrismaArray(drivers);
 }
 
 export async function assignDriver(data: AssignDriverInput) {
@@ -136,7 +146,7 @@ export async function getPendingDispatchOrders(distributorId: string) {
   });
   const merchantIds = merchants.map((m) => m.id);
 
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     where: {
       merchantId: { in: merchantIds },
       status: { in: ['READY', 'OUT_FOR_DELIVERY'] },
@@ -147,6 +157,7 @@ export async function getPendingDispatchOrders(distributorId: string) {
     },
     orderBy: { createdAt: 'asc' },
   });
+  return serializePrismaArray(orders);
 }
 
 export async function getDriverEarnings(driverId: string, page: number, limit: number) {
@@ -167,7 +178,7 @@ export async function getDriverEarnings(driverId: string, page: number, limit: n
   ]);
 
   return {
-    data,
+    data: serializePrismaArray(data),
     total: Number(agg._sum.amount ?? 0),
     pagination: { page, limit, count: total, totalPages: Math.ceil(total / limit) },
   };

@@ -94,8 +94,8 @@ export async function createPromoCodeAction(input: unknown): Promise<ActionResul
 
 export async function togglePromoCodeAction(id: string, isActive: boolean): Promise<ActionResult<unknown>> {
   try {
-    await getMerchantId();
-    const data = await crmService.togglePromoCode(id, isActive);
+    const merchantId = await getMerchantId();
+    const data = await crmService.togglePromoCode(merchantId, id, isActive);
     revalidatePath('/dashboard/crm/promos');
     return { success: true, data };
   } catch (e) {
@@ -105,8 +105,8 @@ export async function togglePromoCodeAction(id: string, isActive: boolean): Prom
 
 export async function deletePromoCodeAction(id: string): Promise<ActionResult<null>> {
   try {
-    await getMerchantId();
-    await crmService.deletePromoCode(id);
+    const merchantId = await getMerchantId();
+    await crmService.deletePromoCode(merchantId, id);
     revalidatePath('/dashboard/crm/promos');
     return { success: true, data: null };
   } catch (e) {
