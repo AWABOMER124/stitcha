@@ -27,9 +27,10 @@ export class S3Provider implements StorageProvider {
     });
   }
 
-  async upload(file: Buffer, filename: string, mimeType: string): Promise<string> {
+  async upload(file: Buffer, filename: string, mimeType: string, scope: string): Promise<string> {
+    const safeScope = scope.replace(/[^a-zA-Z0-9_-]/g, '') || 'shared';
     const ext = path.extname(filename) || this.extFromMime(mimeType);
-    const key = `uploads/${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
+    const key = `uploads/${safeScope}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
 
     await this.client.send(
       new PutObjectCommand({

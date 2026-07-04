@@ -4,6 +4,7 @@
  */
 
 import { AppError } from './app-error';
+import { logger } from '@/lib/logger';
 
 export interface ErrorResponse {
   success: false;
@@ -35,10 +36,9 @@ export function handleError(err: unknown): ErrorResponse {
     };
   }
 
-  // Log unexpected errors in development
-  if (process.env.NODE_ENV === 'development') {
-    console.error('[UnhandledError]', err);
-  }
+  // Unexpected (non-operational) errors are always logged server-side —
+  // the client only ever sees the generic message below.
+  logger.error('Unhandled error in request', err);
 
   return {
     success: false,
@@ -59,9 +59,7 @@ export function handleActionError(err: unknown): ActionErrorResponse {
     return { success: false, error: err.message };
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.error('[ActionError]', err);
-  }
+  logger.error('Unhandled error in server action', err);
 
   return { success: false, error: 'An unexpected error occurred' };
 }

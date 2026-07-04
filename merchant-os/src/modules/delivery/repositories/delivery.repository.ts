@@ -1,5 +1,6 @@
 import prisma from '@/lib/db/prisma';
 import type { DeliveryStatus } from '@prisma/client';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 // ============================================================================
 // Delivery Repository — Data access layer
@@ -20,21 +21,23 @@ const deliveryIncludes = {
 
 /** Find delivery by order ID */
 export async function findByOrder(orderId: string) {
-  return prisma.delivery.findUnique({
+  const delivery = await prisma.delivery.findUnique({
     where: { orderId },
     include: deliveryIncludes,
   });
+  return serializePrismaObject(delivery);
 }
 
 /** Find all deliveries for a merchant (via order join) */
 export async function findAll(merchantId: string) {
-  return prisma.delivery.findMany({
+  const deliveries = await prisma.delivery.findMany({
     where: {
       order: { merchantId },
     },
     include: deliveryIncludes,
     orderBy: { createdAt: 'desc' },
   });
+  return serializePrismaArray(deliveries);
 }
 
 /** Create a delivery record */
@@ -46,7 +49,7 @@ export async function create(data: {
   city?: string;
   fee?: number;
 }) {
-  return prisma.delivery.create({
+  const delivery = await prisma.delivery.create({
     data: {
       orderId: data.orderId,
       type: data.type as DeliveryStatus extends string ? never : any,
@@ -57,11 +60,12 @@ export async function create(data: {
     },
     include: deliveryIncludes,
   });
+  return serializePrismaObject(delivery);
 }
 
 /** Update delivery status */
 export async function updateStatus(id: string, status: DeliveryStatus, notes?: string) {
-  return prisma.delivery.update({
+  const delivery = await prisma.delivery.update({
     where: { id },
     data: {
       status,
@@ -70,11 +74,12 @@ export async function updateStatus(id: string, status: DeliveryStatus, notes?: s
     },
     include: deliveryIncludes,
   });
+  return serializePrismaObject(delivery);
 }
 
 /** Assign a driver to a delivery */
 export async function assignDriver(id: string, driverName: string, driverPhone: string) {
-  return prisma.delivery.update({
+  const delivery = await prisma.delivery.update({
     where: { id },
     data: {
       driverName,
@@ -83,4 +88,5 @@ export async function assignDriver(id: string, driverName: string, driverPhone: 
     },
     include: deliveryIncludes,
   });
+  return serializePrismaObject(delivery);
 }

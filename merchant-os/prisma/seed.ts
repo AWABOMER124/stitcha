@@ -6,6 +6,21 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  // This script wipes orders, products, customers, and most operational
+  // tables before seeding demo data (see the deleteMany calls below) — it
+  // must never run against a database with real merchant data. Production
+  // deploys never call `db seed` (see entrypoint.sh), but as a second line
+  // of defense, refuse to run in a production NODE_ENV unless the operator
+  // explicitly opts in.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') {
+    console.error(
+      '❌ Refusing to seed: NODE_ENV=production and ALLOW_SEED is not "true".\n' +
+      '   This script deletes existing orders/products/customers. If you really\n' +
+      '   intend to seed this database, set ALLOW_SEED=true and re-run.',
+    );
+    process.exit(1);
+  }
+
   console.log('🌱 Seeding database...');
 
   // Clean existing data

@@ -1,3 +1,10 @@
+# This is the Dockerfile Dokploy actually builds in production (build
+# context = repo root, see COPY paths below). A second, deliberately parallel
+# Dockerfile lives at merchant-os/Dockerfile for local `docker-compose up`
+# from inside merchant-os/ (context = merchant-os/ itself, no path prefix).
+# If you change the build/runtime logic here, mirror the change there too —
+# see merchant-os/README.md "Deployment" section for the full picture.
+
 # ── Stage 1: Build ───────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app

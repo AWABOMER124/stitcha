@@ -2,6 +2,7 @@ import prisma from '@/lib/db/prisma';
 import { NotFoundError } from '@/lib/errors';
 import * as paymentsRepo from '../repositories/payments.repository';
 import type { RecordPaymentInput } from '../schemas/payments.schemas';
+import { serializePrismaObject } from '@/lib/serialization';
 
 // ============================================================================
 // Payments Service — Business logic
@@ -28,7 +29,7 @@ export async function markAsPaid(id: string, transactionRef?: string) {
 
   if (transactionRef) {
     // Update both status and transactionRef atomically
-    return prisma.payment.update({
+    const payment = await prisma.payment.update({
       where: { id },
       data: {
         status: 'COMPLETED',
@@ -36,6 +37,7 @@ export async function markAsPaid(id: string, transactionRef?: string) {
         transactionRef,
       },
     });
+    return serializePrismaObject(payment);
   }
 
   return paymentsRepo.updateStatus(id, 'COMPLETED', new Date());

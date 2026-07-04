@@ -1,5 +1,6 @@
 import prisma from '@/lib/db/prisma';
 import type { OrderStatus } from '@prisma/client';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 const ACTIVE_STATUSES: OrderStatus[] = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY'];
 
@@ -11,7 +12,7 @@ const orderIncludes = {
 } as const;
 
 export async function findActiveOrders(merchantId: string, branchId?: string) {
-  return prisma.order.findMany({
+  const orders = await prisma.order.findMany({
     where: {
       merchantId,
       status: { in: ACTIVE_STATUSES },
@@ -20,10 +21,11 @@ export async function findActiveOrders(merchantId: string, branchId?: string) {
     include: orderIncludes,
     orderBy: { createdAt: 'asc' },
   });
+  return serializePrismaArray(orders);
 }
 
 export async function findOrderById(merchantId: string, id: string) {
-  return prisma.order.findFirst({
+  const order = await prisma.order.findFirst({
     where: { id, merchantId },
     include: {
       ...orderIncludes,
@@ -32,6 +34,7 @@ export async function findOrderById(merchantId: string, id: string) {
       payment: true,
     },
   });
+  return serializePrismaObject(order);
 }
 
 export async function advanceOrderStatus(
@@ -55,7 +58,7 @@ export async function advanceOrderStatus(
       data: { orderId, status, note, changedById },
     });
 
-    return order;
+    return serializePrismaObject(order);
   });
 }
 

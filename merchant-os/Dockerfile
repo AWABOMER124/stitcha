@@ -1,3 +1,10 @@
+# This Dockerfile is used by ./docker-compose.yml for local development only
+# (build context = this folder). Production (Dokploy) builds from the
+# separate Dockerfile at the repo root instead, whose context is the repo
+# root and whose COPY paths are prefixed with `merchant-os/`. If you change
+# the build/runtime logic here, mirror the change there too — see
+# README.md "Deployment" section for the full picture.
+
 # ── Stage 1: Install deps + build ────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app

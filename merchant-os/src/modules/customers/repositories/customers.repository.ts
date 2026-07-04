@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import type { Customer, CustomerAddress, Prisma } from '@prisma/client';
 import type { CreateCustomerInput, UpdateCustomerInput, CreateAddressInput, CustomerFilterInput } from '../schemas/customers.schemas';
+import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 // ============================================================================
 // Customers Repository — Data access layer
@@ -8,17 +9,19 @@ import type { CreateCustomerInput, UpdateCustomerInput, CreateAddressInput, Cust
 
 /** Find customer by ID */
 export async function findById(merchantId: string, id: string): Promise<Customer | null> {
-  return prisma.customer.findFirst({
+  const customer = await prisma.customer.findFirst({
     where: { id, merchantId },
     include: { addresses: true, _count: { select: { orders: true } } },
   });
+  return serializePrismaObject(customer);
 }
 
 /** Find customer by phone number */
 export async function findByPhone(merchantId: string, phone: string): Promise<Customer | null> {
-  return prisma.customer.findFirst({
+  const customer = await prisma.customer.findFirst({
     where: { merchantId, phone },
   });
+  return serializePrismaObject(customer);
 }
 
 /** Find all customers with pagination and search */
@@ -49,14 +52,14 @@ export async function findAll(merchantId: string, filters: CustomerFilterInput) 
   ]);
 
   return {
-    data,
+    data: serializePrismaArray(data),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 }
 
 /** Create a new customer */
 export async function create(merchantId: string, data: CreateCustomerInput): Promise<Customer> {
-  return prisma.customer.create({
+  const customer = await prisma.customer.create({
     data: {
       merchantId,
       name: data.name,
@@ -65,14 +68,16 @@ export async function create(merchantId: string, data: CreateCustomerInput): Pro
       notes: data.notes,
     },
   });
+  return serializePrismaObject(customer);
 }
 
 /** Update a customer */
 export async function update(merchantId: string, id: string, data: UpdateCustomerInput): Promise<Customer> {
-  return prisma.customer.update({
+  const customer = await prisma.customer.update({
     where: { id, merchantId },
     data,
   });
+  return serializePrismaObject(customer);
 }
 
 /** Add an address to a customer */

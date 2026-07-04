@@ -6,7 +6,7 @@ import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization
  */
 
 export async function getMerchantBySlug(slug: string) {
-  return prisma.merchant.findUnique({
+  const merchant = await prisma.merchant.findUnique({
     where: { slug, isActive: true, status: 'ACTIVE' },
     select: {
       id: true, name: true, slug: true, description: true, logo: true,
@@ -14,6 +14,7 @@ export async function getMerchantBySlug(slug: string) {
       storefrontSettings: true,
     },
   });
+  return serializePrismaObject(merchant);
 }
 
 export async function getCategories(merchantId: string) {
@@ -67,5 +68,6 @@ export async function getProduct(merchantId: string, productSlug: string) {
 }
 
 export async function getStorefrontSettings(merchantId: string) {
-  return prisma.storefrontSettings.findUnique({ where: { merchantId } });
+  const settings = await prisma.storefrontSettings.findUnique({ where: { merchantId } });
+  return serializePrismaObject(settings);
 }

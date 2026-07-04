@@ -1,14 +1,18 @@
 import { StatsCard } from '@/components/dashboard/stats-card';
+import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
 import { getTodayOverviewAction, getOrdersAction } from '@/modules/orders/actions';
+import { getLowStockAlertsAction } from '@/modules/inventory/actions';
 
 export default async function DashboardPage() {
-  const [overviewResult, recentResult] = await Promise.all([
+  const [overviewResult, recentResult, lowStockResult] = await Promise.all([
     getTodayOverviewAction(),
     getOrdersAction({ limit: 5 }),
+    getLowStockAlertsAction(),
   ]);
 
   const overview = overviewResult.success ? overviewResult.data : null;
   const recentOrders = recentResult.success ? (recentResult.data?.data ?? []) : [];
+  const lowStockCount = lowStockResult.success ? (lowStockResult.data as unknown[]).length : 0;
 
   const STATUS_COLORS: Record<string, string> = {
     NEW: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
@@ -28,18 +32,18 @@ export default async function DashboardPage() {
         <p className="text-sm text-[var(--muted-foreground)]">Overview of your store&apos;s performance today</p>
       </div>
 
+      <OnboardingChecklist />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Today's Orders"
           value={overview?.totalOrders ?? 0}
           icon="shopping-bag"
-          trend={{ value: 12, isPositive: true }}
         />
         <StatsCard
           title="Today's Revenue"
           value={`${Number(overview?.revenue ?? 0).toLocaleString()} SDG`}
           icon="banknote"
-          trend={{ value: 8, isPositive: true }}
         />
         <StatsCard
           title="Pending Orders"
@@ -49,9 +53,9 @@ export default async function DashboardPage() {
         />
         <StatsCard
           title="Low Stock Items"
-          value={0}
+          value={lowStockCount}
           icon="alert-triangle"
-          variant="destructive"
+          variant={lowStockCount > 0 ? 'destructive' : 'default'}
         />
       </div>
 

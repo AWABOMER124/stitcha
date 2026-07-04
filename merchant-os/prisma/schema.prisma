@@ -157,12 +157,30 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchantUsers    MerchantUser[]
-  distributorUsers DistributorUser[]
-  accounts         Account[]
-  sessions         Session[]
+  merchantUsers       MerchantUser[]
+  distributorUsers    DistributorUser[]
+  accounts            Account[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+/// Single-use token for the forgot-password flow. Only a hash of the token
+/// is stored — the raw token is emailed to the user and never persisted,
+/// mirroring how passwordHash never stores a plaintext password.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 /// OAuth / credentials accounts (NextAuth adapter)

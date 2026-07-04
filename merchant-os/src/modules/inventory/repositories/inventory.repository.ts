@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import type { InventoryItem, StockMovement, StockMovementType, Prisma } from '@prisma/client';
 import type { InventoryFilterInput } from '../schemas/inventory.schemas';
+import { serializePrismaObject } from '@/lib/serialization';
 
 // ============================================================================
 // Inventory Repository — Data access layer
@@ -8,10 +9,11 @@ import type { InventoryFilterInput } from '../schemas/inventory.schemas';
 
 /** Find inventory item for a specific product */
 export async function findByProduct(merchantId: string, productId: string): Promise<InventoryItem | null> {
-  return prisma.inventoryItem.findFirst({
+  const item = await prisma.inventoryItem.findFirst({
     where: { merchantId, productId },
     include: { product: true },
   });
+  return serializePrismaObject(item);
 }
 
 /** Find all inventory items with optional filters */
