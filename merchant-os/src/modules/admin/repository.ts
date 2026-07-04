@@ -74,11 +74,16 @@ export async function getAllDistributors(page = 1, limit = 20, search?: string) 
     prisma.distributor.count({ where }),
   ]);
 
-  return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  return {
+    // commissionRate is a Prisma Decimal — not serializable across the
+    // Server Action boundary, so it must be converted to a plain number.
+    data: data.map((d) => ({ ...d, commissionRate: Number(d.commissionRate) })),
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
 }
 
 export async function getDistributorById(id: string) {
-  return prisma.distributor.findUnique({
+  const distributor = await prisma.distributor.findUnique({
     where: { id },
     include: {
       users: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
@@ -92,6 +97,8 @@ export async function getDistributorById(id: string) {
       _count: { select: { merchants: true, drivers: true, commissionPlans: true } },
     },
   });
+  if (!distributor) return null;
+  return { ...distributor, commissionRate: Number(distributor.commissionRate) };
 }
 
 export async function createDistributor(data: {
@@ -101,11 +108,13 @@ export async function createDistributor(data: {
   phone?: string;
   commissionRate?: number;
 }) {
-  return prisma.distributor.create({ data });
+  const distributor = await prisma.distributor.create({ data });
+  return { ...distributor, commissionRate: Number(distributor.commissionRate) };
 }
 
 export async function updateDistributorStatus(id: string, status: 'ACTIVE' | 'SUSPENDED' | 'PENDING') {
-  return prisma.distributor.update({ where: { id }, data: { status } });
+  const distributor = await prisma.distributor.update({ where: { id }, data: { status } });
+  return { ...distributor, commissionRate: Number(distributor.commissionRate) };
 }
 
 export async function updateDistributor(id: string, data: Partial<{
@@ -115,7 +124,8 @@ export async function updateDistributor(id: string, data: Partial<{
   logo: string;
   commissionRate: number;
 }>) {
-  return prisma.distributor.update({ where: { id }, data });
+  const distributor = await prisma.distributor.update({ where: { id }, data });
+  return { ...distributor, commissionRate: Number(distributor.commissionRate) };
 }
 
 // ── Merchants (platform-wide) ─────────────────────────────────────────────────
@@ -209,5 +219,11 @@ export async function getRecentActivity() {
     }),
   ]);
 
-  return { recentOrders, recentMerchants, recentDistributors };
+  return {
+    // Decimal fields must be converted to plain numbers — Prisma's Decimal
+    // class instances aren't serializable across the Server Action boundary.
+    recentOrders: recentOrders.map((o) => ({ ...o, total: Number(o.total) })),
+    recentMerchants,
+    recentDistributors,
+  };
 }
