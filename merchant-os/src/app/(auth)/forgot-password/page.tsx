@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useLocale } from "@/lib/i18n/context";
 
 export default function ForgotPasswordPage() {
+  const { dict } = useLocale();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -21,12 +23,12 @@ export default function ForgotPasswordPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Something went wrong. Please try again.");
+        setError(data.error ?? dict.common.somethingWrong);
         return;
       }
       setSent(true);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(dict.common.somethingWrong);
     } finally {
       setLoading(false);
     }
@@ -39,10 +41,10 @@ export default function ForgotPasswordPage() {
           و
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-          Forgot password?
+          {dict.forgotPassword.title}
         </h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Enter your email and we&apos;ll send you a reset link
+          {dict.forgotPassword.subtitle}
         </p>
       </div>
 
@@ -50,10 +52,10 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <div className="space-y-4 text-center">
             <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-              If an account exists for <b>{email}</b>, a reset link has been sent.
+              {dict.forgotPassword.sentPrefix} <b>{email}</b>{dict.forgotPassword.sentSuffix ? `، ${dict.forgotPassword.sentSuffix}` : ''}
             </div>
             <Link href="/login" className="text-sm font-medium text-[var(--primary)] hover:underline">
-              Back to sign in
+              {dict.forgotPassword.backToSignIn}
             </Link>
           </div>
         ) : (
@@ -66,7 +68,7 @@ export default function ForgotPasswordPage() {
 
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)]">
-                Email
+                {dict.common.email}
               </label>
               <input
                 id="email"
@@ -84,16 +86,16 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:bg-[var(--primary)]/90 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Sending..." : "Send reset link"}
+              {loading ? dict.forgotPassword.sending : dict.forgotPassword.sendLink}
             </button>
           </form>
         )}
       </div>
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">
-        Remembered your password?{" "}
+        {dict.forgotPassword.remembered}{" "}
         <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
-          Sign in
+          {dict.common.signIn}
         </Link>
       </p>
     </div>

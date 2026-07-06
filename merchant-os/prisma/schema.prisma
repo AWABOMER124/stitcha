@@ -122,6 +122,7 @@ enum NotificationChannel {
   SMS
   EMAIL
   PUSH
+  WHATSAPP
 }
 
 enum CustomerSegment {
@@ -148,9 +149,10 @@ model User {
   email         String    @unique
   passwordHash  String?
   name          String?
-  phone         String?
+  phone         String?   @unique
   role          UserRole  @default(CASHIER)
   emailVerified DateTime?
+  phoneVerifiedAt DateTime?
   image         String?
 
   createdAt DateTime @default(now())
@@ -162,6 +164,7 @@ model User {
   accounts            Account[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  phoneVerifications  PhoneVerification[]
 
   @@map("users")
 }
@@ -181,6 +184,24 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+/// WhatsApp OTP codes for phone-based signup confirmation. Only a hash of
+/// the code is stored, same reasoning as PasswordResetToken.
+model PhoneVerification {
+  id         String    @id @default(cuid())
+  userId     String
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("phone_verifications")
 }
 
 /// OAuth / credentials accounts (NextAuth adapter)
@@ -338,6 +359,11 @@ model Merchant {
 
   // Default external delivery company for this merchant's orders (optional)
   preferredDeliveryCompanyId String?
+
+  // Set when a distributor invites a merchant by link (name + phone + location
+  // only); cleared once the merchant completes their own registration.
+  registrationToken          String?   @unique
+  registrationTokenExpiresAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

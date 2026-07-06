@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { useLocale } from "@/lib/i18n/context";
 
 export default function LoginPage() {
+  const { dict } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,7 +25,7 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
+        setError(dict.login.invalidCredentials);
       } else {
         // Fetch session to determine where to redirect
         const res = await fetch("/api/auth/session");
@@ -38,7 +40,7 @@ export default function LoginPage() {
         }
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(dict.common.somethingWrong);
     } finally {
       setLoading(false);
     }
@@ -52,10 +54,10 @@ export default function LoginPage() {
           و
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-          Welcome back
+          {dict.login.welcomeBack}
         </h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Sign in to your Waslak Merchant OS account
+          {dict.login.subtitle}
         </p>
       </div>
 
@@ -73,11 +75,11 @@ export default function LoginPage() {
               htmlFor="email"
               className="block text-sm font-medium text-[var(--foreground)]"
             >
-              Email
+              {dict.common.emailOrPhone}
             </label>
             <input
               id="email"
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -92,13 +94,13 @@ export default function LoginPage() {
                 htmlFor="password"
                 className="block text-sm font-medium text-[var(--foreground)]"
               >
-                Password
+                {dict.common.password}
               </label>
               <Link
                 href="/forgot-password"
                 className="text-xs text-[var(--primary)] hover:underline"
               >
-                Forgot password?
+                {dict.login.forgotPassword}
               </Link>
             </div>
             <input
@@ -135,10 +137,10 @@ export default function LoginPage() {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
-                Signing in...
+                {dict.common.signingIn}
               </span>
             ) : (
-              "Sign in"
+              dict.common.signIn
             )}
           </button>
         </form>
@@ -146,12 +148,21 @@ export default function LoginPage() {
 
       {/* Register link */}
       <p className="text-center text-sm text-[var(--muted-foreground)]">
-        Don&apos;t have an account?{" "}
+        {dict.login.noAccount}{" "}
         <Link
           href="/register"
           className="font-medium text-[var(--primary)] hover:underline"
         >
-          Create merchant account
+          {dict.login.createMerchantAccount}
+        </Link>
+      </p>
+      <p className="text-center text-sm text-[var(--muted-foreground)]">
+        {dict.login.areYouDistributor}{" "}
+        <Link
+          href="/register-distributor"
+          className="font-medium text-[var(--primary)] hover:underline"
+        >
+          {dict.login.registerHere}
         </Link>
       </p>
     </div>

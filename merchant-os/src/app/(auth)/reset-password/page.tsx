@@ -3,8 +3,10 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useLocale } from "@/lib/i18n/context";
 
 function ResetPasswordForm() {
+  const { dict } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -20,11 +22,11 @@ function ResetPasswordForm() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(dict.register.passwordsNoMatch);
       return;
     }
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(dict.common.somethingWrong);
       return;
     }
 
@@ -37,13 +39,13 @@ function ResetPasswordForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Something went wrong. Please try again.");
+        setError(data.error ?? dict.common.somethingWrong);
         return;
       }
       setDone(true);
       setTimeout(() => router.push("/login"), 2000);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(dict.common.somethingWrong);
     } finally {
       setLoading(false);
     }
@@ -56,19 +58,19 @@ function ResetPasswordForm() {
           و
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-          Reset your password
+          {dict.resetPassword.title}
         </h1>
-        <p className="text-sm text-[var(--muted-foreground)]">Choose a new password for your account</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{dict.resetPassword.subtitle}</p>
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
         {!token ? (
           <div className="rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-400">
-            This reset link is missing its token. Please request a new one.
+            {dict.resetPassword.missingToken}
           </div>
         ) : done ? (
           <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-            Password updated. Redirecting to sign in...
+            {dict.resetPassword.updated}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -80,7 +82,7 @@ function ResetPasswordForm() {
 
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-medium text-[var(--foreground)]">
-                New password
+                {dict.resetPassword.newPassword}
               </label>
               <input
                 id="password"
@@ -96,7 +98,7 @@ function ResetPasswordForm() {
 
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--foreground)]">
-                Confirm new password
+                {dict.resetPassword.confirmNewPassword}
               </label>
               <input
                 id="confirmPassword"
@@ -115,7 +117,7 @@ function ResetPasswordForm() {
               disabled={loading}
               className="w-full rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:bg-[var(--primary)]/90 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Updating..." : "Update password"}
+              {loading ? dict.resetPassword.updating : dict.resetPassword.updatePassword}
             </button>
           </form>
         )}
@@ -123,7 +125,7 @@ function ResetPasswordForm() {
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">
         <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
-          Back to sign in
+          {dict.resetPassword.backToSignIn}
         </Link>
       </p>
     </div>

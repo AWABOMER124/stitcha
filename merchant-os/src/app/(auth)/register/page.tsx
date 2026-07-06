@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useLocale } from "@/lib/i18n/context";
 
 /**
  * Merchant registration page for Waslak Merchant OS
  */
 export default function RegisterPage() {
+  const { dict } = useLocale();
   const [formData, setFormData] = useState({
     merchantName: "",
     ownerName: "",
@@ -28,14 +30,13 @@ export default function RegisterPage() {
     setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      setError(dict.register.passwordsNoMatch);
       return;
     }
 
     setLoading(true);
 
     try {
-      // TODO: Call merchant registration server action
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,19 +50,19 @@ export default function RegisterPage() {
         window.location.href = "/dashboard";
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(dict.common.somethingWrong);
     } finally {
       setLoading(false);
     }
   }
 
   const businessTypes = [
-    { value: "RESTAURANT", label: "🍽️ Restaurant" },
-    { value: "CAFE", label: "☕ Cafe" },
-    { value: "GROCERY", label: "🛒 Grocery" },
-    { value: "PHARMACY", label: "💊 Pharmacy" },
-    { value: "RETAIL", label: "🏪 Retail Store" },
-    { value: "OTHER", label: "📦 Other" },
+    { value: "RESTAURANT", label: dict.register.types.RESTAURANT },
+    { value: "CAFE", label: dict.register.types.CAFE },
+    { value: "GROCERY", label: dict.register.types.GROCERY },
+    { value: "PHARMACY", label: dict.register.types.PHARMACY },
+    { value: "RETAIL", label: dict.register.types.RETAIL },
+    { value: "OTHER", label: dict.register.types.OTHER },
   ];
 
   return (
@@ -72,10 +73,10 @@ export default function RegisterPage() {
           و
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-          Create your store
+          {dict.register.title}
         </h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Start selling online in minutes with Waslak
+          {dict.register.subtitle}
         </p>
       </div>
 
@@ -91,7 +92,7 @@ export default function RegisterPage() {
           {/* Business Type */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-[var(--foreground)]">
-              Business Type
+              {dict.register.businessType}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {businessTypes.map((type) => (
@@ -114,14 +115,14 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <label htmlFor="merchantName" className="block text-sm font-medium text-[var(--foreground)]">
-                Business Name
+                {dict.register.businessName}
               </label>
               <input
                 id="merchantName"
                 type="text"
                 value={formData.merchantName}
                 onChange={(e) => updateField("merchantName", e.target.value)}
-                placeholder="Your Store Name"
+                placeholder={dict.register.businessNamePlaceholder}
                 required
                 className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
               />
@@ -129,14 +130,14 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <label htmlFor="ownerName" className="block text-sm font-medium text-[var(--foreground)]">
-                Your Name
+                {dict.register.yourName}
               </label>
               <input
                 id="ownerName"
                 type="text"
                 value={formData.ownerName}
                 onChange={(e) => updateField("ownerName", e.target.value)}
-                placeholder="Full Name"
+                placeholder={dict.register.fullNamePlaceholder}
                 required
                 className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
               />
@@ -145,7 +146,7 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label htmlFor="reg-email" className="block text-sm font-medium text-[var(--foreground)]">
-              Email
+              {dict.common.email}
             </label>
             <input
               id="reg-email"
@@ -160,14 +161,14 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <label htmlFor="phone" className="block text-sm font-medium text-[var(--foreground)]">
-              Phone
+              {dict.common.phone}
             </label>
             <input
               id="phone"
               type="tel"
               value={formData.phone}
               onChange={(e) => updateField("phone", e.target.value)}
-              placeholder="+249 912 345 678"
+              placeholder={dict.register.phonePlaceholder}
               required
               className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
             />
@@ -176,7 +177,7 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <label htmlFor="reg-password" className="block text-sm font-medium text-[var(--foreground)]">
-                Password
+                {dict.common.password}
               </label>
               <input
                 id="reg-password"
@@ -192,7 +193,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--foreground)]">
-                Confirm
+                {dict.common.confirmPassword}
               </label>
               <input
                 id="confirmPassword"
@@ -212,15 +213,21 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:bg-[var(--primary)]/90 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Creating your store..." : "Create merchant account"}
+            {loading ? dict.register.creatingStore : dict.register.createAccount}
           </button>
         </form>
       </div>
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">
-        Already have an account?{" "}
+        {dict.register.alreadyHaveAccount}{" "}
         <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
-          Sign in
+          {dict.register.signIn}
+        </Link>
+      </p>
+      <p className="text-center text-sm text-[var(--muted-foreground)]">
+        {dict.login.areYouDistributor}{" "}
+        <Link href="/register-distributor" className="font-medium text-[var(--primary)] hover:underline">
+          {dict.login.registerHere}
         </Link>
       </p>
     </div>
