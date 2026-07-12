@@ -17,6 +17,8 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
   const [messages, setMessages] = useState<Message[]>(initial[0]?.messages ?? []);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -35,6 +37,7 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
   async function sendReply() {
     if (!reply.trim() || !selected) return;
     setSending(true);
+    setSuggestError('');
     try {
       const res = await fetch(`/api/inbox/${selected.id}/reply`, {
         method: 'POST',
@@ -45,9 +48,25 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
       if (data.message) {
         setMessages(prev => [...prev, data.message]);
         setReply('');
+        if (data.deliveryError) setSuggestError(`تم الحفظ لكن تعذّر إرساله عبر واتساب: ${data.deliveryError}`);
       }
     } catch {}
     setSending(false);
+  }
+
+  async function suggestReply() {
+    if (!selected) return;
+    setSuggesting(true);
+    setSuggestError('');
+    try {
+      const res = await fetch(`/api/inbox/${selected.id}/suggest-reply`, { method: 'POST' });
+      const data = await res.json();
+      if (data.suggestion) setReply(data.suggestion);
+      else setSuggestError(data.error ?? 'تعذر توليد اقتراح');
+    } catch {
+      setSuggestError('تعذر توليد اقتراح');
+    }
+    setSuggesting(false);
   }
 
   const filtered = conversations.filter(c => filter === 'ALL' || c.status === filter);
@@ -127,9 +146,20 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
 
           {/* Reply */}
           {selected.status !== 'CLOSED' ? (
-            <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--card)] flex gap-3">
-              <input value={reply} onChange={e => setReply(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendReply())} placeholder="اكتب ردك..." className="flex-1 border border-[var(--border)] rounded-xl px-4 py-2.5 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)]" />
-              <button onClick={sendReply} disabled={sending || !reply.trim()} className="px-5 py-2.5 rounded-xl bg-[var(--primary)] text-white font-bold text-sm disabled:opacity-50">إرسال</button>
+            <div className="border-t border-[var(--border)] bg-[var(--card)]">
+              {suggestError && <p className="px-4 pt-2 text-xs text-red-600">{suggestError}</p>}
+              <div className="px-4 py-3 flex gap-3">
+                <button
+                  onClick={suggestReply}
+                  disabled={suggesting || messages.length === 0}
+                  title="اقترح رداً بالذكاء الاصطناعي"
+                  className="px-3 py-2.5 rounded-xl border border-[var(--border)] text-sm font-medium text-[var(--muted-foreground)] hover:bg-[var(--background)] disabled:opacity-50 shrink-0"
+                >
+                  {suggesting ? '...' : '✨ اقترح رد'}
+                </button>
+                <input value={reply} onChange={e => setReply(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendReply())} placeholder="اكتب ردك..." className="flex-1 border border-[var(--border)] rounded-xl px-4 py-2.5 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)]" />
+                <button onClick={sendReply} disabled={sending || !reply.trim()} className="px-5 py-2.5 rounded-xl bg-[var(--primary)] text-white font-bold text-sm disabled:opacity-50">إرسال</button>
+              </div>
             </div>
           ) : (
             <div className="px-4 py-3 border-t border-[var(--border)] bg-stone-50 text-center text-sm text-[var(--muted-foreground)]">المحادثة مغلقة</div>

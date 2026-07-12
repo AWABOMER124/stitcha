@@ -15,7 +15,7 @@ export async function getDeliveryAction(orderId: string): Promise<ActionResult<D
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'delivery:read');
-    const delivery = await deliveryService.getDelivery(orderId);
+    const delivery = await deliveryService.getDelivery(auth.merchantId, orderId);
     return { success: true, data: delivery as unknown as Delivery };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to get delivery' };
@@ -43,7 +43,7 @@ export async function updateDeliveryStatusAction(
     const auth = await getAuthContext();
     requirePermission(auth, 'delivery:update');
     const parsed = updateDeliveryStatusSchema.parse(formData);
-    const delivery = await deliveryService.updateDeliveryStatus(id, parsed.status, parsed.notes);
+    const delivery = await deliveryService.updateDeliveryStatus(auth.merchantId, id, parsed.status, parsed.notes);
     return { success: true, data: delivery as unknown as Delivery };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to update delivery status' };
@@ -59,7 +59,7 @@ export async function assignDriverAction(
     const auth = await getAuthContext();
     requirePermission(auth, 'delivery:update');
     const parsed = assignDriverSchema.parse(formData);
-    const delivery = await deliveryService.assignDriver(id, parsed.driverName, parsed.driverPhone);
+    const delivery = await deliveryService.assignDriver(auth.merchantId, id, parsed.driverName, parsed.driverPhone);
     return { success: true, data: delivery as unknown as Delivery };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to assign driver' };

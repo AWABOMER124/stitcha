@@ -1,14 +1,24 @@
-/** Delivery management page */
-export default function DeliveryPage() {
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth/config';
+import { getDeliveriesAction } from '@/modules/delivery/actions';
+import { DeliveryClient } from './_client';
+
+export const dynamic = 'force-dynamic';
+
+export default async function DeliveryPage() {
+  const session = await auth();
+  if (!session?.user?.merchantId) redirect('/login');
+
+  const result = await getDeliveriesAction();
+  const deliveries = result.success ? (result.data as any[]) : [];
+
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Delivery</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">Manage deliveries and track shipments</p></div>
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-12 text-center">
-        <p className="text-4xl">🚚</p>
-        <h3 className="mt-3 text-lg font-semibold text-[var(--foreground)]">Delivery Management</h3>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">Track deliveries, assign drivers, and manage delivery zones</p>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Delivery</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">Track active deliveries and assign drivers</p>
       </div>
+      <DeliveryClient initialDeliveries={deliveries} />
     </div>
   );
 }

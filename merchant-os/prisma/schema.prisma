@@ -387,6 +387,7 @@ model Merchant {
   promoCodes         PromoCode[]
   loyaltyConfig      LoyaltyConfig?
   conversations      Conversation[]
+  whatsappConfig     WhatsAppConfig?
 
   @@index([slug])
   @@index([status])
@@ -1309,4 +1310,26 @@ model InboxMessage {
 
   @@index([conversationId])
   @@map("inbox_messages")
+}
+
+/// Per-merchant WhatsApp Business API credentials (each merchant messages
+/// customers from their own WhatsApp number). accessToken is stored encrypted
+/// at rest — see src/lib/crypto/secret.ts. phoneNumberId is how inbound Meta
+/// webhooks are routed back to the owning merchant.
+model WhatsAppConfig {
+  id            String  @id @default(cuid())
+  merchantId    String  @unique
+  phoneNumberId String  @unique
+  wabaId        String?
+  displayPhone  String?
+  accessToken   String // encrypted
+  isActive      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNumberId])
+  @@map("whatsapp_configs")
 }

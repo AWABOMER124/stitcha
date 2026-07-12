@@ -7,7 +7,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ convId
   if (!session?.user?.merchantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { convId } = await params;
   try {
-    await (prisma as any).conversation.update({ where: { id: convId }, data: { status: 'CLOSED' } });
+    const result = await (prisma as any).conversation.updateMany({
+      where: { id: convId, merchantId: session.user.merchantId },
+      data: { status: 'CLOSED' },
+    });
+    if (result.count === 0) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
