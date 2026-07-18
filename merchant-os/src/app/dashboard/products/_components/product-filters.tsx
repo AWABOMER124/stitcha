@@ -2,8 +2,11 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTransition } from 'react';
+import { useLocale } from '@/lib/i18n/context';
 
 export function ProductFilters() {
+  const { dict } = useLocale();
+  const t = dict.productFormPage;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
@@ -23,7 +26,7 @@ export function ProductFilters() {
       <input
         type="search"
         defaultValue={searchParams.get('q') ?? ''}
-        placeholder="Search products..."
+        placeholder={t.searchPlaceholder}
         onChange={(e) => update('q', e.target.value)}
         className="w-64 rounded-lg border border-[var(--input)] bg-transparent px-3 py-2 text-sm outline-none placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
       />
@@ -32,9 +35,9 @@ export function ProductFilters() {
         onChange={(e) => update('status', e.target.value)}
         className="rounded-lg border border-[var(--input)] bg-[var(--background)] px-3 py-2 text-sm outline-none"
       >
-        <option value="">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
+        <option value="">{t.filterAllStatus}</option>
+        <option value="active">{t.filterActive}</option>
+        <option value="inactive">{t.filterInactive}</option>
       </select>
     </div>
   );

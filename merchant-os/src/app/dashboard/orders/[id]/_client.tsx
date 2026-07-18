@@ -4,12 +4,11 @@ import { useState, useTransition } from 'react';
 import { advanceOrderStatusAction } from '@/modules/fulfillment/actions';
 import {
   STATUS_TRANSITIONS,
-  NEXT_STATUS_LABEL,
-  STATUS_LABELS,
   TERMINAL_STATUSES,
 } from '@/modules/fulfillment/types';
 import type { ActiveOrder, OrderStatus } from '@/modules/fulfillment/types';
 import { useRouter } from 'next/navigation';
+import { useLocale } from '@/lib/i18n/context';
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700',
@@ -22,21 +21,10 @@ const STATUS_COLORS: Record<string, string> = {
   REJECTED: 'bg-stone-100 text-stone-600',
 };
 
-const DELIVERY_METHOD_LABEL: Record<string, string> = {
-  PICKUP: 'استلام من الفرع',
-  MERCHANT_DELIVERY: 'توصيل المطعم',
-  WASLAK_DELIVERY: 'توصيل وصلك',
-  EXTERNAL_DELIVERY: 'توصيل خارجي',
-};
-
-const PAYMENT_METHOD_LABEL: Record<string, string> = {
-  CASH: 'نقد عند الاستلام',
-  CARD: 'بطاقة',
-  ONLINE: 'دفع إلكتروني',
-  WALLET: 'محفظة',
-};
-
 function StatusTimeline({ history }: { history: ActiveOrder['statusHistory'] }) {
+  const { dict, locale } = useLocale();
+  const statusLabel = dict.ordersPage.statusLabel;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
   return (
     <div className="space-y-3">
       {[...history].reverse().map((entry, i) => (
@@ -47,13 +35,13 @@ function StatusTimeline({ history }: { history: ActiveOrder['statusHistory'] }) 
           </div>
           <div className="pb-4 min-w-0">
             <p className="text-sm font-semibold text-[var(--foreground)]">
-              {STATUS_LABELS[entry.status as OrderStatus] ?? entry.status}
+              {statusLabel[entry.status as keyof typeof statusLabel] ?? entry.status}
             </p>
             {entry.note && (
               <p className="text-xs text-[var(--muted-foreground)]">{entry.note}</p>
             )}
             <p className="text-[11px] text-[var(--muted-foreground)]">
-              {new Date(entry.createdAt).toLocaleString('ar-SD', {
+              {new Date(entry.createdAt).toLocaleString(dateLocale, {
                 day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
               })}
             </p>
@@ -65,6 +53,11 @@ function StatusTimeline({ history }: { history: ActiveOrder['statusHistory'] }) 
 }
 
 export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder }) {
+  const { dict, locale } = useLocale();
+  const t = dict.orderDetailPage;
+  const ot = dict.ordersPage;
+  const ft = dict.fulfillmentPage;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
   const [order, setOrder] = useState(initialOrder);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +68,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
   const nextStatuses = STATUS_TRANSITIONS[status] ?? [];
   const primaryNext = nextStatuses[0] as OrderStatus | undefined;
   const cancelNext = nextStatuses[1] as OrderStatus | undefined;
+  const nextLabel = ft.nextStatusLabel[status as keyof typeof ft.nextStatusLabel];
 
   async function handleAdvance(newStatus: OrderStatus) {
     setError(null);
@@ -93,20 +87,20 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
     item.productSnapshot as { name?: string; image?: string };
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-black text-[var(--foreground)]">
-              طلب #{order.orderNumber}
+              {t.orderNumberPrefix}{order.orderNumber}
             </h1>
             <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-700'}`}>
-              {STATUS_LABELS[status] ?? status}
+              {ot.statusLabel[status as keyof typeof ot.statusLabel] ?? status}
             </span>
           </div>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            {new Date(order.createdAt).toLocaleString('ar-SD', {
+            {new Date(order.createdAt).toLocaleString(dateLocale, {
               weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
               hour: '2-digit', minute: '2-digit',
             })}
@@ -122,16 +116,16 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
                 onClick={() => handleAdvance(cancelNext)}
                 className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
               >
-                {cancelNext === 'CANCELLED' ? 'إلغاء الطلب' : 'رفض الطلب'}
+                {cancelNext === 'CANCELLED' ? t.cancelOrder : t.rejectOrder}
               </button>
             )}
-            {primaryNext && NEXT_STATUS_LABEL[status] && (
+            {primaryNext && nextLabel && (
               <button
                 disabled={isPending}
                 onClick={() => handleAdvance(primaryNext)}
                 className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
-                {isPending ? '...' : NEXT_STATUS_LABEL[status]}
+                {isPending ? '...' : nextLabel}
               </button>
             )}
           </div>
@@ -150,7 +144,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
           {/* Order items */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)]">
             <div className="border-b border-[var(--border)] px-5 py-4">
-              <h2 className="font-semibold text-[var(--foreground)]">الأصناف المطلوبة</h2>
+              <h2 className="font-semibold text-[var(--foreground)]">{t.itemsTitle}</h2>
             </div>
             <div className="divide-y divide-[var(--border)]">
               {order.items.map((item) => (
@@ -163,10 +157,10 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--foreground)] truncate">
-                        {snapshot(item).name ?? 'منتج'}
+                        {snapshot(item).name ?? t.unknownProduct}
                       </p>
                       {item.notes && (
-                        <p className="text-xs text-[var(--muted-foreground)]">ملاحظة: {item.notes}</p>
+                        <p className="text-xs text-[var(--muted-foreground)]">{t.noteLabel} {item.notes}</p>
                       )}
                     </div>
                   </div>
@@ -182,10 +176,10 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
             {/* Totals */}
             <div className="border-t border-[var(--border)] px-5 py-4 space-y-1.5">
               {[
-                { label: 'المجموع الفرعي', value: Number(order.subtotal) },
-                { label: 'رسوم التوصيل', value: Number(order.deliveryFee) },
-                { label: 'الخصم', value: -Number(order.discount) },
-                { label: 'الضريبة', value: Number(order.tax) },
+                { label: t.subtotal, value: Number(order.subtotal) },
+                { label: t.deliveryFee, value: Number(order.deliveryFee) },
+                { label: t.discount, value: -Number(order.discount) },
+                { label: t.tax, value: Number(order.tax) },
               ].map(({ label, value }) =>
                 value !== 0 ? (
                   <div key={label} className="flex justify-between text-sm">
@@ -197,7 +191,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
                 ) : null
               )}
               <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-black">
-                <span className="text-[var(--foreground)]">الإجمالي</span>
+                <span className="text-[var(--foreground)]">{t.total}</span>
                 <span className="text-[var(--primary)] tabular-nums">
                   {Number(order.total).toLocaleString()} SDG
                 </span>
@@ -207,7 +201,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
 
           {/* Status timeline */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-            <h2 className="mb-4 font-semibold text-[var(--foreground)]">تاريخ الحالات</h2>
+            <h2 className="mb-4 font-semibold text-[var(--foreground)]">{t.statusHistoryTitle}</h2>
             <StatusTimeline history={order.statusHistory} />
           </div>
         </div>
@@ -216,7 +210,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
         <div className="space-y-4">
           {/* Customer */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-            <h2 className="mb-3 text-sm font-semibold text-[var(--foreground)]">معلومات العميل</h2>
+            <h2 className="mb-3 text-sm font-semibold text-[var(--foreground)]">{t.customerInfoTitle}</h2>
             <div className="space-y-2 text-sm">
               <p className="font-medium text-[var(--foreground)]">
                 {order.customerName ?? order.customer?.name ?? '—'}
@@ -239,23 +233,23 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
 
           {/* Delivery & Payment */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-3">
-            <h2 className="text-sm font-semibold text-[var(--foreground)]">التوصيل والدفع</h2>
+            <h2 className="text-sm font-semibold text-[var(--foreground)]">{t.deliveryPaymentTitle}</h2>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-[var(--muted-foreground)]">طريقة التوصيل</span>
+                <span className="text-[var(--muted-foreground)]">{t.deliveryMethodLabel}</span>
                 <span className="font-medium text-[var(--foreground)]">
-                  {DELIVERY_METHOD_LABEL[order.deliveryMethod] ?? order.deliveryMethod}
+                  {t.deliveryMethods[order.deliveryMethod as keyof typeof t.deliveryMethods] ?? order.deliveryMethod}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--muted-foreground)]">طريقة الدفع</span>
+                <span className="text-[var(--muted-foreground)]">{t.paymentMethodLabel}</span>
                 <span className="font-medium text-[var(--foreground)]">
-                  {PAYMENT_METHOD_LABEL[order.paymentMethod] ?? order.paymentMethod}
+                  {t.paymentMethods[order.paymentMethod as keyof typeof t.paymentMethods] ?? order.paymentMethod}
                 </span>
               </div>
               {order.branch && (
                 <div className="flex justify-between">
-                  <span className="text-[var(--muted-foreground)]">الفرع</span>
+                  <span className="text-[var(--muted-foreground)]">{t.branchLabel}</span>
                   <span className="font-medium text-[var(--foreground)]">{order.branch.name}</span>
                 </div>
               )}
@@ -265,16 +259,16 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
           {/* Notes */}
           {(order.notes || order.internalNotes) && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-2">
-              <h2 className="text-sm font-semibold text-[var(--foreground)]">ملاحظات</h2>
+              <h2 className="text-sm font-semibold text-[var(--foreground)]">{t.notesTitle}</h2>
               {order.notes && (
                 <p className="text-sm text-[var(--muted-foreground)]">
-                  <span className="font-medium text-[var(--foreground)]">العميل: </span>
+                  <span className="font-medium text-[var(--foreground)]">{t.customerNotePrefix} </span>
                   {order.notes}
                 </p>
               )}
               {order.internalNotes && (
                 <p className="text-sm text-[var(--muted-foreground)]">
-                  <span className="font-medium text-[var(--foreground)]">داخلية: </span>
+                  <span className="font-medium text-[var(--foreground)]">{t.internalNotePrefix} </span>
                   {order.internalNotes}
                 </p>
               )}

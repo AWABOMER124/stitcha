@@ -1,10 +1,13 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useLocale } from '@/lib/i18n/context';
 
 const STATUS_TABS = ['ALL', 'NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 
 export function StatusTabs() {
+  const { dict } = useLocale();
+  const statusLabel = dict.ordersPage.statusLabel;
   const router = useRouter();
   const searchParams = useSearchParams();
   const current = searchParams.get('status') ?? 'ALL';
@@ -31,7 +34,7 @@ export function StatusTabs() {
               : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
           }`}
         >
-          {tab.replace(/_/g, ' ')}
+          {tab === 'ALL' ? dict.statusTabsAll : (statusLabel[tab as keyof typeof statusLabel] ?? tab)}
         </button>
       ))}
     </div>

@@ -1460,6 +1460,69 @@ export interface Dictionary {
       DISTRIBUTOR_ADMIN: string;
     };
   };
+  orderDetailPage: {
+    backToOrders: string;
+    orderNumberPrefix: string;
+    cancelOrder: string;
+    rejectOrder: string;
+    itemsTitle: string;
+    unknownProduct: string;
+    noteLabel: string;
+    subtotal: string;
+    deliveryFee: string;
+    discount: string;
+    tax: string;
+    total: string;
+    statusHistoryTitle: string;
+    customerInfoTitle: string;
+    deliveryPaymentTitle: string;
+    deliveryMethodLabel: string;
+    paymentMethodLabel: string;
+    branchLabel: string;
+    notesTitle: string;
+    customerNotePrefix: string;
+    internalNotePrefix: string;
+    deliveryMethods: {
+      PICKUP: string;
+      MERCHANT_DELIVERY: string;
+      WASLAK_DELIVERY: string;
+      EXTERNAL_DELIVERY: string;
+    };
+    paymentMethods: {
+      CASH: string;
+      CARD: string;
+      ONLINE: string;
+      WALLET: string;
+    };
+  };
+  statusTabsAll: string;
+  productFormPage: {
+    addTitle: string;
+    addSubtitle: string;
+    editTitle: string;
+    genericError: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+    categoryLabel: string;
+    selectCategoryPlaceholder: string;
+    priceLabel: string;
+    comparePriceLabel: string;
+    comparePricePlaceholder: string;
+    skuLabel: string;
+    skuPlaceholder: string;
+    activeToggleLabel: string;
+    featuredToggleLabel: string;
+    cancel: string;
+    saving: string;
+    saveChanges: string;
+    createProduct: string;
+    searchPlaceholder: string;
+    filterAllStatus: string;
+    filterActive: string;
+    filterInactive: string;
+  };
 }
 
 export const dictionaries: Record<Locale, Dictionary> = {
@@ -2908,6 +2971,69 @@ export const dictionaries: Record<Locale, Dictionary> = {
         DISTRIBUTOR_ADMIN: 'General manager',
       },
     },
+    orderDetailPage: {
+      backToOrders: '← Back to orders',
+      orderNumberPrefix: 'Order #',
+      cancelOrder: 'Cancel order',
+      rejectOrder: 'Reject order',
+      itemsTitle: 'Ordered items',
+      unknownProduct: 'Item',
+      noteLabel: 'Note:',
+      subtotal: 'Subtotal',
+      deliveryFee: 'Delivery fee',
+      discount: 'Discount',
+      tax: 'Tax',
+      total: 'Total',
+      statusHistoryTitle: 'Status history',
+      customerInfoTitle: 'Customer info',
+      deliveryPaymentTitle: 'Delivery & payment',
+      deliveryMethodLabel: 'Delivery method',
+      paymentMethodLabel: 'Payment method',
+      branchLabel: 'Branch',
+      notesTitle: 'Notes',
+      customerNotePrefix: 'Customer:',
+      internalNotePrefix: 'Internal:',
+      deliveryMethods: {
+        PICKUP: 'Branch pickup',
+        MERCHANT_DELIVERY: 'Merchant delivery',
+        WASLAK_DELIVERY: 'Waslak delivery',
+        EXTERNAL_DELIVERY: 'External delivery',
+      },
+      paymentMethods: {
+        CASH: 'Cash on delivery',
+        CARD: 'Card',
+        ONLINE: 'Online payment',
+        WALLET: 'Wallet',
+      },
+    },
+    statusTabsAll: 'All',
+    productFormPage: {
+      addTitle: 'Add Product',
+      addSubtitle: 'New product will be visible to customers once marked active.',
+      editTitle: 'Edit Product',
+      genericError: 'Something went wrong',
+      nameLabel: 'Product Name',
+      namePlaceholder: 'e.g. Chicken Shawarma',
+      descriptionLabel: 'Description',
+      descriptionPlaceholder: 'Optional description...',
+      categoryLabel: 'Category',
+      selectCategoryPlaceholder: 'Select a category…',
+      priceLabel: 'Price (SDG)',
+      comparePriceLabel: 'Compare-at Price',
+      comparePricePlaceholder: 'Optional',
+      skuLabel: 'SKU',
+      skuPlaceholder: 'Optional stock-keeping unit',
+      activeToggleLabel: 'Active (visible to customers)',
+      featuredToggleLabel: 'Featured',
+      cancel: 'Cancel',
+      saving: 'Saving…',
+      saveChanges: 'Save Changes',
+      createProduct: 'Create Product',
+      searchPlaceholder: 'Search products...',
+      filterAllStatus: 'All Status',
+      filterActive: 'Active',
+      filterInactive: 'Inactive',
+    },
   },
   ar: {
     common: {
@@ -4353,6 +4479,69 @@ export const dictionaries: Record<Locale, Dictionary> = {
         DISTRIBUTOR_OWNER: 'مالك',
         DISTRIBUTOR_ADMIN: 'مدير عام',
       },
+    },
+    orderDetailPage: {
+      backToOrders: '← العودة للطلبات',
+      orderNumberPrefix: 'طلب #',
+      cancelOrder: 'إلغاء الطلب',
+      rejectOrder: 'رفض الطلب',
+      itemsTitle: 'الأصناف المطلوبة',
+      unknownProduct: 'منتج',
+      noteLabel: 'ملاحظة:',
+      subtotal: 'المجموع الفرعي',
+      deliveryFee: 'رسوم التوصيل',
+      discount: 'الخصم',
+      tax: 'الضريبة',
+      total: 'الإجمالي',
+      statusHistoryTitle: 'تاريخ الحالات',
+      customerInfoTitle: 'معلومات العميل',
+      deliveryPaymentTitle: 'التوصيل والدفع',
+      deliveryMethodLabel: 'طريقة التوصيل',
+      paymentMethodLabel: 'طريقة الدفع',
+      branchLabel: 'الفرع',
+      notesTitle: 'ملاحظات',
+      customerNotePrefix: 'العميل:',
+      internalNotePrefix: 'داخلية:',
+      deliveryMethods: {
+        PICKUP: 'استلام من الفرع',
+        MERCHANT_DELIVERY: 'توصيل المطعم',
+        WASLAK_DELIVERY: 'توصيل وصلك',
+        EXTERNAL_DELIVERY: 'توصيل خارجي',
+      },
+      paymentMethods: {
+        CASH: 'نقد عند الاستلام',
+        CARD: 'بطاقة',
+        ONLINE: 'دفع إلكتروني',
+        WALLET: 'محفظة',
+      },
+    },
+    statusTabsAll: 'الكل',
+    productFormPage: {
+      addTitle: 'إضافة منتج',
+      addSubtitle: 'سيظهر المنتج الجديد للعملاء بمجرد تفعيله.',
+      editTitle: 'تعديل المنتج',
+      genericError: 'حدث خطأ ما',
+      nameLabel: 'اسم المنتج',
+      namePlaceholder: 'مثال: شاورما دجاج',
+      descriptionLabel: 'الوصف',
+      descriptionPlaceholder: 'وصف اختياري...',
+      categoryLabel: 'الفئة',
+      selectCategoryPlaceholder: 'اختر فئة…',
+      priceLabel: 'السعر (SDG)',
+      comparePriceLabel: 'سعر المقارنة',
+      comparePricePlaceholder: 'اختياري',
+      skuLabel: 'SKU',
+      skuPlaceholder: 'رمز تعريف المخزون (اختياري)',
+      activeToggleLabel: 'نشط (يظهر للعملاء)',
+      featuredToggleLabel: 'مميز',
+      cancel: 'إلغاء',
+      saving: 'جاري الحفظ…',
+      saveChanges: 'حفظ التغييرات',
+      createProduct: 'إنشاء المنتج',
+      searchPlaceholder: 'بحث عن منتجات...',
+      filterAllStatus: 'كل الحالات',
+      filterActive: 'نشط',
+      filterInactive: 'غير نشط',
     },
   },
 };

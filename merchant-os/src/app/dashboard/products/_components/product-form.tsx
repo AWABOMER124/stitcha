@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createProductAction, updateProductAction } from '@/modules/products/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 interface Category {
   id: string;
@@ -27,6 +28,8 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ categories, product }: ProductFormProps) {
+  const { dict } = useLocale();
+  const t = dict.productFormPage;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +59,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
         : await createProductAction(payload);
 
       if (!result.success) {
-        setError(result.error ?? 'Something went wrong');
+        setError(result.error ?? t.genericError);
         return;
       }
       router.push('/dashboard/products');
@@ -75,7 +78,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       {/* Name */}
       <div className="space-y-1.5">
         <label htmlFor="name" className="text-sm font-medium text-[var(--foreground)]">
-          Product Name <span className="text-red-500">*</span>
+          {t.nameLabel} <span className="text-red-500">*</span>
         </label>
         <input
           id="name"
@@ -84,7 +87,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
           required
           minLength={2}
           defaultValue={product?.name}
-          placeholder="e.g. Chicken Shawarma"
+          placeholder={t.namePlaceholder}
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
         />
       </div>
@@ -92,14 +95,14 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       {/* Description */}
       <div className="space-y-1.5">
         <label htmlFor="description" className="text-sm font-medium text-[var(--foreground)]">
-          Description
+          {t.descriptionLabel}
         </label>
         <textarea
           id="description"
           name="description"
           rows={3}
           defaultValue={product?.description}
-          placeholder="Optional description..."
+          placeholder={t.descriptionPlaceholder}
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
         />
       </div>
@@ -107,7 +110,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       {/* Category */}
       <div className="space-y-1.5">
         <label htmlFor="categoryId" className="text-sm font-medium text-[var(--foreground)]">
-          Category <span className="text-red-500">*</span>
+          {t.categoryLabel} <span className="text-red-500">*</span>
         </label>
         <select
           id="categoryId"
@@ -116,7 +119,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
           defaultValue={product?.categoryId ?? ''}
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
         >
-          <option value="" disabled>Select a category…</option>
+          <option value="" disabled>{t.selectCategoryPlaceholder}</option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
@@ -127,7 +130,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label htmlFor="price" className="text-sm font-medium text-[var(--foreground)]">
-            Price (SDG) <span className="text-red-500">*</span>
+            {t.priceLabel} <span className="text-red-500">*</span>
           </label>
           <input
             id="price"
@@ -143,7 +146,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
         </div>
         <div className="space-y-1.5">
           <label htmlFor="compareAtPrice" className="text-sm font-medium text-[var(--foreground)]">
-            Compare-at Price
+            {t.comparePriceLabel}
           </label>
           <input
             id="compareAtPrice"
@@ -152,7 +155,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
             min={0}
             step="0.01"
             defaultValue={product?.compareAtPrice}
-            placeholder="Optional"
+            placeholder={t.comparePricePlaceholder}
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
           />
         </div>
@@ -161,14 +164,14 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       {/* SKU */}
       <div className="space-y-1.5">
         <label htmlFor="sku" className="text-sm font-medium text-[var(--foreground)]">
-          SKU
+          {t.skuLabel}
         </label>
         <input
           id="sku"
           name="sku"
           type="text"
           defaultValue={product?.sku}
-          placeholder="Optional stock-keeping unit"
+          placeholder={t.skuPlaceholder}
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
         />
       </div>
@@ -182,7 +185,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
             defaultChecked={product?.isActive ?? true}
             className="h-4 w-4 rounded border-[var(--border)] accent-[var(--primary)]"
           />
-          Active (visible to customers)
+          {t.activeToggleLabel}
         </label>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--foreground)]">
           <input
@@ -191,7 +194,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
             defaultChecked={product?.isFeatured ?? false}
             className="h-4 w-4 rounded border-[var(--border)] accent-[var(--primary)]"
           />
-          Featured
+          {t.featuredToggleLabel}
         </label>
       </div>
 
@@ -201,7 +204,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
           href="/dashboard/products"
           className="rounded-lg border border-[var(--border)] px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)]"
         >
-          Cancel
+          {t.cancel}
         </a>
         <button
           type="submit"
@@ -211,10 +214,10 @@ export function ProductForm({ categories, product }: ProductFormProps) {
           {isPending ? (
             <>
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Saving…
+              {t.saving}
             </>
           ) : (
-            isEdit ? 'Save Changes' : 'Create Product'
+            isEdit ? t.saveChanges : t.createProduct
           )}
         </button>
       </div>
