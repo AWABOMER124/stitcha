@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
+import * as distributorNotificationsService from '@/modules/distributor-notifications/services/distributor-notifications.service';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -39,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
   const merchant = await prisma.merchant.findFirst({
     where: { registrationToken: token },
-    select: { id: true, phone: true, status: true, registrationTokenExpiresAt: true },
+    select: { id: true, name: true, phone: true, status: true, distributorId: true, registrationTokenExpiresAt: true },
   });
   if (!merchant || merchant.status !== 'PENDING') {
     return NextResponse.json({ error: 'Invalid or already-used registration link' }, { status: 404 });
@@ -81,6 +82,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
     return { userId: user.id, merchantId: merchant.id };
   });
+
+  if (merchant.distributorId) {
+    await distributorNotificationsService.sendNotification(merchant.distributorId, {
+      type: 'NEW_MERCHANT',
+      title: 'تاجر جديد بانتظار الموافقة',
+      body: `أكمل "${merchant.name}" تسجيله ويحتاج موافقتك للبدء في استقبال الطلبات.`,
+    }).catch((err) => console.error('[complete-registration] Failed to notify distributor:', err));
+  }
 
   return NextResponse.json(result, { status: 201 });
 }

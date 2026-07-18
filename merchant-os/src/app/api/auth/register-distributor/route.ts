@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
+import * as platformNotificationsService from '@/modules/platform-notifications/services/platform-notifications.service';
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -55,6 +56,14 @@ export async function POST(req: Request) {
 
     return { distributorId: distributor.id, userId: user.id };
   });
+
+  await platformNotificationsService
+    .sendNotification({
+      type: 'NEW_DISTRIBUTOR',
+      title: 'موزع جديد بانتظار الموافقة',
+      body: `سجّل "${distributorName}" حساباً جديداً كموزع ويحتاج مراجعتك للتفعيل.`,
+    })
+    .catch((err) => console.error('[register-distributor] Failed to notify platform admins:', err));
 
   return NextResponse.json(result, { status: 201 });
 }

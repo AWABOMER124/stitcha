@@ -125,6 +125,16 @@ enum NotificationChannel {
   WHATSAPP
 }
 
+enum DistributorNotificationType {
+  NEW_MERCHANT
+  SYSTEM
+}
+
+enum PlatformNotificationType {
+  NEW_DISTRIBUTOR
+  SYSTEM
+}
+
 enum CustomerSegment {
   NEW
   REGULAR
@@ -275,6 +285,7 @@ model Distributor {
   deliveryZones     DeliveryZone[]
   drivers           Driver[]
   deliveryCompanies DeliveryCompany[]
+  notificationLogs  DistributorNotificationLog[]
 
   @@index([slug])
   @@index([status])
@@ -907,6 +918,51 @@ model NotificationLog {
   @@index([isRead])
   @@index([createdAt])
   @@map("notification_logs")
+}
+
+/// Log of every notification sent within a distributor's scope
+model DistributorNotificationLog {
+  id            String                       @id @default(cuid())
+  distributorId String
+  type          DistributorNotificationType
+  channel       NotificationChannel          @default(IN_APP)
+
+  title String
+  body  String
+
+  isRead   Boolean @default(false)
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([distributorId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("distributor_notification_logs")
+}
+
+/// Log of notifications shared across all platform admins (no per-admin scoping)
+model PlatformNotificationLog {
+  id      String                   @id @default(cuid())
+  type    PlatformNotificationType
+  channel NotificationChannel      @default(IN_APP)
+
+  title String
+  body  String
+
+  isRead   Boolean @default(false)
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("platform_notification_logs")
 }
 
 // ============================================================================
