@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { signOut, useSession } from 'next-auth/react';
 import { useLocale } from '@/lib/i18n/context';
 import { LanguageToggle } from '@/lib/i18n/language-toggle';
+import { useMobileNav } from '@/components/ui/mobile-nav-context';
 
 export function AdminTopbar() {
   const { data: session } = useSession();
   const { dict } = useLocale();
+  const { toggle: toggleMobileNav } = useMobileNav();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -21,7 +23,16 @@ export function AdminTopbar() {
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={toggleMobileNav}
+          className="rounded-lg p-2 text-[var(--muted-foreground)] hover:bg-[var(--muted)] lg:hidden"
+          aria-label="Open menu"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
         <span className="text-xs font-bold text-[var(--primary)] bg-[var(--primary)]/10 rounded-full px-3 py-1">
           ✦ Platform Admin
         </span>

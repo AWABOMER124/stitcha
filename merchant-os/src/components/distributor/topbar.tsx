@@ -3,17 +3,28 @@
 import { signOut, useSession } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
 import { LanguageToggle } from "@/lib/i18n/language-toggle";
+import { useMobileNav } from "@/components/ui/mobile-nav-context";
 
 const APP_VERSION = "1.0.0";
 
 export function DistributorTopbar() {
   const { data: session } = useSession();
   const { dict } = useLocale();
+  const { toggle: toggleMobileNav } = useMobileNav();
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-4 gap-3">
       {/* User info */}
       <div className="flex items-center gap-3">
+        <button
+          onClick={toggleMobileNav}
+          className="rounded-lg p-2 text-[var(--muted-foreground)] hover:bg-[var(--muted)] lg:hidden"
+          aria-label="Open menu"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-xs font-bold text-white">
           {(session?.user?.name ?? "م").charAt(0)}
         </div>

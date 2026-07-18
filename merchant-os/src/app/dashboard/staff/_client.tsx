@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { inviteUserAction, updateUserRoleAction, deactivateUserAction } from '@/modules/users/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface StaffRow {
   id: string;
@@ -17,6 +19,8 @@ export function StaffClient({ initialStaff, currentUserId }: { initialStaff: Sta
   const { dict } = useLocale();
   const t = dict.staffPage;
   const ROLE_LABELS = t.roles;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [staff, setStaff] = useState(initialStaff);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -47,11 +51,13 @@ export function StaffClient({ initialStaff, currentUserId }: { initialStaff: Sta
     });
   }
 
-  function handleDeactivate(userId: string) {
-    if (!confirm(t.confirmRemove)) return;
+  async function handleDeactivate(userId: string) {
+    const ok = await confirmDialog({ message: t.confirmRemove, confirmLabel: t.remove, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deactivateUserAction(userId);
       if (res.success) setStaff((s) => s.map((x) => (x.userId === userId ? { ...x, isActive: false } : x)));
+      else toast.error(res.error);
     });
   }
 

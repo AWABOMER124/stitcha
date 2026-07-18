@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { createCategoryAction, updateCategoryAction, deleteCategoryAction } from '@/modules/categories/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Category {
   id: string;
@@ -15,6 +17,8 @@ interface Category {
 export function CategoriesClient({ initialCategories }: { initialCategories: Category[] }) {
   const { dict } = useLocale();
   const t = dict.categoriesPage;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -64,12 +68,13 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
     });
   }
 
-  function handleDelete(category: Category) {
-    if (!confirm(t.confirmDelete.replace('{name}', category.name))) return;
+  async function handleDelete(category: Category) {
+    const ok = await confirmDialog({ message: t.confirmDelete.replace('{name}', category.name), confirmLabel: dict.crud.delete, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteCategoryAction(category.id);
       if (res.success) setCategories((c) => c.filter((cat) => cat.id !== category.id));
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 

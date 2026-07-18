@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { assignDeliveryCompanyToMerchantAction } from '@/modules/delivery-companies/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface DeliveryCompany {
   id: string;
@@ -55,6 +57,8 @@ const NEXT_STATUS: Record<string, string> = {
 export function StatusToggle({ merchantId, status }: { merchantId: string; status: string }) {
   const { dict } = useLocale();
   const t = dict.distributorMerchantsPage;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [current, setCurrent] = useState(status);
   const [isPending, startTransition] = useTransition();
 
@@ -65,9 +69,12 @@ export function StatusToggle({ merchantId, status }: { merchantId: string; statu
     CLOSED: t.reactivate,
   };
 
-  function handleToggle() {
+  async function handleToggle() {
     const next = NEXT_STATUS[current] ?? 'ACTIVE';
-    if (next === 'SUSPENDED' && !confirm(t.confirmSuspend)) return;
+    if (next === 'SUSPENDED') {
+      const ok = await confirmDialog({ message: t.confirmSuspend, confirmLabel: t.suspend, danger: true });
+      if (!ok) return;
+    }
 
     startTransition(async () => {
       const res = await fetch(`/api/distributor/merchants/${merchantId}/status`, {
@@ -76,6 +83,7 @@ export function StatusToggle({ merchantId, status }: { merchantId: string; statu
         body: JSON.stringify({ status: next }),
       });
       if (res.ok) setCurrent(next);
+      else toast.error(dict.common.somethingWrong);
     });
   }
 

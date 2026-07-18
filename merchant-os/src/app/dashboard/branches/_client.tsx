@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { createBranchAction, updateBranchAction, deleteBranchAction, setMainBranchAction } from '@/modules/branches/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Branch {
   id: string;
@@ -17,6 +19,8 @@ export function BranchesClient({ initialBranches }: { initialBranches: Branch[] 
   const { dict } = useLocale();
   const t = dict.branchesPage;
   const c = dict.crud;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [branches, setBranches] = useState(initialBranches);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,13 +73,14 @@ export function BranchesClient({ initialBranches }: { initialBranches: Branch[] 
     });
   }
 
-  function handleDelete(b: Branch) {
-    if (b.isMain) { alert(t.cannotDeleteMain); return; }
-    if (!confirm(t.confirmDelete.replace('{name}', b.name))) return;
+  async function handleDelete(b: Branch) {
+    if (b.isMain) { toast.error(t.cannotDeleteMain); return; }
+    const ok = await confirmDialog({ message: t.confirmDelete.replace('{name}', b.name), confirmLabel: c.delete, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteBranchAction(b.id);
       if (res.success) setBranches((prev) => prev.filter((x) => x.id !== b.id));
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 

@@ -7,6 +7,8 @@ import {
   deleteDeliveryCompanyAction,
 } from '@/modules/delivery-companies/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface DeliveryCompany {
   id: string;
@@ -20,6 +22,8 @@ interface DeliveryCompany {
 export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies: DeliveryCompany[] }) {
   const { dict } = useLocale();
   const t = dict.deliveryCompaniesPage;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [companies, setCompanies] = useState(initialCompanies);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -68,12 +72,13 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
     });
   }
 
-  function handleDelete(c: DeliveryCompany) {
-    if (!confirm(t.confirmDelete.replace('{name}', c.name))) return;
+  async function handleDelete(c: DeliveryCompany) {
+    const ok = await confirmDialog({ message: t.confirmDelete.replace('{name}', c.name), confirmLabel: t.delete, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteDeliveryCompanyAction(c.id);
       if (res.success) setCompanies((prev) => prev.filter((x) => x.id !== c.id));
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 

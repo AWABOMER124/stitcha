@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { createPromoCodeAction, togglePromoCodeAction, deletePromoCodeAction } from '@/modules/crm/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Promo {
   id: string;
@@ -21,6 +23,8 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
   const { dict, locale } = useLocale();
   const t = dict.promosPage;
   const PROMO_TYPE_LABELS = t.promoTypes;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [promos, setPromos] = useState<Promo[]>(initialPromos);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -60,11 +64,13 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
     });
   }
 
-  function handleDelete(id: string, code: string) {
-    if (!confirm(t.confirmDelete.replace('{code}', code))) return;
+  async function handleDelete(id: string, code: string) {
+    const ok = await confirmDialog({ message: t.confirmDelete.replace('{code}', code), confirmLabel: t.delete, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deletePromoCodeAction(id);
       if (res.success) setPromos((p) => p.filter((pr) => pr.id !== id));
+      else toast.error(res.error);
     });
   }
 

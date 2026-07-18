@@ -14,6 +14,7 @@ export interface Dictionary {
     confirmPassword: string;
     continue: string;
     cancel: string;
+    confirm: string;
     or: string;
     somethingWrong: string;
     loading: string;
@@ -1539,6 +1540,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       confirmPassword: 'Confirm password',
       continue: 'Continue',
       cancel: 'Cancel',
+      confirm: 'Confirm',
       or: 'or',
       somethingWrong: 'Something went wrong. Please try again.',
       loading: 'Loading...',
@@ -3050,6 +3052,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       confirmPassword: 'تأكيد كلمة المرور',
       continue: 'متابعة',
       cancel: 'إلغاء',
+      confirm: 'تأكيد',
       or: 'أو',
       somethingWrong: 'حدث خطأ ما. حاول مرة أخرى.',
       loading: 'جاري التحميل...',

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale } from "@/lib/i18n/context";
 import type { Dictionary } from "@/lib/i18n/translations";
+import { useMobileNav } from "@/components/ui/mobile-nav-context";
 
 const APP_VERSION = "1.0.0";
 
@@ -113,10 +114,22 @@ function GroupItem({ item }: { item: Extract<NavItem, { type: "group" }> }) {
 export function DistributorSidebar() {
   const pathname = usePathname();
   const { dict } = useLocale();
+  const { open, close } = useMobileNav();
   const navItems = buildNavItems(dict.navDistributor);
 
+  useEffect(() => {
+    close();
+    // Close the mobile drawer whenever the route changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   return (
-    <aside className="hidden w-64 flex-shrink-0 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex">
+    <>
+      {open && (
+        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={close} aria-hidden="true" />
+      )}
+
+      <aside className={`${open ? "flex" : "hidden"} fixed inset-y-0 start-0 z-40 w-64 flex-shrink-0 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:static lg:flex`}>
       {/* Brand */}
       <div className="flex items-center gap-3 border-b border-[var(--sidebar-border)] px-4 py-4">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--sidebar-primary)] text-white text-sm font-black shadow-sm">
@@ -129,6 +142,15 @@ export function DistributorSidebar() {
         <span className="flex-shrink-0 text-[10px] bg-[var(--sidebar-primary)]/10 text-[var(--sidebar-primary)] border border-[var(--sidebar-primary)]/20 px-1.5 py-0.5 rounded font-mono font-bold">
           v{APP_VERSION}
         </span>
+        <button
+          onClick={close}
+          aria-label="Close menu"
+          className="flex-shrink-0 rounded-lg p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--sidebar-accent)] lg:hidden"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Nav */}
@@ -186,6 +208,7 @@ export function DistributorSidebar() {
           <span>{dict.topbar.logout}</span>
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

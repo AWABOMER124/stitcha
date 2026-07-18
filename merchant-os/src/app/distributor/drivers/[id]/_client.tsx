@@ -4,19 +4,21 @@ import { useTransition } from 'react';
 import { updateDriverAction } from '@/modules/drivers/actions';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
 
 export function DriverProfileClient({ driver }: { driver: any }) {
   const { dict, locale } = useLocale();
   const t = dict.driverProfilePage;
   const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
   const router = useRouter();
+  const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
   function handleVerify() {
     startTransition(async () => {
       const res = await updateDriverAction(driver.id, { isVerified: !driver.isVerified });
       if (res.success) router.refresh();
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 
@@ -24,7 +26,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
     startTransition(async () => {
       const res = await updateDriverAction(driver.id, { isActive: !driver.isActive });
       if (res.success) router.refresh();
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 

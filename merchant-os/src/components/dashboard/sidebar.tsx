@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale } from "@/lib/i18n/context";
 import type { Dictionary } from "@/lib/i18n/translations";
-import { useMobileNav } from "@/components/dashboard/mobile-nav-context";
+import { useMobileNav } from "@/components/ui/mobile-nav-context";
 
 /**
  * Dashboard sidebar navigation component

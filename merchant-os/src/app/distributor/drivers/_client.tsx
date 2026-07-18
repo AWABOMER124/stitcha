@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { updateDriverAction, deleteDriverAction } from '@/modules/drivers/actions';
 import Link from 'next/link';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const STATUS_CLS: Record<string, string> = {
   OFFLINE: 'bg-stone-100 text-stone-600',
@@ -39,6 +41,8 @@ export function DriversClient({ initialDrivers }: { initialDrivers: Driver[] }) 
   const t = dict.driversPage;
   const ds = dict.driverShared;
   const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState('');
@@ -58,12 +62,13 @@ export function DriversClient({ initialDrivers }: { initialDrivers: Driver[] }) 
     });
   }
 
-  function handleDelete(id: string, name: string) {
-    if (!confirm(t.confirmDelete.replace('{name}', name))) return;
+  async function handleDelete(id: string, name: string) {
+    const ok = await confirmDialog({ message: t.confirmDelete.replace('{name}', name), confirmLabel: t.delete, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteDriverAction(id);
       if (res.success) setDrivers((prev) => prev.filter((d) => d.id !== id));
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 

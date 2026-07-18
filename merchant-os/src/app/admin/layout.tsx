@@ -5,6 +5,8 @@ import { LocaleProvider } from '@/lib/i18n/context';
 import { LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { AdminSidebar } from '@/components/admin/sidebar';
 import { AdminTopbar } from '@/components/admin/topbar';
+import { AppProviders } from '@/components/ui/app-providers';
+import { MobileNavProvider } from '@/components/ui/mobile-nav-context';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -16,13 +18,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <LocaleProvider initialLocale={initialLocale}>
-      <div className="flex h-screen overflow-hidden bg-[var(--background)]">
-        <AdminSidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <AdminTopbar />
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
-        </div>
-      </div>
+      <AppProviders>
+        <MobileNavProvider>
+          <div className="flex h-screen overflow-hidden bg-[var(--background)]">
+            <AdminSidebar />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <AdminTopbar />
+              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+            </div>
+          </div>
+        </MobileNavProvider>
+      </AppProviders>
     </LocaleProvider>
   );
 }

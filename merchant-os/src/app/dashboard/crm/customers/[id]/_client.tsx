@@ -4,21 +4,30 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateCustomerAction } from '@/modules/crm/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 export function CustomerProfileClient({ customer }: { customer: any }) {
   const { dict } = useLocale();
   const t = dict.customerProfilePage;
   const router = useRouter();
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [notes, setNotes] = useState(customer.notes ?? '');
   const [editingNotes, setEditingNotes] = useState(false);
 
-  function handleToggleBlock() {
-    if (!confirm(customer.isBlocked ? t.confirmUnblock : t.confirmBlock)) return;
+  async function handleToggleBlock() {
+    const ok = await confirmDialog({
+      message: customer.isBlocked ? t.confirmUnblock : t.confirmBlock,
+      confirmLabel: customer.isBlocked ? t.unblock : t.block,
+      danger: !customer.isBlocked,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await updateCustomerAction(customer.id, { isBlocked: !customer.isBlocked });
       if (res.success) router.refresh();
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 
@@ -26,7 +35,7 @@ export function CustomerProfileClient({ customer }: { customer: any }) {
     startTransition(async () => {
       const res = await updateCustomerAction(customer.id, { notes });
       if (res.success) { setEditingNotes(false); router.refresh(); }
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 

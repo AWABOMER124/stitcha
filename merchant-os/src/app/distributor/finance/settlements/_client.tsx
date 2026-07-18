@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { createSettlementAction, markSettlementPaidAction } from '@/modules/finance/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const STATUS_CLS: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-700',
@@ -45,6 +47,8 @@ export function SettlementsClient({
   const { dict, locale } = useLocale();
   const t = dict.distributorSettlementsPage;
   const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [settlements, setSettlements] = useState<Settlement[]>(initialSettlements);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -81,8 +85,9 @@ export function SettlementsClient({
     });
   }
 
-  function handleMarkPaid(id: string) {
-    if (!confirm(t.confirmMarkPaid)) return;
+  async function handleMarkPaid(id: string) {
+    const ok = await confirmDialog({ message: t.confirmMarkPaid, confirmLabel: t.confirmPayment });
+    if (!ok) return;
     startTransition(async () => {
       const res = await markSettlementPaidAction(id);
       if (res.success) {
@@ -92,7 +97,7 @@ export function SettlementsClient({
           ),
         );
       } else {
-        alert(res.error);
+        toast.error(res.error);
       }
     });
   }

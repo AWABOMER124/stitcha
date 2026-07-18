@@ -5,6 +5,8 @@ import { LocaleProvider } from '@/lib/i18n/context';
 import { LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { DistributorSidebar } from '@/components/distributor/sidebar';
 import { DistributorTopbar } from '@/components/distributor/topbar';
+import { AppProviders } from '@/components/ui/app-providers';
+import { MobileNavProvider } from '@/components/ui/mobile-nav-context';
 
 export default async function DistributorLayout({
   children,
@@ -24,13 +26,17 @@ export default async function DistributorLayout({
 
   return (
     <LocaleProvider initialLocale={initialLocale}>
-      <div className="flex h-screen overflow-hidden bg-[var(--background)]">
-        <DistributorSidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <DistributorTopbar />
-          <main className="flex-1 overflow-y-auto p-6">{children}</main>
-        </div>
-      </div>
+      <AppProviders>
+        <MobileNavProvider>
+          <div className="flex h-screen overflow-hidden bg-[var(--background)]">
+            <DistributorSidebar />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <DistributorTopbar />
+              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+            </div>
+          </div>
+        </MobileNavProvider>
+      </AppProviders>
     </LocaleProvider>
   );
 }

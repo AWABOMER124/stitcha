@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { createDeliveryZoneAction, updateDeliveryZoneAction, deleteDeliveryZoneAction } from '@/modules/finance/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Zone {
   id: string;
@@ -20,6 +22,8 @@ interface Zone {
 export function PriceListsClient({ initialZones }: { initialZones: Zone[] }) {
   const { dict } = useLocale();
   const t = dict.distributorPriceListsPage;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [zones, setZones] = useState<Zone[]>(initialZones);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -69,12 +73,13 @@ export function PriceListsClient({ initialZones }: { initialZones: Zone[] }) {
     });
   }
 
-  function handleDelete(id: string) {
-    if (!confirm(t.confirmDelete)) return;
+  async function handleDelete(id: string) {
+    const ok = await confirmDialog({ message: t.confirmDelete, confirmLabel: t.delete, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteDeliveryZoneAction(id);
       if (res.success) setZones((prev) => prev.filter((z) => z.id !== id));
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
 

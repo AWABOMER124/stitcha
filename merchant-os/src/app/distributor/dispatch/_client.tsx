@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { assignDriverAction } from '@/modules/drivers/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
 
 interface Order {
   id: string;
@@ -33,6 +34,7 @@ export function DispatchClient({
 }) {
   const { dict } = useLocale();
   const t = dict.dispatchPage;
+  const toast = useToast();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [isPending, startTransition] = useTransition();
   const [selectedDriver, setSelectedDriver] = useState<Record<string, string>>({});
@@ -46,7 +48,7 @@ export function DispatchClient({
       if (res.success) {
         setOrders((prev) => prev.filter((o) => o.id !== orderId));
       } else {
-        alert(res.error);
+        toast.error(res.error);
       }
     });
   }

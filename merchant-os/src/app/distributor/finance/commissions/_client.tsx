@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { createCommissionPlanAction, deleteCommissionPlanAction } from '@/modules/finance/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { useToast } from '@/components/ui/toast';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const TYPE_COLORS: Record<string, string> = {
   PERCENTAGE: 'bg-blue-100 text-blue-700',
@@ -27,6 +29,8 @@ interface Plan {
 export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }) {
   const { dict } = useLocale();
   const t = dict.distributorCommissionsPage;
+  const toast = useToast();
+  const confirmDialog = useConfirm();
   const [plans, setPlans] = useState<Plan[]>(initialPlans);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -65,14 +69,15 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
     });
   }
 
-  function handleDelete(id: string) {
-    if (!confirm(t.confirmDelete)) return;
+  async function handleDelete(id: string) {
+    const ok = await confirmDialog({ message: t.confirmDelete, confirmLabel: t.delete, danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteCommissionPlanAction(id);
       if (res.success) {
         setPlans((prev) => prev.filter((p) => p.id !== id));
       } else {
-        alert(res.error);
+        toast.error(res.error);
       }
     });
   }

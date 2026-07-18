@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/context";
 import { LanguageToggle } from "@/lib/i18n/language-toggle";
 import { getNotificationsAction, getUnreadCountAction, markAsReadAction } from "@/modules/notifications/actions";
-import { useMobileNav } from "@/components/dashboard/mobile-nav-context";
+import { useMobileNav } from "@/components/ui/mobile-nav-context";
 
 interface NotificationItem {
   id: string;

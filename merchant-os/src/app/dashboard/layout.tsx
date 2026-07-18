@@ -7,7 +7,8 @@ import { LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import prisma from '@/lib/db/prisma';
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardTopbar } from "@/components/dashboard/topbar";
-import { MobileNavProvider } from "@/components/dashboard/mobile-nav-context";
+import { MobileNavProvider } from "@/components/ui/mobile-nav-context";
+import { AppProviders } from "@/components/ui/app-providers";
 
 export default async function DashboardLayout({
   children,
@@ -33,20 +34,22 @@ export default async function DashboardLayout({
 
   return (
     <LocaleProvider initialLocale={initialLocale}>
-      <MobileNavProvider>
-        <div className="flex h-screen overflow-hidden bg-[var(--background)]">
-          {/* Sidebar */}
-          <DashboardSidebar merchantName={merchant?.name ?? '—'} merchantSlug={merchant?.slug ?? ''} />
+      <AppProviders>
+        <MobileNavProvider>
+          <div className="flex h-screen overflow-hidden bg-[var(--background)]">
+            {/* Sidebar */}
+            <DashboardSidebar merchantName={merchant?.name ?? '—'} merchantSlug={merchant?.slug ?? ''} />
 
-          {/* Main Content */}
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <DashboardTopbar />
-            <main className="flex-1 overflow-y-auto p-6">
-              {children}
-            </main>
+            {/* Main Content */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <DashboardTopbar />
+              <main className="flex-1 overflow-y-auto p-6">
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
-      </MobileNavProvider>
+        </MobileNavProvider>
+      </AppProviders>
     </LocaleProvider>
   );
 }
