@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useLocale } from "@/lib/i18n/context";
 import { LanguageToggle } from "@/lib/i18n/language-toggle";
 import { getNotificationsAction, getUnreadCountAction, markAsReadAction } from "@/modules/notifications/actions";
+import { useMobileNav } from "@/components/dashboard/mobile-nav-context";
 
 interface NotificationItem {
   id: string;
@@ -31,6 +32,7 @@ export function DashboardTopbar() {
   const { dict } = useLocale();
   const { data: session } = useSession();
   const router = useRouter();
+  const { toggle: toggleMobileNav } = useMobileNav();
   const [, startTransition] = useTransition();
 
   const [unreadCount, setUnreadCount] = useState(0);
@@ -94,6 +96,7 @@ export function DashboardTopbar() {
       <div className="flex items-center gap-4">
         {/* Mobile menu button */}
         <button
+          onClick={toggleMobileNav}
           className="rounded-lg p-2 text-[var(--muted-foreground)] hover:bg-[var(--muted)] lg:hidden"
           aria-label="Open menu"
         >

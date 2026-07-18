@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale } from "@/lib/i18n/context";
 import type { Dictionary } from "@/lib/i18n/translations";
+import { useMobileNav } from "@/components/dashboard/mobile-nav-context";
 
 /**
  * Dashboard sidebar navigation component
@@ -44,89 +46,124 @@ function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
   ];
 }
 
-export function DashboardSidebar() {
+export function DashboardSidebar({
+  merchantName,
+  merchantSlug,
+}: {
+  merchantName: string;
+  merchantSlug: string;
+}) {
   const pathname = usePathname();
   const { dict } = useLocale();
+  const { open, close } = useMobileNav();
   const navItems = buildNavItems(dict.navDashboard);
 
+  useEffect(() => {
+    close();
+    // Close the mobile drawer whenever the route changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   return (
-    <aside className="hidden w-64 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] text-lg font-bold">
-          و
-        </div>
-        <div>
-          <h2 className="text-sm font-bold text-[var(--sidebar-foreground)]">
-            Waslak
-          </h2>
-          <p className="text-[10px] text-[var(--muted-foreground)] leading-tight">
-            Merchant OS
-          </p>
-        </div>
-      </div>
+    <>
+      {/* Mobile backdrop */}
+      {open && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={close}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Merchant Info */}
-      <div className="border-b border-[var(--sidebar-border)] px-4 py-3">
-        <div className="flex items-center gap-3 rounded-lg bg-[var(--sidebar-accent)] px-3 py-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--sidebar-primary)]/10 text-sm">
-            🍽️
+      <aside
+        className={`${open ? "flex" : "hidden"} fixed inset-y-0 start-0 z-40 w-64 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:static lg:flex`}
+      >
+        {/* Logo */}
+        <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] text-lg font-bold">
+            و
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-[var(--sidebar-foreground)]">
-              مطعم الشيف
-            </p>
-            <p className="truncate text-[10px] text-[var(--muted-foreground)]">
-              chef-restaurant
+          <div>
+            <h2 className="text-sm font-bold text-[var(--sidebar-foreground)]">
+              Waslak
+            </h2>
+            <p className="text-[10px] text-[var(--muted-foreground)] leading-tight">
+              Merchant OS
             </p>
           </div>
+          <button
+            onClick={close}
+            aria-label="Close menu"
+            className="ms-auto rounded-lg p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--sidebar-accent)] lg:hidden"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3">
-        <ul className="space-y-1">
-          {navItems.map((item) => {
-            if (item.type === "section") {
+        {/* Merchant Info */}
+        <div className="border-b border-[var(--sidebar-border)] px-4 py-3">
+          <div className="flex items-center gap-3 rounded-lg bg-[var(--sidebar-accent)] px-3 py-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--sidebar-primary)]/10 text-sm">
+              🍽️
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-[var(--sidebar-foreground)]">
+                {merchantName}
+              </p>
+              <p className="truncate text-[10px] text-[var(--muted-foreground)]">
+                {merchantSlug}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              if (item.type === "section") {
+                return (
+                  <li key={item.label} className="pt-3 pb-1 px-2">
+                    <span className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">{item.label}</span>
+                  </li>
+                );
+              }
+              const isActive = pathname === item.href ||
+                (item.href !== "/dashboard" && pathname.startsWith(item.href));
               return (
-                <li key={item.label} className="pt-3 pb-1 px-2">
-                  <span className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">{item.label}</span>
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
+                      isActive
+                        ? "bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] font-medium shadow-sm"
+                        : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]"
+                    }`}
+                  >
+                    <span className="text-base">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
                 </li>
               );
-            }
-            const isActive = pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
-                    isActive
-                      ? "bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] font-medium shadow-sm"
-                      : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]"
-                  }`}
-                >
-                  <span className="text-base">{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+            })}
+          </ul>
+        </nav>
 
-      {/* Store Link */}
-      <div className="border-t border-[var(--sidebar-border)] p-3">
-        <Link
-          href="/store/chef-restaurant"
-          target="_blank"
-          className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--sidebar-border)] px-3 py-2.5 text-sm text-[var(--muted-foreground)] transition-colors hover:border-[var(--sidebar-primary)] hover:text-[var(--sidebar-primary)]"
-        >
-          <span>🌐</span>
-          <span>{dict.topbar.viewStorefront}</span>
-          <span className="ms-auto text-xs">↗</span>
-        </Link>
-      </div>
-    </aside>
+        {/* Store Link */}
+        <div className="border-t border-[var(--sidebar-border)] p-3">
+          <Link
+            href={`/store/${merchantSlug}`}
+            target="_blank"
+            className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--sidebar-border)] px-3 py-2.5 text-sm text-[var(--muted-foreground)] transition-colors hover:border-[var(--sidebar-primary)] hover:text-[var(--sidebar-primary)]"
+          >
+            <span>🌐</span>
+            <span>{dict.topbar.viewStorefront}</span>
+            <span className="ms-auto text-xs">↗</span>
+          </Link>
+        </div>
+      </aside>
+    </>
   );
 }
