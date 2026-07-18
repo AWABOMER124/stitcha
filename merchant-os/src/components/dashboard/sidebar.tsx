@@ -2,45 +2,55 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLocale } from "@/lib/i18n/context";
+import type { Dictionary } from "@/lib/i18n/translations";
 
 /**
  * Dashboard sidebar navigation component
  */
 
-const navItems = [
-  { label: "الرئيسية", href: "/dashboard", icon: "📊" },
-  { label: "لوحة التشغيل", href: "/dashboard/fulfillment", icon: "⚡" },
-  { label: "الطلبات", href: "/dashboard/orders", icon: "📦" },
-  { label: "المنتجات", href: "/dashboard/products", icon: "🛍️" },
-  { label: "الفئات", href: "/dashboard/categories", icon: "📂" },
-  { label: "المخزون", href: "/dashboard/inventory", icon: "📋" },
-  { label: "— المتجر الإلكتروني —", href: "/dashboard/storefront", icon: "🌐", section: true },
-  { label: "إعدادات المتجر", href: "/dashboard/storefront", icon: "🌐" },
-  { label: "تخصيص الهوية", href: "/dashboard/storefront/customize", icon: "🎨" },
-  { label: "مولّد AI", href: "/dashboard/storefront/ai", icon: "🤖" },
-  { label: "صندوق الوارد", href: "/dashboard/inbox", icon: "💬" },
-  { label: "— المالية —", href: "/dashboard/finance", icon: "💰", section: true },
-  { label: "لوحة المالية", href: "/dashboard/finance", icon: "💰" },
-  { label: "المعاملات المالية", href: "/dashboard/finance/transactions", icon: "💳" },
-  { label: "التسويات", href: "/dashboard/finance/settlements", icon: "🧾" },
-  { label: "— إدارة العملاء —", href: "/dashboard/crm", icon: "🎯", section: true },
-  { label: "إدارة العملاء (CRM)", href: "/dashboard/crm", icon: "🎯" },
-  { label: "أكواد الخصم", href: "/dashboard/crm/promos", icon: "🎟️" },
-  { label: "نقاط الولاء", href: "/dashboard/crm/loyalty", icon: "⭐" },
-  { label: "— عمليات —", href: "/dashboard/branches", icon: "🏪", section: true },
-  { label: "الفروع", href: "/dashboard/branches", icon: "🏪" },
-  { label: "الموظفون", href: "/dashboard/staff", icon: "👤" },
-  { label: "التوصيل", href: "/dashboard/delivery", icon: "🚚" },
-  { label: "التقارير", href: "/dashboard/reports", icon: "📈" },
-  { label: "الإشعارات", href: "/dashboard/notifications", icon: "🔔" },
-  { label: "الإعدادات", href: "/dashboard/settings", icon: "⚙️" },
-];
+type NavItem =
+  | { type: "link"; label: string; href: string; icon: string }
+  | { type: "section"; label: string };
+
+function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
+  return [
+    { type: "link", label: nav.home, href: "/dashboard", icon: "📊" },
+    { type: "link", label: nav.fulfillment, href: "/dashboard/fulfillment", icon: "⚡" },
+    { type: "link", label: nav.orders, href: "/dashboard/orders", icon: "📦" },
+    { type: "link", label: nav.products, href: "/dashboard/products", icon: "🛍️" },
+    { type: "link", label: nav.categories, href: "/dashboard/categories", icon: "📂" },
+    { type: "link", label: nav.inventory, href: "/dashboard/inventory", icon: "📋" },
+    { type: "section", label: nav.storefrontSection },
+    { type: "link", label: nav.storefrontSettings, href: "/dashboard/storefront", icon: "🌐" },
+    { type: "link", label: nav.customize, href: "/dashboard/storefront/customize", icon: "🎨" },
+    { type: "link", label: nav.aiGenerator, href: "/dashboard/storefront/ai", icon: "🤖" },
+    { type: "link", label: nav.inbox, href: "/dashboard/inbox", icon: "💬" },
+    { type: "section", label: nav.financeSection },
+    { type: "link", label: nav.financeDashboard, href: "/dashboard/finance", icon: "💰" },
+    { type: "link", label: nav.transactions, href: "/dashboard/finance/transactions", icon: "💳" },
+    { type: "link", label: nav.settlements, href: "/dashboard/finance/settlements", icon: "🧾" },
+    { type: "section", label: nav.crmSection },
+    { type: "link", label: nav.crm, href: "/dashboard/crm", icon: "🎯" },
+    { type: "link", label: nav.promos, href: "/dashboard/crm/promos", icon: "🎟️" },
+    { type: "link", label: nav.loyalty, href: "/dashboard/crm/loyalty", icon: "⭐" },
+    { type: "section", label: nav.operationsSection },
+    { type: "link", label: nav.branches, href: "/dashboard/branches", icon: "🏪" },
+    { type: "link", label: nav.staff, href: "/dashboard/staff", icon: "👤" },
+    { type: "link", label: nav.delivery, href: "/dashboard/delivery", icon: "🚚" },
+    { type: "link", label: nav.reports, href: "/dashboard/reports", icon: "📈" },
+    { type: "link", label: nav.notifications, href: "/dashboard/notifications", icon: "🔔" },
+    { type: "link", label: nav.settings, href: "/dashboard/settings", icon: "⚙️" },
+  ];
+}
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { dict } = useLocale();
+  const navItems = buildNavItems(dict.navDashboard);
 
   return (
-    <aside className="hidden w-64 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex">
+    <aside className="hidden w-64 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] text-lg font-bold">
@@ -77,7 +87,7 @@ export function DashboardSidebar() {
       <nav className="flex-1 overflow-y-auto p-3">
         <ul className="space-y-1">
           {navItems.map((item) => {
-            if ((item as any).section) {
+            if (item.type === "section") {
               return (
                 <li key={item.label} className="pt-3 pb-1 px-2">
                   <span className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">{item.label}</span>
@@ -87,7 +97,7 @@ export function DashboardSidebar() {
             const isActive = pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
             return (
-              <li key={item.href + item.label}>
+              <li key={item.href}>
                 <Link
                   href={item.href}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
@@ -113,8 +123,8 @@ export function DashboardSidebar() {
           className="flex items-center gap-3 rounded-lg border border-dashed border-[var(--sidebar-border)] px-3 py-2.5 text-sm text-[var(--muted-foreground)] transition-colors hover:border-[var(--sidebar-primary)] hover:text-[var(--sidebar-primary)]"
         >
           <span>🌐</span>
-          <span>View Storefront</span>
-          <span className="ml-auto text-xs">↗</span>
+          <span>{dict.topbar.viewStorefront}</span>
+          <span className="ms-auto text-xs">↗</span>
         </Link>
       </div>
     </aside>

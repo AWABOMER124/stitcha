@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { markAsReadAction } from '@/modules/notifications/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 interface Notification {
   id: string;
@@ -21,13 +22,6 @@ const TYPE_ICON: Record<string, string> = {
   SYSTEM: '⚙️',
 };
 
-const TYPE_LABEL: Record<string, string> = {
-  NEW_ORDER: 'New order',
-  ORDER_STATUS: 'Order update',
-  LOW_STOCK: 'Low stock',
-  SYSTEM: 'System',
-};
-
 export function NotificationsClient({
   initialNotifications,
   initialPagination,
@@ -37,6 +31,8 @@ export function NotificationsClient({
   initialPagination: { page: number; limit: number; total: number; totalPages: number };
   activeTab: 'all' | 'unread';
 }) {
+  const { dict, locale } = useLocale();
+  const t = dict.notificationsPage;
   const [notifications, setNotifications] = useState(initialNotifications);
   const [isPending, startTransition] = useTransition();
 
@@ -52,25 +48,30 @@ export function NotificationsClient({
   }
 
   const tabs: Array<{ key: 'all' | 'unread'; label: string; href: string }> = [
-    { key: 'all', label: 'All', href: '/dashboard/notifications' },
-    { key: 'unread', label: 'Unread', href: '/dashboard/notifications?tab=unread' },
+    { key: 'all', label: t.all, href: '/dashboard/notifications' },
+    { key: 'unread', label: t.unread, href: '/dashboard/notifications?tab=unread' },
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
+      </div>
+      <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1">
-          {tabs.map((t) => (
+          {tabs.map((tab) => (
             <Link
-              key={t.key}
-              href={t.href}
+              key={tab.key}
+              href={tab.href}
               className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                activeTab === t.key
+                activeTab === tab.key
                   ? 'bg-[var(--primary)] text-white'
                   : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)]'
               }`}
             >
-              {t.label}
+              {tab.label}
             </Link>
           ))}
         </div>
@@ -80,7 +81,7 @@ export function NotificationsClient({
             disabled={isPending}
             className="text-sm font-medium text-[var(--primary)] hover:underline disabled:opacity-50"
           >
-            Mark all as read
+            {t.markAllRead}
           </button>
         )}
       </div>
@@ -89,10 +90,10 @@ export function NotificationsClient({
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
           <p className="text-4xl mb-3">🔔</p>
           <p className="font-semibold text-[var(--foreground)]">
-            {activeTab === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+            {activeTab === 'unread' ? t.emptyUnread : t.emptyAll}
           </p>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">
-            Order alerts, stock alerts, and system notifications will appear here
+            {t.emptySubtitle}
           </p>
         </div>
       ) : (
@@ -107,11 +108,11 @@ export function NotificationsClient({
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-[var(--foreground)]">{n.title}</span>
                   {!n.isRead && <span className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]" />}
-                  <span className="text-xs text-[var(--muted-foreground)]">{TYPE_LABEL[n.type] ?? n.type}</span>
+                  <span className="text-xs text-[var(--muted-foreground)]">{t.types[n.type as keyof typeof t.types] ?? n.type}</span>
                 </div>
                 <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{n.body}</p>
                 <p className="text-xs text-[var(--muted-foreground)]/70 mt-1">
-                  {new Date(n.createdAt).toLocaleString()}
+                  {new Date(n.createdAt).toLocaleString(locale)}
                 </p>
               </div>
               {!n.isRead && (
@@ -120,7 +121,7 @@ export function NotificationsClient({
                   disabled={isPending}
                   className="shrink-0 text-xs font-medium text-[var(--primary)] hover:underline disabled:opacity-50"
                 >
-                  Mark as read
+                  {t.markRead}
                 </button>
               )}
             </div>
@@ -130,9 +131,10 @@ export function NotificationsClient({
 
       {initialPagination.total > 0 && (
         <p className="text-xs text-[var(--muted-foreground)] text-center">
-          Showing {notifications.length} of {initialPagination.total} notifications
+          {t.showing.replace('{shown}', String(notifications.length)).replace('{total}', String(initialPagination.total))}
         </p>
       )}
+      </div>
     </div>
   );
 }

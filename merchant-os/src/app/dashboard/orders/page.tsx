@@ -1,5 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { getOrdersAction, updateOrderStatusAction } from '@/modules/orders/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale, type Dictionary } from '@/lib/i18n/translations';
 import { StatusTabs } from './_components/status-tabs';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -21,28 +23,29 @@ const NEXT_STATUS: Record<string, string> = {
   OUT_FOR_DELIVERY: 'DELIVERED',
 };
 
-const NEXT_STATUS_LABEL: Record<string, string> = {
-  NEW: 'Accept',
-  ACCEPTED: 'Start Preparing',
-  PREPARING: 'Mark Ready',
-  READY: 'Out for Delivery',
-  OUT_FOR_DELIVERY: 'Mark Delivered',
-};
+async function getDict(): Promise<{ dict: Dictionary; locale: Locale }> {
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  return { dict: dictionaries[locale], locale };
+}
 
 interface PageProps {
   searchParams: Promise<{ status?: string }>;
 }
 
 async function OrdersList({ status }: { status?: string }) {
-  const result = await getOrdersAction(
-    status && status !== 'ALL' ? { status } : {}
-  );
+  const [result, { dict, locale }] = await Promise.all([
+    getOrdersAction(status && status !== 'ALL' ? { status } : {}),
+    getDict(),
+  ]);
+  const t = dict.ordersPage;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
 
   if (!result.success) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/20">
         <p className="text-sm text-red-600 dark:text-red-400">
-          {result.error ?? 'Failed to load orders'}
+          {result.error ?? t.loadFailed}
         </p>
       </div>
     );
@@ -53,7 +56,7 @@ async function OrdersList({ status }: { status?: string }) {
   if (orders.length === 0) {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-12 text-center">
-        <p className="text-sm text-[var(--muted-foreground)]">No orders found</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.empty}</p>
       </div>
     );
   }
@@ -62,7 +65,7 @@ async function OrdersList({ status }: { status?: string }) {
     <div className="space-y-3">
       {orders.map((order) => {
         const nextStatus = NEXT_STATUS[order.status];
-        const nextLabel = NEXT_STATUS_LABEL[order.status];
+        const nextLabel = t.nextStatusLabel[order.status as keyof typeof t.nextStatusLabel];
 
         async function advanceStatus() {
           'use server';
@@ -84,16 +87,16 @@ async function OrdersList({ status }: { status?: string }) {
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold text-[var(--foreground)]">{order.orderNumber}</h3>
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status] ?? ''}`}>
-                      {String(order.status).replace(/_/g, ' ')}
+                      {t.statusLabel[order.status as keyof typeof t.statusLabel] ?? order.status}
                     </span>
                   </div>
                   <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">
-                    {order.customerName ?? 'Unknown'} · {order.customerPhone ?? '—'}
+                    {order.customerName ?? t.unknownCustomer} · {order.customerPhone ?? '—'}
                   </p>
                   <div className="mt-2 flex items-center gap-4 text-xs text-[var(--muted-foreground)]">
-                    <span>{order.deliveryMethod === 'PICKUP' ? '🏪 Pickup' : '🚚 Delivery'}</span>
+                    <span>{order.deliveryMethod === 'PICKUP' ? t.pickup : t.delivery}</span>
                     <span>·</span>
-                    <span>{new Date(order.createdAt).toLocaleTimeString('ar-SD', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>{new Date(order.createdAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
               </div>
@@ -111,7 +114,7 @@ async function OrdersList({ status }: { status?: string }) {
                   </form>
                 )}
                 <a href={`/dashboard/orders/${order.id}`} className="text-xs text-[var(--primary)] hover:underline">
-                  View Details
+                  {t.viewDetails}
                 </a>
               </div>
             </div>
@@ -124,13 +127,15 @@ async function OrdersList({ status }: { status?: string }) {
 
 export default async function OrdersPage({ searchParams }: PageProps) {
   const { status } = await searchParams;
+  const { dict } = await getDict();
+  const t = dict.ordersPage;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Orders</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">Manage incoming and active orders</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
         </div>
       </div>
 

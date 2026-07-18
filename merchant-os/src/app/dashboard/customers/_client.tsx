@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createCustomerAction, updateCustomerAction } from '@/modules/customers/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 interface Customer {
   id: string;
@@ -14,9 +15,6 @@ interface Customer {
   totalSpent: number;
 }
 
-const SEGMENT_LABEL: Record<string, string> = {
-  NEW: 'New', REGULAR: 'Regular', VIP: 'VIP', INACTIVE: 'Inactive', BLOCKED: 'Blocked',
-};
 const SEGMENT_CLASS: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700',
   REGULAR: 'bg-emerald-100 text-emerald-700',
@@ -26,6 +24,9 @@ const SEGMENT_CLASS: Record<string, string> = {
 };
 
 export function CustomersClient({ initialCustomers }: { initialCustomers: Customer[] }) {
+  const { dict } = useLocale();
+  const t = dict.customersPage;
+  const c = dict.crud;
   const [customers, setCustomers] = useState(initialCustomers);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,52 +76,57 @@ export function CustomersClient({ initialCustomers }: { initialCustomers: Custom
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
+      </div>
+      <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, phone, or email"
+          placeholder={t.searchPlaceholder}
           className="w-full max-w-xs rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         />
         <button
           onClick={() => (showForm ? resetForm() : setShowForm(true))}
           className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm hover:bg-[var(--primary)]/90 transition-colors"
         >
-          {showForm ? 'Cancel' : <>+ Add Customer</>}
+          {showForm ? c.cancel : t.addCustomer}
         </button>
       </div>
 
       {showForm && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-          <h3 className="font-bold text-[var(--foreground)] mb-4">{editingId ? 'Edit customer' : 'New customer'}</h3>
+          <h3 className="font-bold text-[var(--foreground)] mb-4">{editingId ? t.editCustomer : t.newCustomer}</h3>
           {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">Name *</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{c.name} *</label>
               <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">Phone *</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{c.phone} *</label>
               <input required value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">Email</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{c.email}</label>
               <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">Notes</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{c.notes}</label>
               <input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div className="sm:col-span-2">
               <button type="submit" disabled={isPending}
                 className="rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors">
-                {isPending ? 'Saving...' : editingId ? 'Save' : 'Create'}
+                {isPending ? c.saving : editingId ? c.save : c.create}
               </button>
             </div>
           </form>
@@ -130,8 +136,8 @@ export function CustomersClient({ initialCustomers }: { initialCustomers: Custom
       {filtered.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
           <p className="text-4xl mb-3">👥</p>
-          <p className="font-semibold text-[var(--foreground)]">No customers yet</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">Customers are also added automatically when they place an order</p>
+          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.emptySubtitle}</p>
         </div>
       ) : (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
@@ -139,34 +145,34 @@ export function CustomersClient({ initialCustomers }: { initialCustomers: Custom
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]/50">
-                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">Name</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">Phone / Email</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">Segment</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">Orders</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">Total Spent</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colName}</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colContact}</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colSegment}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colOrders}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colTotalSpent}</th>
                   <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-[var(--muted)]/30 transition-colors">
-                    <td className="px-5 py-3.5 text-sm font-medium text-[var(--foreground)]">{c.name}</td>
+                {filtered.map((cust) => (
+                  <tr key={cust.id} className="hover:bg-[var(--muted)]/30 transition-colors">
+                    <td className="px-5 py-3.5 text-sm font-medium text-[var(--foreground)]">{cust.name}</td>
                     <td className="px-5 py-3.5 text-sm text-[var(--muted-foreground)]">
-                      <div>{c.phone}</div>
-                      {c.email && <div className="text-xs">{c.email}</div>}
+                      <div>{cust.phone}</div>
+                      {cust.email && <div className="text-xs">{cust.email}</div>}
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${SEGMENT_CLASS[c.segment] ?? ''}`}>
-                        {SEGMENT_LABEL[c.segment] ?? c.segment}
+                      <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${SEGMENT_CLASS[cust.segment] ?? ''}`}>
+                        {t.segments[cust.segment as keyof typeof t.segments] ?? cust.segment}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right text-sm text-[var(--foreground)]">{c.totalOrders}</td>
+                    <td className="px-5 py-3.5 text-right text-sm text-[var(--foreground)]">{cust.totalOrders}</td>
                     <td className="px-5 py-3.5 text-right text-sm font-semibold text-[var(--foreground)]">
-                      {Number(c.totalSpent).toLocaleString()} SDG
+                      {Number(cust.totalSpent).toLocaleString()} SDG
                     </td>
                     <td className="px-5 py-3.5 text-left">
-                      <button onClick={() => startEdit(c)} className="text-xs font-medium text-[var(--primary)] hover:underline">
-                        Edit
+                      <button onClick={() => startEdit(cust)} className="text-xs font-medium text-[var(--primary)] hover:underline">
+                        {dict.crud.edit}
                       </button>
                     </td>
                   </tr>
@@ -176,6 +182,7 @@ export function CustomersClient({ initialCustomers }: { initialCustomers: Custom
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

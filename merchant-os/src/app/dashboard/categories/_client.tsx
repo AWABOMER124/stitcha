@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createCategoryAction, updateCategoryAction, deleteCategoryAction } from '@/modules/categories/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 interface Category {
   id: string;
@@ -12,6 +13,8 @@ interface Category {
 }
 
 export function CategoriesClient({ initialCategories }: { initialCategories: Category[] }) {
+  const { dict } = useLocale();
+  const t = dict.categoriesPage;
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
   }
 
   function handleDelete(category: Category) {
-    if (!confirm(`حذف تصنيف "${category.name}"؟`)) return;
+    if (!confirm(t.confirmDelete.replace('{name}', category.name))) return;
     startTransition(async () => {
       const res = await deleteCategoryAction(category.id);
       if (res.success) setCategories((c) => c.filter((cat) => cat.id !== category.id));
@@ -71,32 +74,37 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
+      </div>
+      <div className="space-y-5">
       <button
         onClick={() => (showForm ? resetForm() : setShowForm(true))}
         className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:bg-[var(--primary)]/90"
       >
-        {showForm ? 'إلغاء' : <>+ إضافة تصنيف</>}
+        {showForm ? dict.crud.cancel : t.addCategory}
       </button>
 
       {showForm && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
           <h3 className="font-bold text-[var(--foreground)] mb-4">
-            {editingId ? 'تعديل التصنيف' : 'تصنيف جديد'}
+            {editingId ? t.editCategory : t.newCategory}
           </h3>
           {error && (
             <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>
           )}
           <form onSubmit={handleSubmit} className="flex items-end gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">اسم التصنيف *</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.categoryName}</label>
               <input
                 type="text"
                 required
                 minLength={2}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="مثال: وجبات رئيسية"
+                placeholder={t.categoryNamePlaceholder}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
@@ -105,7 +113,7 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
               disabled={isPending}
               className="rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors"
             >
-              {isPending ? 'جاري الحفظ...' : editingId ? 'حفظ' : 'إنشاء'}
+              {isPending ? dict.crud.saving : editingId ? dict.crud.save : t.create}
             </button>
           </form>
         </div>
@@ -114,8 +122,8 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
       {categories.length === 0 && !showForm ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
           <p className="text-4xl mb-3">🗂️</p>
-          <p className="font-semibold text-[var(--foreground)]">لا توجد تصنيفات بعد</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">أضف أول تصنيف لتنظيم منتجاتك</p>
+          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.emptySubtitle}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -128,7 +136,7 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
                 <div>
                   <h3 className="text-base font-semibold text-[var(--foreground)]">{category.name}</h3>
                   <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                    {category._count?.products ?? 0} منتج
+                    {t.productsCount.replace('{count}', String(category._count?.products ?? 0))}
                   </p>
                 </div>
                 <button
@@ -140,7 +148,7 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
                       : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
                   }`}
                 >
-                  {category.isActive ? 'نشط' : 'غير نشط'}
+                  {category.isActive ? dict.crud.active : dict.crud.inactive}
                 </button>
               </div>
               <div className="mt-4 flex items-center gap-2">
@@ -148,20 +156,21 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
                   onClick={() => startEdit(category)}
                   className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)]"
                 >
-                  تعديل
+                  {dict.crud.edit}
                 </button>
                 <button
                   onClick={() => handleDelete(category)}
                   disabled={isPending}
                   className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/30"
                 >
-                  حذف
+                  {dict.crud.delete}
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

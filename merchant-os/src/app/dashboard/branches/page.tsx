@@ -12,13 +12,5 @@ export default async function BranchesPage() {
   const result = await getBranchesAction();
   const branches = result.success ? (result.data as any[]) : [];
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Branches</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">Manage your store branches and locations</p>
-      </div>
-      <BranchesClient initialBranches={branches} />
-    </div>
-  );
+  return <BranchesClient initialBranches={branches} />;
 }

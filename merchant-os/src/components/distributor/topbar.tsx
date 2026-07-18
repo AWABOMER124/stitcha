@@ -1,18 +1,18 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
+import { useLocale } from "@/lib/i18n/context";
+import { LanguageToggle } from "@/lib/i18n/language-toggle";
 
 const APP_VERSION = "1.0.0";
 
 export function DistributorTopbar() {
   const { data: session } = useSession();
+  const { dict } = useLocale();
 
   return (
-    <header
-      dir="rtl"
-      className="flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-4 gap-3"
-    >
-      {/* Right: user info */}
+    <header className="flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-4 gap-3">
+      {/* User info */}
       <div className="flex items-center gap-3">
         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-xs font-bold text-white">
           {(session?.user?.name ?? "م").charAt(0)}
@@ -32,13 +32,14 @@ export function DistributorTopbar() {
         </span>
       </div>
 
-      {/* Left: sign out */}
-      <div>
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <LanguageToggle />
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="hidden sm:flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
         >
-          <span>خروج</span>
+          <span>{dict.topbar.logout}</span>
           <span>→</span>
         </button>
       </div>

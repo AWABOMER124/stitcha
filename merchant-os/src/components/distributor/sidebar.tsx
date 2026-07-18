@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
+import { useLocale } from "@/lib/i18n/context";
+import type { Dictionary } from "@/lib/i18n/translations";
 
 const APP_VERSION = "1.0.0";
 
@@ -13,44 +15,46 @@ type NavItem =
   | { type: "section"; label: string }
   | { type: "divider" };
 
-const navItems: NavItem[] = [
-  { type: "section", label: "بياناتي" },
-  { type: "link", label: "اللوحة العامة", href: "/distributor/dashboard", icon: "📊" },
-  { type: "link", label: "التجار", href: "/distributor/merchants", icon: "🏪" },
-  { type: "link", label: "المستخدمون", href: "/distributor/users", icon: "👤" },
-  { type: "link", label: "لوحة الإرسال", href: "/distributor/dispatch", icon: "🚀" },
-  { type: "divider" },
-  { type: "section", label: "الطلبيات والتشغيل" },
-  { type: "link", label: "الطلبيات", href: "/distributor/orders", icon: "📋" },
-  { type: "link", label: "الموافقات", href: "/distributor/approvals", icon: "✅" },
-  { type: "link", label: "السائقون", href: "/distributor/drivers", icon: "🏍️" },
-  {
-    type: "group",
-    label: "شركات التوصيل",
-    icon: "🚚",
-    children: [
-      { label: "قائمة الشركات", href: "/distributor/delivery-companies" },
-      { label: "تعيين مندوبين", href: "/distributor/delivery-companies/drivers" },
-    ],
-  },
-  { type: "divider" },
-  { type: "section", label: "المالية" },
-  {
-    type: "group",
-    label: "المالية",
-    icon: "💰",
-    children: [
-      { label: "لوحة المالية", href: "/distributor/finance" },
-      { label: "خطط العمولات", href: "/distributor/finance/commissions" },
-      { label: "التسويات", href: "/distributor/finance/settlements" },
-      { label: "قوائم الأسعار", href: "/distributor/finance/price-lists" },
-    ],
-  },
-  { type: "divider" },
-  { type: "section", label: "الإعدادات" },
-  { type: "link", label: "الإعدادات العامة", href: "/distributor/settings", icon: "⚙️" },
-  { type: "link", label: "تصدير البيانات", href: "/distributor/export", icon: "📤" },
-];
+function buildNavItems(nav: Dictionary["navDistributor"]): NavItem[] {
+  return [
+    { type: "section", label: nav.myDataSection },
+    { type: "link", label: nav.dashboard, href: "/distributor/dashboard", icon: "📊" },
+    { type: "link", label: nav.merchants, href: "/distributor/merchants", icon: "🏪" },
+    { type: "link", label: nav.users, href: "/distributor/users", icon: "👤" },
+    { type: "link", label: nav.dispatch, href: "/distributor/dispatch", icon: "🚀" },
+    { type: "divider" },
+    { type: "section", label: nav.operationsSection },
+    { type: "link", label: nav.orders, href: "/distributor/orders", icon: "📋" },
+    { type: "link", label: nav.approvals, href: "/distributor/approvals", icon: "✅" },
+    { type: "link", label: nav.drivers, href: "/distributor/drivers", icon: "🏍️" },
+    {
+      type: "group",
+      label: nav.deliveryCompanies,
+      icon: "🚚",
+      children: [
+        { label: nav.deliveryCompaniesList, href: "/distributor/delivery-companies" },
+        { label: nav.assignDrivers, href: "/distributor/delivery-companies/drivers" },
+      ],
+    },
+    { type: "divider" },
+    { type: "section", label: nav.financeSection },
+    {
+      type: "group",
+      label: nav.finance,
+      icon: "💰",
+      children: [
+        { label: nav.financeDashboard, href: "/distributor/finance" },
+        { label: nav.commissionPlans, href: "/distributor/finance/commissions" },
+        { label: nav.settlements, href: "/distributor/finance/settlements" },
+        { label: nav.priceLists, href: "/distributor/finance/price-lists" },
+      ],
+    },
+    { type: "divider" },
+    { type: "section", label: nav.settingsSection },
+    { type: "link", label: nav.generalSettings, href: "/distributor/settings", icon: "⚙️" },
+    { type: "link", label: nav.exportData, href: "/distributor/export", icon: "📤" },
+  ];
+}
 
 function GroupItem({ item }: { item: Extract<NavItem, { type: "group" }> }) {
   const pathname = usePathname();
@@ -81,7 +85,7 @@ function GroupItem({ item }: { item: Extract<NavItem, { type: "group" }> }) {
       </button>
 
       {open && (
-        <ul className="mt-1 mr-4 border-r-2 border-[var(--sidebar-border)] pr-3 space-y-0.5">
+        <ul className="mt-1 ms-4 border-s-2 border-[var(--sidebar-border)] ps-3 space-y-0.5">
           {item.children.map((child) => {
             const isActive =
               pathname === child.href || pathname.startsWith(child.href + "/");
@@ -108,12 +112,11 @@ function GroupItem({ item }: { item: Extract<NavItem, { type: "group" }> }) {
 
 export function DistributorSidebar() {
   const pathname = usePathname();
+  const { dict } = useLocale();
+  const navItems = buildNavItems(dict.navDistributor);
 
   return (
-    <aside
-      dir="rtl"
-      className="hidden w-64 flex-shrink-0 flex-col border-l border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex"
-    >
+    <aside className="hidden w-64 flex-shrink-0 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex">
       {/* Brand */}
       <div className="flex items-center gap-3 border-b border-[var(--sidebar-border)] px-4 py-4">
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--sidebar-primary)] text-white text-sm font-black shadow-sm">
@@ -180,7 +183,7 @@ export function DistributorSidebar() {
           className="w-full flex items-center justify-center gap-2 rounded-lg bg-red-600 py-2.5 px-4 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
         >
           <span>→</span>
-          <span>تسجيل الخروج</span>
+          <span>{dict.topbar.logout}</span>
         </button>
       </div>
     </aside>

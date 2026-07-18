@@ -3,33 +3,39 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import { useLocale } from '@/lib/i18n/context';
+import type { Dictionary } from '@/lib/i18n/translations';
 
 type NavItem =
   | { type: 'link'; label: string; href: string; icon: string }
   | { type: 'section'; label: string }
   | { type: 'divider' };
 
-const navItems: NavItem[] = [
-  { type: 'section', label: 'الإدارة العامة' },
-  { type: 'link', label: 'لوحة التحكم', href: '/admin', icon: '🏛️' },
-  { type: 'divider' },
-  { type: 'section', label: 'الكيانات' },
-  { type: 'link', label: 'الموزعون', href: '/admin/distributors', icon: '🏢' },
-  { type: 'link', label: 'التجار', href: '/admin/merchants', icon: '🏪' },
-  { type: 'divider' },
-  { type: 'section', label: 'المالية والتقارير' },
-  { type: 'link', label: 'المالية', href: '/admin/finance', icon: '💰' },
-  { type: 'divider' },
-  { type: 'section', label: 'النظام' },
-  { type: 'link', label: 'المستخدمون', href: '/admin/users', icon: '👤' },
-  { type: 'link', label: 'الإعدادات', href: '/admin/settings', icon: '⚙️' },
-];
+function buildNavItems(nav: Dictionary['navAdmin']): NavItem[] {
+  return [
+    { type: 'section', label: nav.generalSection },
+    { type: 'link', label: nav.dashboard, href: '/admin', icon: '🏛️' },
+    { type: 'divider' },
+    { type: 'section', label: nav.entitiesSection },
+    { type: 'link', label: nav.distributors, href: '/admin/distributors', icon: '🏢' },
+    { type: 'link', label: nav.merchants, href: '/admin/merchants', icon: '🏪' },
+    { type: 'divider' },
+    { type: 'section', label: nav.financeReportsSection },
+    { type: 'link', label: nav.finance, href: '/admin/finance', icon: '💰' },
+    { type: 'divider' },
+    { type: 'section', label: nav.systemSection },
+    { type: 'link', label: nav.users, href: '/admin/users', icon: '👤' },
+    { type: 'link', label: nav.settings, href: '/admin/settings', icon: '⚙️' },
+  ];
+}
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { dict } = useLocale();
+  const navItems = buildNavItems(dict.navAdmin);
 
   return (
-    <aside className="hidden w-64 flex-col border-l border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex">
+    <aside className="hidden w-64 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:flex">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary)] text-white text-lg font-bold shadow">
@@ -83,14 +89,14 @@ export function AdminSidebar() {
       {/* Footer */}
       <div className="border-t border-[var(--sidebar-border)] p-3 space-y-2">
         <div className="rounded-lg bg-[var(--primary)]/5 border border-[var(--primary)]/20 px-3 py-2 text-xs text-[var(--primary)] font-medium text-center">
-          Platform Owner
+          {dict.topbar.platformOwner}
         </div>
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
           className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[var(--muted-foreground)] hover:bg-[var(--sidebar-accent)] transition-colors"
         >
           <span>🚪</span>
-          <span>تسجيل الخروج</span>
+          <span>{dict.topbar.logout}</span>
         </button>
       </div>
     </aside>

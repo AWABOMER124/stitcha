@@ -1,6 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
+import { LanguageToggle } from '@/lib/i18n/language-toggle';
 
 export function AdminTopbar() {
   const { data: session } = useSession();
@@ -13,6 +14,7 @@ export function AdminTopbar() {
         </span>
       </div>
       <div className="flex items-center gap-3">
+        <LanguageToggle />
         <div className="text-right">
           <p className="text-sm font-semibold text-[var(--foreground)]">{session?.user?.name ?? 'Admin'}</p>
           <p className="text-xs text-[var(--muted-foreground)]">{session?.user?.email}</p>

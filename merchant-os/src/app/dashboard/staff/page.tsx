@@ -12,13 +12,5 @@ export default async function StaffPage() {
   const result = await getUsersAction();
   const staff = result.success ? (result.data as any[]) : [];
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Staff</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">Manage team members and permissions</p>
-      </div>
-      <StaffClient initialStaff={staff} currentUserId={session.user.id} />
-    </div>
-  );
+  return <StaffClient initialStaff={staff} currentUserId={session.user.id} />;
 }

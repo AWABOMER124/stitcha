@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { updateDeliveryStatusAction, assignDriverAction } from '@/modules/delivery/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 interface Delivery {
   id: string;
@@ -13,9 +14,6 @@ interface Delivery {
   order: { id: string; orderNumber: string; customerName: string | null; customerPhone: string | null; status: string } | null;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pending', ASSIGNED: 'Assigned', PICKED_UP: 'Picked up', IN_TRANSIT: 'In transit', DELIVERED: 'Delivered', FAILED: 'Failed',
-};
 const STATUS_CLASS: Record<string, string> = {
   PENDING: 'bg-stone-100 text-stone-600',
   ASSIGNED: 'bg-blue-100 text-blue-700',
@@ -26,6 +24,9 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 export function DeliveryClient({ initialDeliveries }: { initialDeliveries: Delivery[] }) {
+  const { dict } = useLocale();
+  const t = dict.deliveryPage;
+  const STATUS_LABEL = t.statuses;
   const [deliveries, setDeliveries] = useState(initialDeliveries);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [driverName, setDriverName] = useState('');
@@ -41,7 +42,7 @@ export function DeliveryClient({ initialDeliveries }: { initialDeliveries: Deliv
   }
 
   function submitAssign(id: string) {
-    if (!driverName || !driverPhone) { setError('Driver name and phone are required'); return; }
+    if (!driverName || !driverPhone) { setError(t.driverNameRequired); return; }
     setError('');
     startTransition(async () => {
       const res = await assignDriverAction(id, { driverName, driverPhone });
@@ -54,26 +55,38 @@ export function DeliveryClient({ initialDeliveries }: { initialDeliveries: Deliv
     });
   }
 
+  const header = (
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
+      <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
+    </div>
+  );
+
   if (deliveries.length === 0) {
     return (
-      <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
-        <p className="text-4xl mb-3">🚚</p>
-        <p className="font-semibold text-[var(--foreground)]">No active deliveries</p>
-        <p className="text-sm text-[var(--muted-foreground)] mt-1">Deliveries appear here once an order needs one</p>
+      <div className="space-y-6">
+        {header}
+        <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
+          <p className="text-4xl mb-3">🚚</p>
+          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.emptySubtitle}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+    <div className="space-y-6">
+      {header}
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--muted)]/50">
-              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">Order</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">Customer</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">Driver</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colOrder}</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colCustomer}</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colDriver}</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colStatus}</th>
               <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]"></th>
             </tr>
           </thead>
@@ -109,7 +122,7 @@ export function DeliveryClient({ initialDeliveries }: { initialDeliveries: Deliv
                       onClick={() => (assigningId === d.id ? setAssigningId(null) : (setAssigningId(d.id), setDriverName(d.driverName ?? ''), setDriverPhone(d.driverPhone ?? '')))}
                       className="text-xs font-medium text-[var(--primary)] hover:underline"
                     >
-                      {d.driverName ? 'Reassign' : 'Assign driver'}
+                      {d.driverName ? t.reassign : t.assignDriver}
                     </button>
                   </td>
                 </tr>
@@ -119,18 +132,18 @@ export function DeliveryClient({ initialDeliveries }: { initialDeliveries: Deliv
                       {error && <div className="mb-3 rounded-lg bg-red-50 border border-red-200 p-2.5 text-xs text-red-700">{error}</div>}
                       <div className="flex flex-wrap items-end gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">Driver name</label>
+                          <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.driverNameLabel}</label>
                           <input value={driverName} onChange={(e) => setDriverName(e.target.value)}
                             className="w-48 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">Driver phone</label>
+                          <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.driverPhoneLabel}</label>
                           <input value={driverPhone} onChange={(e) => setDriverPhone(e.target.value)}
                             className="w-48 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
                         </div>
                         <button onClick={() => submitAssign(d.id)} disabled={isPending}
                           className="rounded-lg bg-[var(--primary)] px-5 py-2 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors">
-                          {isPending ? 'Saving...' : 'Save'}
+                          {isPending ? t.saving : t.save}
                         </button>
                       </div>
                     </td>
@@ -140,6 +153,7 @@ export function DeliveryClient({ initialDeliveries }: { initialDeliveries: Deliv
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

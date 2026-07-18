@@ -1,22 +1,34 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { getProductsAction, toggleProductStatusAction, deleteProductAction } from '@/modules/products/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale, type Dictionary } from '@/lib/i18n/translations';
 import { ProductFilters } from './_components/product-filters';
+
+async function getDict(): Promise<Dictionary> {
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  return dictionaries[locale];
+}
 
 interface PageProps {
   searchParams: Promise<{ q?: string; status?: string }>;
 }
 
 async function ProductsTable({ q, status }: { q?: string; status?: string }) {
-  const result = await getProductsAction({
-    search: q,
-    isActive: status === 'active' ? true : status === 'inactive' ? false : undefined,
-  });
+  const [result, dict] = await Promise.all([
+    getProductsAction({
+      search: q,
+      isActive: status === 'active' ? true : status === 'inactive' ? false : undefined,
+    }),
+    getDict(),
+  ]);
+  const t = dict.productsPage;
 
   if (!result.success) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/20">
         <p className="text-sm text-red-600 dark:text-red-400">
-          {result.error ?? 'Failed to load products'}
+          {result.error ?? t.loadFailed}
         </p>
       </div>
     );
@@ -28,9 +40,9 @@ async function ProductsTable({ q, status }: { q?: string; status?: string }) {
   if (products.length === 0) {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-12 text-center">
-        <p className="text-sm text-[var(--muted-foreground)]">No products found</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.empty}</p>
         <a href="/dashboard/products/new" className="mt-4 inline-block text-sm text-[var(--primary)] hover:underline">
-          Add your first product →
+          {t.addFirst}
         </a>
       </div>
     );
@@ -41,10 +53,10 @@ async function ProductsTable({ q, status }: { q?: string; status?: string }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-[var(--border)] bg-[var(--muted)]/50">
-            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Product</th>
-            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Price</th>
-            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Status</th>
-            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Actions</th>
+            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">{t.colProduct}</th>
+            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">{t.colPrice}</th>
+            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">{t.colStatus}</th>
+            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">{t.colActions}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[var(--border)]">
@@ -77,7 +89,7 @@ async function ProductsTable({ q, status }: { q?: string; status?: string }) {
                     <div>
                       <p className="text-sm font-medium text-[var(--foreground)]">{product.name}</p>
                       {product.sku && (
-                        <p className="text-xs text-[var(--muted-foreground)]">SKU: {product.sku}</p>
+                        <p className="text-xs text-[var(--muted-foreground)]">{t.sku}: {product.sku}</p>
                       )}
                     </div>
                   </div>
@@ -96,22 +108,22 @@ async function ProductsTable({ q, status }: { q?: string; status?: string }) {
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                       : 'bg-stone-100 text-stone-600 dark:bg-stone-950 dark:text-stone-400'
                   }`}>
-                    {product.isActive ? 'Active' : 'Inactive'}
+                    {product.isActive ? t.active : t.inactive}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-3">
                     <a href={`/dashboard/products/${product.id}/edit`} className="text-sm text-[var(--primary)] hover:underline">
-                      Edit
+                      {t.edit}
                     </a>
                     <form action={toggle}>
                       <button type="submit" className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
-                        {product.isActive ? 'Deactivate' : 'Activate'}
+                        {product.isActive ? t.deactivate : t.activate}
                       </button>
                     </form>
                     <form action={remove}>
                       <button type="submit" className="text-sm text-red-500 hover:text-red-700">
-                        Delete
+                        {t.delete}
                       </button>
                     </form>
                   </div>
@@ -122,7 +134,7 @@ async function ProductsTable({ q, status }: { q?: string; status?: string }) {
         </tbody>
       </table>
       <div className="border-t border-[var(--border)] px-6 py-3 text-xs text-[var(--muted-foreground)]">
-        {products.length} product{products.length !== 1 ? 's' : ''} · {totalCount} total
+        {products.length} {t.countSuffix} · {totalCount} {t.totalSuffix}
       </div>
     </div>
   );
@@ -130,19 +142,21 @@ async function ProductsTable({ q, status }: { q?: string; status?: string }) {
 
 export default async function ProductsPage({ searchParams }: PageProps) {
   const { q, status } = await searchParams;
+  const dict = await getDict();
+  const t = dict.productsPage;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Products</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">Manage your product catalog</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
         </div>
         <a
           href="/dashboard/products/new"
           className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:bg-[var(--primary)]/90"
         >
-          <span>+</span> Add Product
+          <span>{t.addProduct}</span>
         </a>
       </div>
 

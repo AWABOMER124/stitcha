@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { createPromoCodeAction, togglePromoCodeAction, deletePromoCodeAction } from '@/modules/crm/actions';
-import { PROMO_TYPE_LABELS } from '@/modules/crm/types';
+import { useLocale } from '@/lib/i18n/context';
 
 interface Promo {
   id: string;
@@ -17,6 +18,9 @@ interface Promo {
 }
 
 export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
+  const { dict, locale } = useLocale();
+  const t = dict.promosPage;
+  const PROMO_TYPE_LABELS = t.promoTypes;
   const [promos, setPromos] = useState<Promo[]>(initialPromos);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -57,7 +61,7 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
   }
 
   function handleDelete(id: string, code: string) {
-    if (!confirm(`حذف كود "${code}"؟`)) return;
+    if (!confirm(t.confirmDelete.replace('{code}', code))) return;
     startTransition(async () => {
       const res = await deletePromoCodeAction(id);
       if (res.success) setPromos((p) => p.filter((pr) => pr.id !== id));
@@ -65,25 +69,34 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-1">
+          <Link href="/dashboard/crm" className="hover:text-[var(--primary)]">CRM</Link>
+          <span>/</span>
+          <span>{t.breadcrumb}</span>
+        </div>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
+      </div>
+      <div className="space-y-5">
       <button onClick={() => setShowForm(!showForm)}
         className="rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors">
-        {showForm ? 'إلغاء' : '+ كود جديد'}
+        {showForm ? dict.crud.cancel : t.newCode}
       </button>
 
       {showForm && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-          <h3 className="font-bold text-[var(--foreground)] mb-5">إنشاء كود خصم جديد</h3>
+          <h3 className="font-bold text-[var(--foreground)] mb-5">{t.createTitle}</h3>
           {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
           <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">الكود *</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.code}</label>
               <input type="text" required value={form.code} onChange={(e) => setF('code', e.target.value.toUpperCase())}
                 placeholder="SUMMER20"
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">نوع الخصم *</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.discountType}</label>
               <select value={form.type} onChange={(e) => setF('type', e.target.value)}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30">
                 {Object.entries(PROMO_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -92,7 +105,7 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
             {form.type !== 'FREE_DELIVERY' && (
               <div>
                 <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
-                  القيمة {form.type === 'PERCENTAGE' ? '(%)' : '(SDG)'} *
+                  {t.value} {form.type === 'PERCENTAGE' ? '(%)' : '(SDG)'} *
                 </label>
                 <input type="number" required value={form.value} onChange={(e) => setF('value', e.target.value)}
                   min="0" max={form.type === 'PERCENTAGE' ? '100' : undefined}
@@ -100,26 +113,26 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">الحد الأدنى للطلب (SDG)</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.minOrder}</label>
               <input type="number" value={form.minOrderAmount} onChange={(e) => setF('minOrderAmount', e.target.value)}
-                min="0" placeholder="اختياري"
+                min="0" placeholder={t.minOrderOptional}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">حد الاستخدام</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.usageLimit}</label>
               <input type="number" value={form.usageLimit} onChange={(e) => setF('usageLimit', e.target.value)}
-                min="1" placeholder="غير محدود"
+                min="1" placeholder={t.unlimited}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">تاريخ الانتهاء</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.expiresAt}</label>
               <input type="datetime-local" value={form.expiresAt} onChange={(e) => setF('expiresAt', e.target.value)}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
             </div>
             <div className="col-span-2 flex gap-3 pt-2">
               <button type="submit" disabled={isPending}
                 className="rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors">
-                {isPending ? 'جاري الحفظ...' : 'إنشاء الكود'}
+                {isPending ? t.creating : t.create}
               </button>
             </div>
           </form>
@@ -129,8 +142,8 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
       {promos.length === 0 && !showForm ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
           <p className="text-4xl mb-3">🎟️</p>
-          <p className="font-semibold text-[var(--foreground)]">لا توجد أكواد خصم</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">أنشئ أكواد خصم لجذب العملاء وتحفيز الطلبات</p>
+          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.emptySubtitle}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -150,18 +163,18 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
                     isExpired ? 'bg-stone-100 text-stone-500' :
                     promo.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
                   }`}>
-                    {isExpired ? 'منتهي' : promo.isActive ? 'نشط' : 'موقوف'}
+                    {isExpired ? t.expired : promo.isActive ? t.active : t.stopped}
                   </span>
                 </div>
                 <div className="text-2xl font-black text-[var(--primary)] mb-3">
-                  {promo.type === 'FREE_DELIVERY' ? 'توصيل مجاني' :
+                  {promo.type === 'FREE_DELIVERY' ? t.freeDeliveryLabel :
                    promo.type === 'PERCENTAGE' ? `${promo.value}%` : `${promo.value} SDG`}
                 </div>
                 <div className="text-xs text-[var(--muted-foreground)] space-y-0.5">
-                  <p>الاستخدام: {promo.usageCount}{promo.usageLimit ? `/${promo.usageLimit}` : ''}</p>
-                  {promo.minOrderAmount && <p>حد أدنى: {Number(promo.minOrderAmount)} SDG</p>}
+                  <p>{t.usage}: {promo.usageCount}{promo.usageLimit ? `/${promo.usageLimit}` : ''}</p>
+                  {promo.minOrderAmount && <p>{t.minLabel}: {Number(promo.minOrderAmount)} SDG</p>}
                   {promo.expiresAt && (
-                    <p>ينتهي: {new Date(promo.expiresAt).toLocaleDateString('ar')}</p>
+                    <p>{t.expires}: {new Date(promo.expiresAt).toLocaleDateString(locale)}</p>
                   )}
                 </div>
                 <div className="mt-4 flex gap-2 border-t border-[var(--border)] pt-3">
@@ -170,12 +183,12 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
                       className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
                         promo.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
                       }`}>
-                      {promo.isActive ? 'إيقاف' : 'تفعيل'}
+                      {promo.isActive ? t.stop : t.activate}
                     </button>
                   )}
                   <button onClick={() => handleDelete(promo.id, promo.code)} disabled={isPending}
                     className="text-xs font-medium text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
-                    حذف
+                    {t.delete}
                   </button>
                 </div>
               </div>
@@ -183,6 +196,7 @@ export function PromosClient({ initialPromos }: { initialPromos: Promo[] }) {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }
