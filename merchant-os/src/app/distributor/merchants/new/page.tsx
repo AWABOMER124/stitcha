@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "@/lib/i18n/context";
 
 export default function NewMerchantPage() {
+  const { dict } = useLocale();
+  const t = dict.distributorNewMerchantPage;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -26,10 +29,10 @@ export default function NewMerchantPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to invite merchant");
+      if (!res.ok) throw new Error(data.error ?? t.genericError);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t.genericError);
     } finally {
       setLoading(false);
     }
@@ -40,17 +43,16 @@ export default function NewMerchantPage() {
       <div className="mx-auto max-w-xl space-y-6 text-center">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-8">
           <p className="text-4xl mb-3">✅</p>
-          <h1 className="text-xl font-bold text-emerald-800">Invitation sent</h1>
+          <h1 className="text-xl font-bold text-emerald-800">{t.sentTitle}</h1>
           <p className="text-sm text-emerald-700 mt-2">
-            A registration link was sent to <b>{form.phone}</b> via WhatsApp. The merchant
-            can use it to finish setting up their store and confirm their account.
+            {t.sentDescPrefix} <b>{form.phone}</b> {t.sentDescSuffix}
           </p>
         </div>
         <button
           onClick={() => router.push("/distributor/merchants")}
           className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary)]/90"
         >
-          Back to Merchants
+          {t.backToMerchants}
         </button>
       </div>
     );
@@ -59,9 +61,9 @@ export default function NewMerchantPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Add Merchant</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Enter the basics — we'll send them a link via WhatsApp to complete their own registration.
+          {t.subtitle}
         </p>
       </div>
 
@@ -75,40 +77,40 @@ export default function NewMerchantPage() {
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-[var(--foreground)]">
-              Store name <span className="text-red-500">*</span>
+              {t.storeNameLabel} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               required
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. مطعم الشيف"
+              placeholder={t.storeNamePlaceholder}
               className={inputCls}
             />
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-[var(--foreground)]">
-              Phone number (WhatsApp) <span className="text-red-500">*</span>
+              {t.phoneLabel} <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
               required
               value={form.phone}
               onChange={(e) => set("phone", e.target.value)}
-              placeholder="+249 9X XXX XXXX"
+              placeholder={t.phonePlaceholder}
               className={inputCls}
             />
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-[var(--foreground)]">
-              Location <span className="text-red-500">*</span>
+              {t.locationLabel} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               required
               value={form.address}
               onChange={(e) => set("address", e.target.value)}
-              placeholder="e.g. الخرطوم، السوق العربي"
+              placeholder={t.locationPlaceholder}
               className={inputCls}
             />
           </div>
@@ -120,14 +122,14 @@ export default function NewMerchantPage() {
             onClick={() => router.back()}
             className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)]"
           >
-            Cancel
+            {t.cancel}
           </button>
           <button
             type="submit"
             disabled={loading}
             className="flex-1 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary)]/90 disabled:opacity-50"
           >
-            {loading ? "Sending invite..." : "Send registration link"}
+            {loading ? t.sending : t.submit}
           </button>
         </div>
       </form>

@@ -3,20 +3,20 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { OrdersByStatus } from '@/modules/reports/types';
 
-export function StatusChart({ data }: { data: OrdersByStatus[] }) {
+export function StatusChart({ data, ordersSuffix }: { data: OrdersByStatus[]; ordersSuffix: string }) {
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm" dir="rtl">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
         <p className="font-bold" style={{ color: d.color }}>{d.label}</p>
-        <p className="text-[var(--foreground)] font-mono font-bold">{d.count} طلب</p>
+        <p className="text-[var(--foreground)] font-mono font-bold">{d.count} {ordersSuffix}</p>
       </div>
     );
   };
 
   const CustomLegend = () => (
-    <div className="flex flex-wrap gap-2 justify-center mt-3" dir="rtl">
+    <div className="flex flex-wrap gap-2 justify-center mt-3">
       {data.map((d) => (
         <div key={d.status} className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
           <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: d.color }} />

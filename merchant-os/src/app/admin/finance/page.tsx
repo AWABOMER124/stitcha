@@ -1,4 +1,6 @@
+import { cookies } from 'next/headers';
 import { getPlatformFinanceStatsAction, getAllDistributorsAction } from '@/modules/admin/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 
 type FinanceStats = {
   totalRevenue: number;
@@ -14,10 +16,16 @@ function fmt(n: number) {
 }
 
 export default async function AdminFinancePage() {
-  const [statsRes, distributorsRes] = await Promise.all([
+  const [statsRes, distributorsRes, cookieStore] = await Promise.all([
     getPlatformFinanceStatsAction(),
     getAllDistributorsAction(1, 100),
+    cookies(),
   ]);
+
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const dict = dictionaries[locale];
+  const t = dict.adminFinancePage;
+  const dt = dict.adminDistributorsPage;
 
   const stats = statsRes.success ? (statsRes.data as FinanceStats) : null;
   const distributors = distributorsRes.success
@@ -25,37 +33,37 @@ export default async function AdminFinancePage() {
     : [];
 
   return (
-    <div dir="rtl" className="space-y-8">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">المالية</h1>
-        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">نظرة مالية شاملة على مستوى المنصة</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
+        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{t.subtitle}</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <FinCard icon="💰" label="إجمالي الإيرادات (كل الطلبات)" value={fmt(stats?.totalRevenue ?? 0)} unit="SDG" color="emerald" />
-        <FinCard icon="📅" label="إيرادات الشهر الحالي" value={fmt(stats?.monthRevenue ?? 0)} unit="SDG" color="blue" />
-        <FinCard icon="📊" label="إجمالي العمولات المحصّلة" value={fmt(stats?.totalCommissionCollected ?? 0)} unit="SDG" color="purple" />
-        <FinCard icon="💸" label="إجمالي المدفوع للتجار" value={fmt(stats?.totalPaidOut ?? 0)} unit="SDG" color="indigo" />
-        <FinCard icon="🧾" label="إجمالي التسويات" value={String(stats?.totalSettlements ?? 0)} color="gray" />
-        <FinCard icon="⏳" label="تسويات معلقة" value={String(stats?.pendingSettlements ?? 0)} color="amber"
+        <FinCard icon="💰" label={t.kpiTotalRevenue} value={fmt(stats?.totalRevenue ?? 0)} unit="SDG" color="emerald" />
+        <FinCard icon="📅" label={t.kpiMonthRevenue} value={fmt(stats?.monthRevenue ?? 0)} unit="SDG" color="blue" />
+        <FinCard icon="📊" label={t.kpiTotalCommission} value={fmt(stats?.totalCommissionCollected ?? 0)} unit="SDG" color="purple" />
+        <FinCard icon="💸" label={t.kpiTotalPaidOut} value={fmt(stats?.totalPaidOut ?? 0)} unit="SDG" color="indigo" />
+        <FinCard icon="🧾" label={t.kpiTotalSettlements} value={String(stats?.totalSettlements ?? 0)} color="gray" />
+        <FinCard icon="⏳" label={t.kpiPendingSettlements} value={String(stats?.pendingSettlements ?? 0)} color="amber"
           highlight={Boolean(stats?.pendingSettlements)} />
       </div>
 
       {/* Distributors financial summary */}
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)]">
         <div className="px-6 py-4 border-b border-[var(--border)]">
-          <h3 className="font-semibold text-[var(--foreground)]">ملخص مالي — الموزعون</h3>
-          <p className="text-xs text-[var(--muted-foreground)] mt-0.5">نسبة العمولة الأساسية لكل موزع</p>
+          <h3 className="font-semibold text-[var(--foreground)]">{t.distributorsSummaryTitle}</h3>
+          <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{t.distributorsSummarySubtitle}</p>
         </div>
         {distributors.length === 0 ? (
-          <div className="p-10 text-center text-sm text-[var(--muted-foreground)]">لا يوجد موزعون</div>
+          <div className="p-10 text-center text-sm text-[var(--muted-foreground)]">{t.noDistributors}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
-                  {['الموزع', 'الحالة', 'التجار', 'نسبة العمولة'].map((h) => (
+                  {[t.colDistributor, t.colStatus, t.colMerchants, t.colCommissionRate].map((h) => (
                     <th key={h} className="py-3 px-5 text-right font-medium text-[var(--muted-foreground)]">{h}</th>
                   ))}
                 </tr>
@@ -80,7 +88,7 @@ export default async function AdminFinancePage() {
                         d.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
                         'bg-red-100 text-red-700'
                       }`}>
-                        {d.status === 'ACTIVE' ? 'نشط' : d.status === 'PENDING' ? 'معلق' : 'موقوف'}
+                        {dt.statuses[d.status as keyof typeof dt.statuses] ?? d.status}
                       </span>
                     </td>
                     <td className="py-3.5 px-5 text-center font-bold text-[var(--foreground)]">

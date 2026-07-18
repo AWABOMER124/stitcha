@@ -1,14 +1,9 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import Link from 'next/link';
 import { getMerchantFinanceOverviewAction } from '@/modules/finance/actions';
-
-const COMMISSION_TYPE_LABELS: Record<string, string> = {
-  PERCENTAGE: 'نسبة مئوية',
-  FLAT_FEE: 'رسوم ثابتة',
-  HYBRID: 'مختلط',
-  SUBSCRIPTION: 'اشتراك شهري',
-};
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 
 const COMMISSION_TYPE_COLORS: Record<string, string> = {
   PERCENTAGE: 'bg-blue-100 text-blue-700',
@@ -38,52 +33,68 @@ export default async function MerchantFinancePage() {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
 
-  const res = await getMerchantFinanceOverviewAction();
+  const [res, cookieStore] = await Promise.all([getMerchantFinanceOverviewAction(), cookies()]);
   const data = res.success ? (res.data as Overview) : null;
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
+  const dict = dictionaries[locale];
+  const t = dict.financeHomePage;
 
   const cur = data?.currency ?? 'SDG';
 
+  const commissionDesc = data?.commissionPlan
+    ? data.commissionPlan.type === 'PERCENTAGE'
+      ? t.commissionDescPercentage.replace('{rate}', String(data.commissionPlan.rate))
+      : data.commissionPlan.type === 'FLAT_FEE'
+      ? t.commissionDescFlatFee.replace('{rate}', String(data.commissionPlan.rate)).replace('{cur}', cur)
+      : data.commissionPlan.type === 'HYBRID'
+      ? t.commissionDescHybrid.replace('{rate}', String(data.commissionPlan.rate)).replace('{minFee}', String(data.commissionPlan.minFee)).replace('{cur}', cur)
+      : data.commissionPlan.type === 'SUBSCRIPTION'
+      ? t.commissionDescSubscription.replace('{rate}', String(data.commissionPlan.rate)).replace('{cur}', cur)
+      : ''
+    : '';
+
   return (
-    <div dir="rtl" className="space-y-8">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">المالية</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">نظرة شاملة على أرباحك وعمولاتك ومستحقاتك</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KpiCard
-          label="إجمالي المبيعات"
+          label={t.totalRevenue}
           value={fmt(data?.totalRevenue ?? 0)}
           unit={cur}
           icon="💰"
           color="emerald"
-          sub={`${data?.totalOrders ?? 0} طلب مكتمل`}
+          sub={`${data?.totalOrders ?? 0} ${t.completedOrdersSuffix}`}
         />
         <KpiCard
-          label="مبيعات الشهر الحالي"
+          label={t.monthRevenue}
           value={fmt(data?.monthRevenue ?? 0)}
           unit={cur}
           icon="📅"
           color="blue"
-          sub={`${data?.monthOrders ?? 0} طلب`}
+          sub={`${data?.monthOrders ?? 0} ${t.ordersSuffix}`}
         />
         <KpiCard
-          label="العمولة المقدرة (الشهر)"
+          label={t.estimatedCommission}
           value={fmt(data?.estimatedCommission ?? 0)}
           unit={cur}
           icon="📊"
           color="amber"
-          sub="بناءً على خطة العمولة"
+          sub={t.basedOnPlan}
         />
         <KpiCard
-          label="الصافي المتوقع (الشهر)"
+          label={t.estimatedNet}
           value={fmt(data?.estimatedNet ?? 0)}
           unit={cur}
           icon="✅"
           color="purple"
-          sub="بعد خصم العمولة"
+          sub={t.afterCommission}
         />
       </div>
 
@@ -92,7 +103,7 @@ export default async function MerchantFinancePage() {
         {/* Commission plan card */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-[var(--foreground)]">خطة العمولة</h3>
+            <h3 className="text-base font-semibold text-[var(--foreground)]">{t.commissionPlanTitle}</h3>
             <span className="text-2xl">📋</span>
           </div>
 
@@ -104,14 +115,14 @@ export default async function MerchantFinancePage() {
                     COMMISSION_TYPE_COLORS[data.commissionPlan.type] ?? 'bg-gray-100 text-gray-600'
                   }`}
                 >
-                  {COMMISSION_TYPE_LABELS[data.commissionPlan.type] ?? data.commissionPlan.type}
+                  {t.commissionTypes[data.commissionPlan.type as keyof typeof t.commissionTypes] ?? data.commissionPlan.type}
                 </span>
                 <span className="font-semibold text-[var(--foreground)]">{data.commissionPlan.name}</span>
               </div>
 
               <div className="rounded-lg bg-[var(--muted)]/40 p-4 grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-[var(--muted-foreground)] text-xs mb-1">النسبة / المبلغ</p>
+                  <p className="text-[var(--muted-foreground)] text-xs mb-1">{t.rateOrAmount}</p>
                   <p className="font-bold text-lg text-[var(--foreground)]">
                     {data.commissionPlan.rate}
                     {data.commissionPlan.type === 'PERCENTAGE' ? '%' : ` ${cur}`}
@@ -119,7 +130,7 @@ export default async function MerchantFinancePage() {
                 </div>
                 {data.commissionPlan.minFee > 0 && (
                   <div>
-                    <p className="text-[var(--muted-foreground)] text-xs mb-1">الحد الأدنى للعمولة</p>
+                    <p className="text-[var(--muted-foreground)] text-xs mb-1">{t.minFeeLabel}</p>
                     <p className="font-bold text-lg text-[var(--foreground)]">
                       {data.commissionPlan.minFee} {cur}
                     </p>
@@ -128,20 +139,13 @@ export default async function MerchantFinancePage() {
               </div>
 
               <div className="text-xs text-[var(--muted-foreground)] leading-relaxed border-t border-[var(--border)] pt-3">
-                {data.commissionPlan.type === 'PERCENTAGE' &&
-                  `يُحتسب ${data.commissionPlan.rate}% من إجمالي قيمة كل طلب مكتمل.`}
-                {data.commissionPlan.type === 'FLAT_FEE' &&
-                  `رسوم ثابتة ${data.commissionPlan.rate} ${cur} على كل طلب مكتمل.`}
-                {data.commissionPlan.type === 'HYBRID' &&
-                  `الأعلى بين ${data.commissionPlan.rate}% من المبيعات أو ${data.commissionPlan.minFee} ${cur} لكل طلب.`}
-                {data.commissionPlan.type === 'SUBSCRIPTION' &&
-                  `رسوم اشتراك ثابتة شهرية بمقدار ${data.commissionPlan.rate} ${cur}.`}
+                {commissionDesc}
               </div>
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50 p-4 text-center">
-              <p className="text-sm font-medium text-amber-700">لم يتم تعيين خطة عمولة بعد</p>
-              <p className="text-xs text-amber-600 mt-1">تواصل مع المشغّل لتعيين خطة عمولة مناسبة</p>
+              <p className="text-sm font-medium text-amber-700">{t.noPlanTitle}</p>
+              <p className="text-xs text-amber-600 mt-1">{t.noPlanDesc}</p>
             </div>
           )}
         </div>
@@ -149,19 +153,19 @@ export default async function MerchantFinancePage() {
         {/* Settlement summary */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-[var(--foreground)]">التسويات</h3>
+            <h3 className="text-base font-semibold text-[var(--foreground)]">{t.settlementsTitle}</h3>
             <Link
               href="/dashboard/finance/settlements"
               className="text-xs font-medium text-[var(--primary)] hover:underline"
             >
-              عرض الكل ←
+              {t.viewAll}
             </Link>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-center">
               <p className="text-3xl font-black text-amber-600">{data?.pendingSettlements ?? 0}</p>
-              <p className="text-xs text-amber-700 mt-1 font-medium">تسوية معلقة</p>
+              <p className="text-xs text-amber-700 mt-1 font-medium">{t.pendingSettlement}</p>
             </div>
             <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-center">
               {data?.lastSettlement ? (
@@ -172,14 +176,14 @@ export default async function MerchantFinancePage() {
                   <p className="text-xs text-emerald-700 mt-1 font-medium">{data.lastSettlement.currency}</p>
                   <p className="text-[10px] text-emerald-600 mt-0.5">
                     {data.lastSettlement.paidAt
-                      ? new Date(data.lastSettlement.paidAt).toLocaleDateString('ar-SD')
+                      ? new Date(data.lastSettlement.paidAt).toLocaleDateString(dateLocale)
                       : '—'}
                   </p>
                 </>
               ) : (
                 <>
                   <p className="text-3xl font-black text-emerald-600">—</p>
-                  <p className="text-xs text-emerald-700 mt-1 font-medium">لا توجد تسوية سابقة</p>
+                  <p className="text-xs text-emerald-700 mt-1 font-medium">{t.noPreviousSettlement}</p>
                 </>
               )}
             </div>
@@ -190,7 +194,7 @@ export default async function MerchantFinancePage() {
             className="flex items-center justify-center gap-2 w-full rounded-lg border border-[var(--border)] py-2.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
           >
             <span>🧾</span>
-            عرض سجل التسويات
+            {t.viewSettlementsHistory}
           </Link>
         </div>
       </div>
@@ -200,20 +204,20 @@ export default async function MerchantFinancePage() {
         <QuickCard
           href="/dashboard/finance/transactions"
           icon="💳"
-          title="سجل المعاملات"
-          desc="عرض جميع الحركات المالية"
+          title={t.transactionsCardTitle}
+          desc={t.transactionsCardDesc}
         />
         <QuickCard
           href="/dashboard/finance/settlements"
           icon="🧾"
-          title="التسويات المالية"
-          desc="تتبع حالة التسويات والمدفوعات"
+          title={t.settlementsCardTitle}
+          desc={t.settlementsCardDesc}
         />
         <QuickCard
           href="/dashboard/reports"
           icon="📈"
-          title="التقارير المالية"
-          desc="تقارير تفصيلية حسب الفترة"
+          title={t.reportsCardTitle}
+          desc={t.reportsCardDesc}
         />
       </div>
     </div>

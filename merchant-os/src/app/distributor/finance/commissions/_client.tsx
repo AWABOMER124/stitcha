@@ -2,13 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createCommissionPlanAction, deleteCommissionPlanAction } from '@/modules/finance/actions';
-
-const TYPE_LABELS: Record<string, string> = {
-  PERCENTAGE: 'نسبة مئوية %',
-  FLAT_FEE: 'رسوم ثابتة',
-  HYBRID: 'مختلط (نسبة + حد أدنى)',
-  SUBSCRIPTION: 'اشتراك شهري',
-};
+import { useLocale } from '@/lib/i18n/context';
 
 const TYPE_COLORS: Record<string, string> = {
   PERCENTAGE: 'bg-blue-100 text-blue-700',
@@ -31,6 +25,8 @@ interface Plan {
 }
 
 export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }) {
+  const { dict } = useLocale();
+  const t = dict.distributorCommissionsPage;
   const [plans, setPlans] = useState<Plan[]>(initialPlans);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -70,7 +66,7 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
   }
 
   function handleDelete(id: string) {
-    if (!confirm('هل أنت متأكد من حذف هذه الخطة؟')) return;
+    if (!confirm(t.confirmDelete)) return;
     startTransition(async () => {
       const res = await deleteCommissionPlanAction(id);
       if (res.success) {
@@ -95,12 +91,12 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
           >
             {plan.isDefault && (
               <span className="absolute top-3 left-3 text-[10px] font-bold bg-[var(--primary)] text-white px-2 py-0.5 rounded-full">
-                افتراضي
+                {t.default}
               </span>
             )}
             <div className="mb-4">
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${TYPE_COLORS[plan.type] ?? 'bg-gray-100 text-gray-600'}`}>
-                {TYPE_LABELS[plan.type] ?? plan.type}
+                {t.types[plan.type as keyof typeof t.types] ?? plan.type}
               </span>
             </div>
             <h3 className="font-bold text-[var(--foreground)] text-lg">{plan.name}</h3>
@@ -109,7 +105,7 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
             )}
             <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-1.5">
               <div className="flex justify-between text-sm">
-                <span className="text-[var(--muted-foreground)]">النسبة / الرسوم</span>
+                <span className="text-[var(--muted-foreground)]">{t.rateOrFees}</span>
                 <span className="font-mono font-bold text-[var(--foreground)]">
                   {Number(plan.rate).toFixed(2)}
                   {plan.type === 'PERCENTAGE' || plan.type === 'HYBRID' ? '%' : ` ${plan.currency}`}
@@ -117,27 +113,27 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
               </div>
               {plan.type === 'HYBRID' && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-[var(--muted-foreground)]">الحد الأدنى</span>
+                  <span className="text-[var(--muted-foreground)]">{t.minFee}</span>
                   <span className="font-mono font-bold text-[var(--foreground)]">
                     {Number(plan.minFee).toFixed(2)} {plan.currency}
                   </span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
-                <span className="text-[var(--muted-foreground)]">التجار المرتبطون</span>
+                <span className="text-[var(--muted-foreground)]">{t.linkedMerchants}</span>
                 <span className="font-bold text-[var(--foreground)]">{plan._count?.merchants ?? 0}</span>
               </div>
             </div>
             <div className="mt-4 flex gap-2">
               <span className={`flex-1 text-center text-xs py-1 rounded-full font-medium ${plan.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-600'}`}>
-                {plan.isActive ? 'نشطة' : 'معطلة'}
+                {plan.isActive ? t.active : t.disabled}
               </span>
               <button
                 onClick={() => handleDelete(plan.id)}
                 disabled={isPending}
                 className="text-xs px-3 py-1 rounded-lg text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
               >
-                حذف
+                {t.delete}
               </button>
             </div>
           </div>
@@ -151,15 +147,15 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
             +
           </div>
           <span className="text-sm font-medium text-[var(--muted-foreground)] group-hover:text-[var(--primary)]">
-            إضافة خطة جديدة
+            {t.addNew}
           </span>
         </button>
       </div>
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-[var(--card)] border border-[var(--border)] p-6 shadow-2xl" dir="rtl">
-            <h2 className="text-lg font-bold text-[var(--foreground)] mb-5">إنشاء خطة عمولة جديدة</h2>
+          <div className="w-full max-w-md rounded-2xl bg-[var(--card)] border border-[var(--border)] p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-[var(--foreground)] mb-5">{t.modalTitle}</h2>
 
             {error && (
               <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>
@@ -167,25 +163,25 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">اسم الخطة *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.nameLabel}</label>
                 <input
                   type="text"
                   required
                   value={form.name}
                   onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-                  placeholder="مثال: خطة التاجر المميز"
+                  placeholder={t.namePlaceholder}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">نوع العمولة *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.typeLabel}</label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                 >
-                  {Object.entries(TYPE_LABELS).map(([v, l]) => (
+                  {Object.entries(t.types).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
                   ))}
                 </select>
@@ -194,7 +190,7 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">
-                    {form.type === 'PERCENTAGE' || form.type === 'HYBRID' ? 'النسبة (%)' : 'المبلغ'}
+                    {form.type === 'PERCENTAGE' || form.type === 'HYBRID' ? t.rateLabelPercent : t.rateLabelAmount}
                   </label>
                   <input
                     type="number"
@@ -209,7 +205,7 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
                 </div>
                 {form.type === 'HYBRID' && (
                   <div>
-                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">الحد الأدنى</label>
+                    <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.minFeeLabel}</label>
                     <input
                       type="number"
                       step="0.01"
@@ -224,13 +220,13 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">وصف (اختياري)</label>
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.descriptionLabel}</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                   rows={2}
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-none"
-                  placeholder="وصف مختصر للخطة..."
+                  placeholder={t.descriptionPlaceholder}
                 />
               </div>
 
@@ -241,7 +237,7 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
                   onChange={(e) => setForm((p) => ({ ...p, isDefault: e.target.checked }))}
                   className="w-4 h-4 rounded accent-[var(--primary)]"
                 />
-                <span className="text-sm text-[var(--foreground)]">تعيين كخطة افتراضية</span>
+                <span className="text-sm text-[var(--foreground)]">{t.setDefault}</span>
               </label>
 
               <div className="flex gap-3 pt-2">
@@ -250,14 +246,14 @@ export function CommissionPlansClient({ initialPlans }: { initialPlans: Plan[] }
                   disabled={isPending}
                   className="flex-1 rounded-lg bg-[var(--primary)] py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
-                  {isPending ? 'جاري الحفظ...' : 'حفظ الخطة'}
+                  {isPending ? t.saving : t.save}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
                   className="flex-1 rounded-lg border border-[var(--border)] py-2.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
                 >
-                  إلغاء
+                  {t.cancel}
                 </button>
               </div>
             </form>

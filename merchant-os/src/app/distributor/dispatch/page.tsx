@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import { getPendingDispatchAction, getAllDriversAction } from '@/modules/drivers/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { DispatchClient } from './_client';
 
 export const dynamic = 'force-dynamic';
@@ -9,30 +11,33 @@ export default async function DispatchPage() {
   const session = await auth();
   if (!session?.user?.distributorId) redirect('/login');
 
-  const [ordersRes, driversRes] = await Promise.all([
+  const [ordersRes, driversRes, cookieStore] = await Promise.all([
     getPendingDispatchAction(),
     getAllDriversAction(),
+    cookies(),
   ]);
 
   const orders = ordersRes.success ? ordersRes.data : [];
   const drivers = driversRes.success ? driversRes.data : [];
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].dispatchPage;
 
   const availableDrivers = (drivers as any[]).filter(
     (d) => d.isActive && (d.status === 'ONLINE' || d.status === 'OFFLINE'),
   );
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">لوحة الإرسال</h1>
-        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">تعيين سائقين للطلبات الجاهزة للتوصيل</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
+        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{t.subtitle}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <h2 className="font-bold text-[var(--foreground)] mb-3 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-            طلبات تحتاج سائق
+            {t.needsDriverTitle}
             <span className="text-sm font-normal text-[var(--muted-foreground)]">({(orders as any[]).length})</span>
           </h2>
           <DispatchClient initialOrders={orders as any[]} initialDrivers={availableDrivers as any[]} />
@@ -41,13 +46,13 @@ export default async function DispatchPage() {
         <div>
           <h2 className="font-bold text-[var(--foreground)] mb-3 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-            السائقون المتاحون
+            {t.availableDriversTitle}
             <span className="text-sm font-normal text-[var(--muted-foreground)]">({availableDrivers.length})</span>
           </h2>
           <div className="space-y-3">
             {availableDrivers.length === 0 ? (
               <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-10 text-center text-sm text-[var(--muted-foreground)]">
-                لا يوجد سائقون متاحون الآن
+                {t.noAvailableDrivers}
               </div>
             ) : (
               availableDrivers.map((d: any) => (
@@ -72,7 +77,7 @@ export default async function DispatchPage() {
                       <span className="text-amber-400">★</span>
                       <span>{Number(d.rating).toFixed(1)}</span>
                     </div>
-                    <p className="mt-0.5">{d.totalDeliveries} توصيلة</p>
+                    <p className="mt-0.5">{d.totalDeliveries} {t.deliveriesSuffix}</p>
                   </div>
                 </div>
               ))

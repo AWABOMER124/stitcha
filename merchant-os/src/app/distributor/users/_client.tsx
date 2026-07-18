@@ -7,11 +7,7 @@ import {
   setDistributorUserOwnerAction,
   setDistributorUserActiveAction,
 } from '@/modules/users/actions';
-
-const ROLE_LABELS: Record<string, string> = {
-  DISTRIBUTOR_OWNER: 'مالك',
-  DISTRIBUTOR_ADMIN: 'مدير عام',
-};
+import { useLocale } from '@/lib/i18n/context';
 
 interface DistributorUserRow {
   id: string;
@@ -29,6 +25,8 @@ export function DistributorUsersClient({
   initialUsers: DistributorUserRow[];
   currentUserId: string;
 }) {
+  const { dict } = useLocale();
+  const t = dict.distributorUsersPage;
   const [users, setUsers] = useState(initialUsers);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -47,7 +45,7 @@ export function DistributorUsersClient({
         setUsers((u) => [row, ...u.filter((x) => x.userId !== row.userId)]);
         setShowForm(false);
         setForm({ email: '', role: 'DISTRIBUTOR_ADMIN', isOwner: false });
-        setSuccess(`تمت دعوة ${form.email} — تم إرسال رابط تعيين كلمة المرور له`);
+        setSuccess(t.invitedMessage.replace('{email}', form.email));
       } else {
         setError(res.error);
       }
@@ -81,7 +79,7 @@ export function DistributorUsersClient({
         onClick={() => setShowForm(!showForm)}
         className="rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors"
       >
-        {showForm ? 'إلغاء' : '+ دعوة مستخدم'}
+        {showForm ? t.cancel : t.inviteUser}
       </button>
 
       {success && (
@@ -90,11 +88,11 @@ export function DistributorUsersClient({
 
       {showForm && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-          <h3 className="font-bold text-[var(--foreground)] mb-4">دعوة مستخدم جديد</h3>
+          <h3 className="font-bold text-[var(--foreground)] mb-4">{t.inviteTitle}</h3>
           {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
           <form onSubmit={handleInvite} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
             <div className="sm:col-span-1">
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">البريد الإلكتروني *</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.emailLabel}</label>
               <input
                 type="email"
                 required
@@ -105,13 +103,13 @@ export function DistributorUsersClient({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">الصلاحية</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.roleLabel}</label>
               <select
                 value={form.role}
                 onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               >
-                {Object.entries(ROLE_LABELS).map(([v, l]) => (
+                {Object.entries(t.roles).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
                 ))}
               </select>
@@ -124,7 +122,7 @@ export function DistributorUsersClient({
                   onChange={(e) => setForm((f) => ({ ...f, isOwner: e.target.checked }))}
                   className="rounded border-[var(--border)]"
                 />
-                مالك الحساب
+                {t.isOwnerLabel}
               </label>
             </div>
             <div className="sm:col-span-3">
@@ -133,7 +131,7 @@ export function DistributorUsersClient({
                 disabled={isPending}
                 className="rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors"
               >
-                {isPending ? 'جاري الإرسال...' : 'إرسال الدعوة'}
+                {isPending ? t.sending : t.sendInvite}
               </button>
             </div>
           </form>
@@ -143,7 +141,7 @@ export function DistributorUsersClient({
       {users.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
           <p className="text-4xl mb-3">👥</p>
-          <p className="font-semibold text-[var(--foreground)]">لا يوجد مستخدمون بعد</p>
+          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
         </div>
       ) : (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
@@ -151,12 +149,12 @@ export function DistributorUsersClient({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]/50">
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">الاسم</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">البريد / الهاتف</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">الصلاحية</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">هو المالك</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">الحالة</th>
-                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">إجراءات</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colName}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colContact}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colRole}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colOwner}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colStatus}</th>
+                  <th className="px-5 py-3 text-left text-xs font-medium text-[var(--muted-foreground)]">{t.colActions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -165,7 +163,7 @@ export function DistributorUsersClient({
                   return (
                     <tr key={u.id} className="hover:bg-[var(--muted)]/30 transition-colors">
                       <td className="px-5 py-3.5 text-sm font-medium text-[var(--foreground)]">
-                        {u.user.name ?? '—'} {isSelf && <span className="text-xs text-[var(--muted-foreground)]">(أنت)</span>}
+                        {u.user.name ?? '—'} {isSelf && <span className="text-xs text-[var(--muted-foreground)]">{t.you}</span>}
                       </td>
                       <td className="px-5 py-3.5 text-sm text-[var(--muted-foreground)]">
                         <div>{u.user.email}</div>
@@ -178,7 +176,7 @@ export function DistributorUsersClient({
                           onChange={(e) => handleRoleChange(u.userId, e.target.value)}
                           className="rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs disabled:opacity-50"
                         >
-                          {Object.entries(ROLE_LABELS).map(([v, l]) => (
+                          {Object.entries(t.roles).map(([v, l]) => (
                             <option key={v} value={v}>{l}</option>
                           ))}
                         </select>
@@ -191,7 +189,7 @@ export function DistributorUsersClient({
                             u.isOwner ? 'bg-blue-100 text-blue-700' : 'bg-stone-100 text-stone-500'
                           }`}
                         >
-                          {u.isOwner ? 'نعم' : 'لا'}
+                          {u.isOwner ? t.yes : t.no}
                         </button>
                       </td>
                       <td className="px-5 py-3.5">
@@ -200,17 +198,17 @@ export function DistributorUsersClient({
                             u.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
                           }`}
                         >
-                          {u.isActive ? 'نشط' : 'موقوف'}
+                          {u.isActive ? t.active : t.suspended}
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-left">
                         <button
                           onClick={() => handleToggleActive(u.userId, u.isActive)}
                           disabled={isPending || isSelf}
-                          title={isSelf ? 'لا يمكنك إيقاف حسابك الخاص' : undefined}
+                          title={isSelf ? t.cannotDeactivateSelf : undefined}
                           className="text-xs font-medium text-[var(--primary)] hover:underline disabled:opacity-40 disabled:no-underline"
                         >
-                          {u.isActive ? 'إيقاف' : 'تفعيل'}
+                          {u.isActive ? t.deactivate : t.activate}
                         </button>
                       </td>
                     </tr>

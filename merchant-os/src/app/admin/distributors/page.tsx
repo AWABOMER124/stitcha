@@ -1,5 +1,6 @@
+import { cookies } from 'next/headers';
 import { getAllDistributorsAction } from '@/modules/admin/actions';
-import Link from 'next/link';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { DistributorsClient } from './_client';
 
 type DistributorRow = {
@@ -24,9 +25,11 @@ export default async function AdminDistributorsPage({
 }: {
   searchParams: Promise<Record<string, string>>;
 }) {
-  const sp = await searchParams;
+  const [sp, cookieStore] = await Promise.all([searchParams, cookies()]);
   const page = Number(sp.page ?? 1);
   const search = sp.search ?? '';
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].adminDistributorsPage;
 
   const res = await getAllDistributorsAction(page, 20, search || undefined);
   const result = res.success
@@ -34,12 +37,12 @@ export default async function AdminDistributorsPage({
     : { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } };
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">الموزعون</h1>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
-            {result.pagination.total} موزع مسجّل في المنصة
+            {result.pagination.total} {t.subtitleSuffix}
           </p>
         </div>
       </div>

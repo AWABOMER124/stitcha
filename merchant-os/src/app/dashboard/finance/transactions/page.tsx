@@ -1,16 +1,18 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import Link from 'next/link';
 import { getMerchantTransactionsAction } from '@/modules/finance/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale, type Dictionary } from '@/lib/i18n/translations';
 
-const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  ORDER_PAYMENT: { label: 'دفع طلب', icon: '🛒', color: 'text-emerald-600' },
-  COMMISSION: { label: 'عمولة', icon: '📊', color: 'text-red-500' },
-  REFUND: { label: 'استرداد', icon: '↩️', color: 'text-blue-600' },
-  SUBSCRIPTION_FEE: { label: 'رسوم اشتراك', icon: '🔄', color: 'text-purple-600' },
-  DELIVERY_FEE: { label: 'رسوم توصيل', icon: '🚚', color: 'text-amber-600' },
-  ADJUSTMENT: { label: 'تعديل', icon: '✏️', color: 'text-gray-600' },
-  PAYOUT: { label: 'صرف', icon: '💸', color: 'text-emerald-700' },
+const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
+  ORDER_PAYMENT: { icon: '🛒', color: 'text-emerald-600' },
+  COMMISSION: { icon: '📊', color: 'text-red-500' },
+  REFUND: { icon: '↩️', color: 'text-blue-600' },
+  SUBSCRIPTION_FEE: { icon: '🔄', color: 'text-purple-600' },
+  DELIVERY_FEE: { icon: '🚚', color: 'text-amber-600' },
+  ADJUSTMENT: { icon: '✏️', color: 'text-gray-600' },
+  PAYOUT: { icon: '💸', color: 'text-emerald-700' },
 };
 
 type Transaction = {
@@ -41,38 +43,42 @@ export default async function TransactionsPage({
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
 
-  const sp = await searchParams;
+  const [sp, cookieStore] = await Promise.all([searchParams, cookies()]);
   const page = Number(sp.page ?? 1);
   const type = sp.type ?? '';
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
+  const dict: Dictionary = dictionaries[locale];
+  const t = dict.financeTransactionsPage;
 
   const res = await getMerchantTransactionsAction({ page, limit: 25, type: type || undefined });
   const result = res.success ? (res.data as PageData) : { data: [], pagination: { page: 1, limit: 25, total: 0, totalPages: 1 } };
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-1">
-            <Link href="/dashboard/finance" className="hover:text-[var(--primary)]">المالية</Link>
+            <Link href="/dashboard/finance" className="hover:text-[var(--primary)]">{dict.financeHomePage.title}</Link>
             <span>/</span>
-            <span>سجل المعاملات</span>
+            <span>{t.breadcrumb}</span>
           </div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">سجل المعاملات</h1>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
           <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
-            جميع الحركات المالية لمتجرك — {result.pagination.total} معاملة
+            {t.subtitlePrefix} {result.pagination.total} {t.subtitleSuffix}
           </p>
         </div>
       </div>
 
       {/* Type filter */}
       <div className="flex items-center gap-2 flex-wrap">
-        <FilterChip href={`/dashboard/finance/transactions`} label="الكل" active={!type} />
-        {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
+        <FilterChip href={`/dashboard/finance/transactions`} label={t.all} active={!type} />
+        {Object.keys(TYPE_CONFIG).map((key) => (
           <FilterChip
             key={key}
             href={`/dashboard/finance/transactions?type=${key}`}
-            label={cfg.label}
+            label={t.types[key as keyof typeof t.types]}
             active={type === key}
           />
         ))}
@@ -83,9 +89,9 @@ export default async function TransactionsPage({
         {result.data.length === 0 ? (
           <div className="p-16 text-center">
             <p className="text-4xl mb-3">💳</p>
-            <p className="text-sm font-medium text-[var(--foreground)]">لا توجد معاملات</p>
+            <p className="text-sm font-medium text-[var(--foreground)]">{t.empty}</p>
             <p className="text-xs text-[var(--muted-foreground)] mt-1">
-              ستظهر هنا معاملاتك المالية بمجرد تنفيذ الطلبات
+              {t.emptySubtitle}
             </p>
           </div>
         ) : (
@@ -93,7 +99,7 @@ export default async function TransactionsPage({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
-                  {['النوع', 'الوصف', 'المرجع', 'المبلغ', 'التاريخ'].map((h) => (
+                  {[t.colType, t.colDescription, t.colReference, t.colAmount, t.colDate].map((h) => (
                     <th
                       key={h}
                       className="py-3 px-4 text-right font-medium text-[var(--muted-foreground)] whitespace-nowrap"
@@ -105,7 +111,8 @@ export default async function TransactionsPage({
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {result.data.map((tx) => {
-                  const cfg = TYPE_CONFIG[tx.type] ?? { label: tx.type, icon: '💰', color: 'text-gray-600' };
+                  const cfg = TYPE_CONFIG[tx.type] ?? { icon: '💰', color: 'text-gray-600' };
+                  const label = t.types[tx.type as keyof typeof t.types] ?? tx.type;
                   const amt = Number(tx.amount);
                   const isCredit = tx.direction === 'CREDIT';
                   return (
@@ -116,7 +123,7 @@ export default async function TransactionsPage({
                           <span className={`text-xs font-semibold rounded-full px-2.5 py-0.5 ${
                             isCredit ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                           }`}>
-                            {cfg.label}
+                            {label}
                           </span>
                         </div>
                       </td>
@@ -132,7 +139,7 @@ export default async function TransactionsPage({
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-xs text-[var(--muted-foreground)] whitespace-nowrap">
-                        {new Date(tx.createdAt).toLocaleDateString('ar-SD', {
+                        {new Date(tx.createdAt).toLocaleDateString(dateLocale, {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
@@ -152,7 +159,7 @@ export default async function TransactionsPage({
         {result.pagination.totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-3">
             <p className="text-xs text-[var(--muted-foreground)]">
-              صفحة {result.pagination.page} من {result.pagination.totalPages}
+              {t.pageOf.replace('{page}', String(result.pagination.page)).replace('{total}', String(result.pagination.totalPages))}
             </p>
             <div className="flex gap-2">
               {page > 1 && (
@@ -160,7 +167,7 @@ export default async function TransactionsPage({
                   href={`/dashboard/finance/transactions?page=${page - 1}${type ? `&type=${type}` : ''}`}
                   className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-[var(--muted)] transition-colors"
                 >
-                  السابق
+                  {t.prev}
                 </Link>
               )}
               {page < result.pagination.totalPages && (
@@ -168,7 +175,7 @@ export default async function TransactionsPage({
                   href={`/dashboard/finance/transactions?page=${page + 1}${type ? `&type=${type}` : ''}`}
                   className="rounded-lg bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
                 >
-                  التالي
+                  {t.next}
                 </Link>
               )}
             </div>

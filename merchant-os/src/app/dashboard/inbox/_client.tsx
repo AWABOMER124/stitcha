@@ -1,17 +1,21 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useLocale } from '@/lib/i18n/context';
 
 type Message = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string };
 type Conversation = { id: string; customerName: string | null; customerPhone: string | null; channel: string; status: string; createdAt: string; updatedAt: string; messages: Message[] };
 
 const CHANNEL_ICONS: Record<string, string> = { WEB: '🌐', WHATSAPP: '💬', MESSENGER: '📘', INSTAGRAM: '📸' };
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  OPEN: { label: 'مفتوح', color: 'bg-emerald-100 text-emerald-700' },
-  PENDING: { label: 'معلّق', color: 'bg-amber-100 text-amber-700' },
-  CLOSED: { label: 'مغلق', color: 'bg-stone-100 text-stone-600' },
+const STATUS_COLORS: Record<string, string> = {
+  OPEN: 'bg-emerald-100 text-emerald-700',
+  PENDING: 'bg-amber-100 text-amber-700',
+  CLOSED: 'bg-stone-100 text-stone-600',
 };
 
 export function InboxClient({ conversations: initial, merchantId }: { conversations: Conversation[]; merchantId: string }) {
+  const { dict, locale } = useLocale();
+  const t = dict.inboxPage;
+  const dateLocale = locale === 'ar' ? 'ar-SA' : 'en-US';
   const [conversations, setConversations] = useState(initial);
   const [selected, setSelected] = useState<Conversation | null>(initial[0] ?? null);
   const [messages, setMessages] = useState<Message[]>(initial[0]?.messages ?? []);
@@ -48,7 +52,7 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
       if (data.message) {
         setMessages(prev => [...prev, data.message]);
         setReply('');
-        if (data.deliveryError) setSuggestError(`تم الحفظ لكن تعذّر إرساله عبر واتساب: ${data.deliveryError}`);
+        if (data.deliveryError) setSuggestError(`${t.savedButFailedPrefix} ${data.deliveryError}`);
       }
     } catch {}
     setSending(false);
@@ -62,9 +66,9 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
       const res = await fetch(`/api/inbox/${selected.id}/suggest-reply`, { method: 'POST' });
       const data = await res.json();
       if (data.suggestion) setReply(data.suggestion);
-      else setSuggestError(data.error ?? 'تعذر توليد اقتراح');
+      else setSuggestError(data.error ?? t.suggestFailed);
     } catch {
-      setSuggestError('تعذر توليد اقتراح');
+      setSuggestError(t.suggestFailed);
     }
     setSuggesting(false);
   }
@@ -72,15 +76,15 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
   const filtered = conversations.filter(c => filter === 'ALL' || c.status === filter);
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       {/* Sidebar */}
       <div className="w-80 border-l border-[var(--border)] flex flex-col bg-[var(--card)]">
         <div className="p-4 border-b border-[var(--border)]">
-          <h1 className="font-bold text-[var(--foreground)] text-lg">صندوق الوارد</h1>
+          <h1 className="font-bold text-[var(--foreground)] text-lg">{t.title}</h1>
           <div className="flex gap-1 mt-3">
             {(['ALL', 'OPEN', 'CLOSED'] as const).map(f => (
               <button key={f} onClick={() => setFilter(f)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? 'bg-[var(--primary)] text-white' : 'text-[var(--muted-foreground)] hover:bg-[var(--background)]'}`}>
-                {f === 'ALL' ? 'الكل' : f === 'OPEN' ? 'مفتوح' : 'مغلق'}
+                {f === 'ALL' ? t.filterAll : f === 'OPEN' ? t.filterOpen : t.filterClosed}
               </button>
             ))}
           </div>
@@ -89,7 +93,7 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
           {filtered.length === 0 && (
             <div className="text-center py-12 text-[var(--muted-foreground)]">
               <div className="text-4xl mb-2">💬</div>
-              <p className="text-sm">لا توجد محادثات</p>
+              <p className="text-sm">{t.emptyConversations}</p>
             </div>
           )}
           {filtered.map(conv => (
@@ -98,13 +102,13 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{CHANNEL_ICONS[conv.channel] ?? '💬'}</span>
-                    <span className="font-semibold text-sm text-[var(--foreground)] truncate">{conv.customerName ?? 'عميل مجهول'}</span>
+                    <span className="font-semibold text-sm text-[var(--foreground)] truncate">{conv.customerName ?? t.unknownCustomer}</span>
                   </div>
                   {conv.messages[0] && <p className="text-xs text-[var(--muted-foreground)] mt-0.5 truncate">{conv.messages[0].content}</p>}
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${STATUS_CONFIG[conv.status]?.color ?? 'bg-stone-100 text-stone-600'}`}>{STATUS_CONFIG[conv.status]?.label ?? conv.status}</span>
-                  <span className="text-[10px] text-[var(--muted-foreground)]">{new Date(conv.updatedAt).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${STATUS_COLORS[conv.status] ?? 'bg-stone-100 text-stone-600'}`}>{t.statuses[conv.status as keyof typeof t.statuses] ?? conv.status}</span>
+                  <span className="text-[10px] text-[var(--muted-foreground)]">{new Date(conv.updatedAt).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}</span>
                 </div>
               </div>
             </button>
@@ -118,7 +122,7 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
           {/* Header */}
           <div className="px-5 py-3 border-b border-[var(--border)] bg-[var(--card)] flex items-center justify-between">
             <div>
-              <p className="font-bold text-[var(--foreground)]">{selected.customerName ?? 'عميل'}</p>
+              <p className="font-bold text-[var(--foreground)]">{selected.customerName ?? t.customer}</p>
               <p className="text-xs text-[var(--muted-foreground)]">{selected.customerPhone ?? ''} · {CHANNEL_ICONS[selected.channel]} {selected.channel}</p>
             </div>
             <button onClick={async () => {
@@ -126,7 +130,7 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
               setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, status: 'CLOSED' } : c));
               setSelected(s => s ? { ...s, status: 'CLOSED' } : s);
             }} className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:bg-[var(--background)] transition-colors">
-              إغلاق المحادثة
+              {t.closeConversation}
             </button>
           </div>
 
@@ -135,9 +139,9 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.isFromCustomer ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${msg.isFromCustomer ? 'bg-[var(--primary)] text-white rounded-tl-sm' : 'bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)] rounded-tr-sm'}`}>
-                  {!msg.isFromCustomer && <p className="text-xs font-bold text-[var(--muted-foreground)] mb-1">أنت</p>}
+                  {!msg.isFromCustomer && <p className="text-xs font-bold text-[var(--muted-foreground)] mb-1">{t.you}</p>}
                   <p className="text-sm">{msg.content}</p>
-                  <p className={`text-[10px] mt-1 ${msg.isFromCustomer ? 'text-white/60' : 'text-[var(--muted-foreground)]'}`}>{new Date(msg.sentAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className={`text-[10px] mt-1 ${msg.isFromCustomer ? 'text-white/60' : 'text-[var(--muted-foreground)]'}`}>{new Date(msg.sentAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             ))}
@@ -152,22 +156,22 @@ export function InboxClient({ conversations: initial, merchantId }: { conversati
                 <button
                   onClick={suggestReply}
                   disabled={suggesting || messages.length === 0}
-                  title="اقترح رداً بالذكاء الاصطناعي"
+                  title={t.suggestReplyTitle}
                   className="px-3 py-2.5 rounded-xl border border-[var(--border)] text-sm font-medium text-[var(--muted-foreground)] hover:bg-[var(--background)] disabled:opacity-50 shrink-0"
                 >
-                  {suggesting ? '...' : '✨ اقترح رد'}
+                  {suggesting ? t.suggestReplyLoading : t.suggestReplyButton}
                 </button>
-                <input value={reply} onChange={e => setReply(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendReply())} placeholder="اكتب ردك..." className="flex-1 border border-[var(--border)] rounded-xl px-4 py-2.5 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)]" />
-                <button onClick={sendReply} disabled={sending || !reply.trim()} className="px-5 py-2.5 rounded-xl bg-[var(--primary)] text-white font-bold text-sm disabled:opacity-50">إرسال</button>
+                <input value={reply} onChange={e => setReply(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendReply())} placeholder={t.inputPlaceholder} className="flex-1 border border-[var(--border)] rounded-xl px-4 py-2.5 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)]" />
+                <button onClick={sendReply} disabled={sending || !reply.trim()} className="px-5 py-2.5 rounded-xl bg-[var(--primary)] text-white font-bold text-sm disabled:opacity-50">{t.send}</button>
               </div>
             </div>
           ) : (
-            <div className="px-4 py-3 border-t border-[var(--border)] bg-stone-50 text-center text-sm text-[var(--muted-foreground)]">المحادثة مغلقة</div>
+            <div className="px-4 py-3 border-t border-[var(--border)] bg-stone-50 text-center text-sm text-[var(--muted-foreground)]">{t.conversationClosed}</div>
           )}
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-[var(--muted-foreground)]">
-          <div className="text-center"><div className="text-6xl mb-3">💬</div><p>اختر محادثة للبدء</p></div>
+          <div className="text-center"><div className="text-6xl mb-3">💬</div><p>{t.selectConversation}</p></div>
         </div>
       )}
     </div>

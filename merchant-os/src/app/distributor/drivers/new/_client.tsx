@@ -3,9 +3,12 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createDriverAction } from '@/modules/drivers/actions';
-import { VEHICLE_LABELS } from '@/modules/drivers/types';
+import { useLocale } from '@/lib/i18n/context';
 
 export function NewDriverClient() {
+  const { dict } = useLocale();
+  const t = dict.newDriverPage;
+  const ds = dict.driverShared;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
@@ -50,18 +53,18 @@ export function NewDriverClient() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">الاسم الكامل *</label>
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.fullNameLabel}</label>
             <input
               type="text"
               required
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-              placeholder="محمد أحمد"
+              placeholder={t.fullNamePlaceholder}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">رقم الهاتف *</label>
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.phoneLabel}</label>
             <input
               type="tel"
               required
@@ -72,23 +75,23 @@ export function NewDriverClient() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">الرقم الوطني</label>
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.nationalIdLabel}</label>
             <input
               type="text"
               value={form.nationalId}
               onChange={(e) => set('nationalId', e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-              placeholder="اختياري"
+              placeholder={t.nationalIdPlaceholder}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">نوع المركبة *</label>
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.vehicleTypeLabel}</label>
             <select
               value={form.vehicleType}
               onChange={(e) => set('vehicleType', e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
             >
-              {Object.entries(VEHICLE_LABELS).map(([v, l]) => (
+              {Object.entries(ds.vehicles).map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
                 </option>
@@ -96,23 +99,23 @@ export function NewDriverClient() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">رقم اللوحة</label>
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{dict.driverProfilePage.plateLabel}</label>
             <input
               type="text"
               value={form.vehiclePlate}
               onChange={(e) => set('vehiclePlate', e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-              placeholder="ABC 1234"
+              placeholder={t.platePlaceholder}
             />
           </div>
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">ملاحظات</label>
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.notesLabel}</label>
             <textarea
               value={form.notes}
               onChange={(e) => set('notes', e.target.value)}
               rows={3}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-none"
-              placeholder="أي ملاحظات اختيارية..."
+              placeholder={t.notesPlaceholder}
             />
           </div>
         </div>
@@ -122,14 +125,14 @@ export function NewDriverClient() {
             disabled={isPending}
             className="flex-1 rounded-lg bg-[var(--primary)] py-3 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors"
           >
-            {isPending ? 'جاري الحفظ...' : 'إضافة السائق'}
+            {isPending ? t.saving : t.submit}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
             className="flex-1 rounded-lg border border-[var(--border)] py-3 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
           >
-            إلغاء
+            {t.cancel}
           </button>
         </div>
       </form>

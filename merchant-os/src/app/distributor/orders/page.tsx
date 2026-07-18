@@ -1,27 +1,23 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import Link from 'next/link';
 import { getDistributorOrdersAction } from '@/modules/orders/actions';
 import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { OrderDeliveryCompanySelect } from './_client';
 
 export const dynamic = 'force-dynamic';
 
-const TABS: { key: string; label: string }[] = [
-  { key: 'active', label: 'الطلبيات النشطة' },
-  { key: 'archived', label: 'الطلبيات المؤرشفة' },
-  { key: 'all', label: 'كل الطلبيات' },
-];
-
-const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  NEW: { label: 'جديد', cls: 'bg-blue-100 text-blue-700' },
-  ACCEPTED: { label: 'مقبول', cls: 'bg-indigo-100 text-indigo-700' },
-  PREPARING: { label: 'يُحضّر', cls: 'bg-amber-100 text-amber-700' },
-  READY: { label: 'جاهز', cls: 'bg-purple-100 text-purple-700' },
-  OUT_FOR_DELIVERY: { label: 'في الطريق', cls: 'bg-cyan-100 text-cyan-700' },
-  DELIVERED: { label: 'تم التوصيل', cls: 'bg-emerald-100 text-emerald-700' },
-  CANCELLED: { label: 'ملغي', cls: 'bg-red-100 text-red-700' },
-  REJECTED: { label: 'مرفوض', cls: 'bg-stone-100 text-stone-600' },
+const STATUS_CLS: Record<string, string> = {
+  NEW: 'bg-blue-100 text-blue-700',
+  ACCEPTED: 'bg-indigo-100 text-indigo-700',
+  PREPARING: 'bg-amber-100 text-amber-700',
+  READY: 'bg-purple-100 text-purple-700',
+  OUT_FOR_DELIVERY: 'bg-cyan-100 text-cyan-700',
+  DELIVERED: 'bg-emerald-100 text-emerald-700',
+  CANCELLED: 'bg-red-100 text-red-700',
+  REJECTED: 'bg-stone-100 text-stone-600',
 };
 
 export default async function DistributorOrdersPage({
@@ -32,10 +28,18 @@ export default async function DistributorOrdersPage({
   const session = await auth();
   if (!session?.user?.distributorId) redirect('/login');
 
-  const sp = await searchParams;
+  const [sp, cookieStore] = await Promise.all([searchParams, cookies()]);
   const tab = (['active', 'archived', 'all'].includes(sp.tab ?? '') ? sp.tab : 'active') as 'active' | 'archived' | 'all';
   const search = sp.q ?? '';
   const page = Number(sp.page ?? '1') || 1;
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].distributorOrdersPage;
+
+  const TABS: { key: string; label: string }[] = [
+    { key: 'active', label: t.tabActive },
+    { key: 'archived', label: t.tabArchived },
+    { key: 'all', label: t.tabAll },
+  ];
 
   const [ordersRes, companiesRes] = await Promise.all([
     getDistributorOrdersAction(tab, search || undefined, page, 20),
@@ -47,26 +51,26 @@ export default async function DistributorOrdersPage({
   const companies = companiesRes.success ? (companiesRes.data as any[]) : [];
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">الطلبيات</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
-          كل الطلبات عبر جميع التجار التابعين لك
+          {t.subtitle}
         </p>
       </div>
 
       <div className="flex items-center gap-1 border-b border-[var(--border)]">
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <Link
-            key={t.key}
-            href={`/distributor/orders?tab=${t.key}`}
+            key={tb.key}
+            href={`/distributor/orders?tab=${tb.key}`}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              tab === t.key
+              tab === tb.key
                 ? 'border-[var(--primary)] text-[var(--primary)]'
                 : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
             }`}
           >
-            {t.label}
+            {tb.label}
           </Link>
         ))}
       </div>
@@ -77,21 +81,21 @@ export default async function DistributorOrdersPage({
           type="text"
           name="q"
           defaultValue={search}
-          placeholder="بحث بالتسلسل أو اسم المستلم أو الهاتف"
+          placeholder={t.searchPlaceholder}
           className="w-full max-w-md rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         />
         <button
           type="submit"
           className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
         >
-          بحث
+          {t.search}
         </button>
       </form>
 
       {orders.length === 0 ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
           <p className="text-4xl mb-3">📦</p>
-          <p className="font-semibold text-[var(--foreground)]">لا توجد طلبيات</p>
+          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
         </div>
       ) : (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
@@ -99,24 +103,25 @@ export default async function DistributorOrdersPage({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]/50">
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">التسلسل</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">المرسل (التاجر)</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">اسم المستلم</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">الحالة</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">شركة التوصيل</th>
-                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">المبلغ</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colOrderNumber}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colSender}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colRecipient}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colStatus}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colDeliveryCompany}</th>
+                  <th className="px-5 py-3 text-right text-xs font-medium text-[var(--muted-foreground)]">{t.colAmount}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {orders.map((o) => {
-                  const status = STATUS_LABELS[o.status] ?? { label: o.status, cls: 'bg-gray-100 text-gray-600' };
+                  const statusLabel = t.statuses[o.status as keyof typeof t.statuses] ?? o.status;
+                  const statusCls = STATUS_CLS[o.status] ?? 'bg-gray-100 text-gray-600';
                   return (
                     <tr key={o.id} className="hover:bg-[var(--muted)]/30 transition-colors">
                       <td className="px-5 py-3.5 text-sm font-mono font-bold text-[var(--foreground)]">{o.orderNumber}</td>
                       <td className="px-5 py-3.5 text-sm text-[var(--foreground)]">{o.merchant?.name ?? '—'}</td>
                       <td className="px-5 py-3.5 text-sm text-[var(--muted-foreground)]">{o.customerName ?? '—'}</td>
                       <td className="px-5 py-3.5">
-                        <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${status.cls}`}>{status.label}</span>
+                        <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${statusCls}`}>{statusLabel}</span>
                       </td>
                       <td className="px-5 py-3.5">
                         <OrderDeliveryCompanySelect

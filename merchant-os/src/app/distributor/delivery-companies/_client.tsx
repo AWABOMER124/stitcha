@@ -6,6 +6,7 @@ import {
   updateDeliveryCompanyAction,
   deleteDeliveryCompanyAction,
 } from '@/modules/delivery-companies/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 interface DeliveryCompany {
   id: string;
@@ -17,6 +18,8 @@ interface DeliveryCompany {
 }
 
 export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies: DeliveryCompany[] }) {
+  const { dict } = useLocale();
+  const t = dict.deliveryCompaniesPage;
   const [companies, setCompanies] = useState(initialCompanies);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
   }
 
   function handleDelete(c: DeliveryCompany) {
-    if (!confirm(`حذف "${c.name}"؟`)) return;
+    if (!confirm(t.confirmDelete.replace('{name}', c.name))) return;
     startTransition(async () => {
       const res = await deleteDeliveryCompanyAction(c.id);
       if (res.success) setCompanies((prev) => prev.filter((x) => x.id !== c.id));
@@ -80,25 +83,25 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
         onClick={() => (showForm ? resetForm() : setShowForm(true))}
         className="rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors"
       >
-        {showForm ? 'إلغاء' : '+ شركة توصيل جديدة'}
+        {showForm ? t.cancel : t.newCompany}
       </button>
 
       {showForm && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-          <h3 className="font-bold text-[var(--foreground)] mb-4">{editingId ? 'تعديل الشركة' : 'شركة توصيل جديدة'}</h3>
+          <h3 className="font-bold text-[var(--foreground)] mb-4">{editingId ? t.editTitle : t.createTitle}</h3>
           {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">اسم الشركة *</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.nameLabel}</label>
               <input
                 type="text" required minLength={2}
                 value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="مثال: iMile"
+                placeholder={t.namePlaceholder}
                 className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">اسم المسؤول</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.contactNameLabel}</label>
               <input
                 type="text"
                 value={form.contactName} onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))}
@@ -106,7 +109,7 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">رقم الهاتف</label>
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.phoneLabel}</label>
               <input
                 type="text"
                 value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
@@ -118,7 +121,7 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
                 type="submit" disabled={isPending}
                 className="rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors"
               >
-                {isPending ? 'جاري الحفظ...' : editingId ? 'حفظ' : 'إنشاء'}
+                {isPending ? t.saving : editingId ? t.save : t.create}
               </button>
             </div>
           </form>
@@ -128,8 +131,8 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
       {companies.length === 0 && !showForm ? (
         <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
           <p className="text-4xl mb-3">🚚</p>
-          <p className="font-semibold text-[var(--foreground)]">لا توجد شركات توصيل بعد</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">أضف شركة توصيل خارجية لتسليمها الطلبات عند الحاجة</p>
+          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.emptySubtitle}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -148,25 +151,25 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
                     c.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-600'
                   }`}
                 >
-                  {c.isActive ? 'نشطة' : 'موقوفة'}
+                  {c.isActive ? t.active : t.suspended}
                 </button>
               </div>
               <p className="mt-3 text-xs text-[var(--muted-foreground)]">
-                {c._count?.drivers ?? 0} مندوب · {c._count?.merchants ?? 0} تاجر مرتبط
+                {c._count?.drivers ?? 0} {t.driversSuffix} · {c._count?.merchants ?? 0} {t.linkedMerchantsSuffix}
               </p>
               <div className="mt-4 flex items-center gap-2">
                 <button
                   onClick={() => startEdit(c)}
                   className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
                 >
-                  تعديل
+                  {t.edit}
                 </button>
                 <button
                   onClick={() => handleDelete(c)}
                   disabled={isPending}
                   className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
                 >
-                  حذف
+                  {t.delete}
                 </button>
               </div>
             </div>

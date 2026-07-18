@@ -5,24 +5,17 @@ import { getActiveOrdersAction, advanceOrderStatusAction } from '@/modules/fulfi
 import {
   KANBAN_COLUMNS,
   STATUS_TRANSITIONS,
-  NEXT_STATUS_LABEL,
   TERMINAL_STATUSES,
   DELAY_THRESHOLD_MINUTES,
 } from '@/modules/fulfillment/types';
 import type { ActiveOrder, OrderStatus } from '@/modules/fulfillment/types';
+import { useLocale } from '@/lib/i18n/context';
 import Link from 'next/link';
 
 const POLL_INTERVAL_MS = 30_000;
 
 function elapsedMinutes(date: Date | string): number {
   return Math.floor((Date.now() - new Date(date).getTime()) / 60000);
-}
-
-function formatElapsed(minutes: number): string {
-  if (minutes < 60) return `${minutes} د`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}س ${m}د` : `${h}س`;
 }
 
 function OrderCard({
@@ -34,14 +27,24 @@ function OrderCard({
   onAdvance: (orderId: string, status: OrderStatus, label: string) => void;
   isPending: boolean;
 }) {
+  const { dict } = useLocale();
+  const t = dict.fulfillmentPage;
   const status = order.status as OrderStatus;
   const isTerminal = TERMINAL_STATUSES.includes(status);
   const elapsed = elapsedMinutes(order.createdAt);
   const isDelayed = !isTerminal && elapsed > DELAY_THRESHOLD_MINUTES;
 
+  function formatElapsed(minutes: number): string {
+    if (minutes < 60) return `${minutes} ${t.minuteAbbr}`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h}${t.hourAbbr} ${m}${t.minuteAbbr}` : `${h}${t.hourAbbr}`;
+  }
+
   const nextStatuses = STATUS_TRANSITIONS[status] ?? [];
   const primaryNext = nextStatuses[0] as OrderStatus | undefined;
   const cancelNext = nextStatuses[1] as OrderStatus | undefined;
+  const nextLabel = t.nextStatusLabel[status as keyof typeof t.nextStatusLabel];
 
   const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
 
@@ -58,7 +61,7 @@ function OrderCard({
             #{order.orderNumber}
           </p>
           <p className="text-[11px] text-[var(--muted-foreground)] truncate">
-            {order.customerName ?? order.customer?.name ?? '—'}
+            {order.customerName ?? order.customer?.name ?? t.unknownCustomer}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -70,7 +73,7 @@ function OrderCard({
             {formatElapsed(elapsed)}
           </span>
           {isDelayed && (
-            <span className="text-[10px] text-red-600 font-medium">⚠ متأخر</span>
+            <span className="text-[10px] text-red-600 font-medium">{t.delayed}</span>
           )}
         </div>
       </div>
@@ -81,13 +84,13 @@ function OrderCard({
           const snapshot = item.productSnapshot as { name?: string };
           return (
             <div key={item.id} className="flex justify-between">
-              <span className="truncate max-w-[120px]">{snapshot?.name ?? 'منتج'}</span>
+              <span className="truncate max-w-[120px]">{snapshot?.name ?? t.unknownProduct}</span>
               <span className="font-medium text-[var(--foreground)]">×{item.quantity}</span>
             </div>
           );
         })}
         {order.items.length > 2 && (
-          <p className="text-[10px] text-[var(--muted-foreground)]">+{order.items.length - 2} أصناف أخرى</p>
+          <p className="text-[10px] text-[var(--muted-foreground)]">+{order.items.length - 2} {t.otherItemsSuffix}</p>
         )}
       </div>
 
@@ -97,31 +100,31 @@ function OrderCard({
           <span className="text-[11px] font-bold text-[var(--foreground)]">
             {Number(order.total).toLocaleString()} SDG
           </span>
-          <span className="text-[10px] text-[var(--muted-foreground)]">({itemCount} أصناف)</span>
+          <span className="text-[10px] text-[var(--muted-foreground)]">({itemCount} {t.itemsSuffix})</span>
         </div>
         <div className="flex items-center gap-1">
           <Link
             href={`/dashboard/orders/${order.id}`}
             className="text-[10px] text-[var(--primary)] hover:underline"
           >
-            تفاصيل
+            {t.details}
           </Link>
-          {primaryNext && NEXT_STATUS_LABEL[status] && (
+          {primaryNext && nextLabel && (
             <button
               disabled={isPending}
-              onClick={() => onAdvance(order.id, primaryNext, NEXT_STATUS_LABEL[status]!)}
+              onClick={() => onAdvance(order.id, primaryNext, nextLabel)}
               className="rounded-md bg-[var(--primary)] px-2 py-1 text-[10px] font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {NEXT_STATUS_LABEL[status]}
+              {nextLabel}
             </button>
           )}
           {cancelNext && (cancelNext === 'CANCELLED' || cancelNext === 'REJECTED') && (
             <button
               disabled={isPending}
-              onClick={() => onAdvance(order.id, cancelNext, cancelNext === 'CANCELLED' ? 'إلغاء' : 'رفض')}
+              onClick={() => onAdvance(order.id, cancelNext, cancelNext === 'CANCELLED' ? t.cancel : t.reject)}
               className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
             >
-              {cancelNext === 'CANCELLED' ? 'إلغاء' : 'رفض'}
+              {cancelNext === 'CANCELLED' ? t.cancel : t.reject}
             </button>
           )}
         </div>
@@ -131,6 +134,8 @@ function OrderCard({
 }
 
 export function KanbanBoard({ initialOrders }: { initialOrders: ActiveOrder[] }) {
+  const { dict, locale } = useLocale();
+  const t = dict.fulfillmentPage;
   const [orders, setOrders] = useState<ActiveOrder[]>(initialOrders);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -175,6 +180,7 @@ export function KanbanBoard({ initialOrders }: { initialOrders: ActiveOrder[] })
   );
 
   const activeCount = orders.length;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
 
   return (
     <div>
@@ -184,25 +190,25 @@ export function KanbanBoard({ initialOrders }: { initialOrders: ActiveOrder[] })
           <div className="flex items-center gap-1.5">
             <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs text-[var(--muted-foreground)]">
-              مباشر · {activeCount} طلب نشط
+              {t.live} · {activeCount} {t.activeOrdersSuffix}
             </span>
           </div>
           <span className="text-[11px] text-[var(--muted-foreground)]">
-            آخر تحديث: {lastUpdated.toLocaleTimeString('ar-SD', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            {t.lastUpdated} {lastUpdated.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
         </div>
         <button
           onClick={() => refresh()}
           className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors"
         >
-          ↻ تحديث
+          {t.refresh}
         </button>
       </div>
 
       {error && (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
-          <button onClick={() => setError(null)} className="ml-2 text-xs underline">تجاهل</button>
+          <button onClick={() => setError(null)} className="ml-2 text-xs underline">{t.dismiss}</button>
         </div>
       )}
 
@@ -210,11 +216,12 @@ export function KanbanBoard({ initialOrders }: { initialOrders: ActiveOrder[] })
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         {KANBAN_COLUMNS.map((col) => {
           const colOrders = ordersByStatus[col.status] ?? [];
+          const colLabel = t.columns[col.status as keyof typeof t.columns] ?? col.label;
           return (
             <div key={col.status} className="flex flex-col gap-2">
               {/* Column header */}
               <div className={`flex items-center justify-between rounded-xl border px-3 py-2 ${col.bgColor} ${col.borderColor}`}>
-                <span className={`text-xs font-bold ${col.textColor}`}>{col.label}</span>
+                <span className={`text-xs font-bold ${col.textColor}`}>{colLabel}</span>
                 <span className={`text-xs font-black tabular-nums ${col.textColor}`}>
                   {colOrders.length}
                 </span>
@@ -224,7 +231,7 @@ export function KanbanBoard({ initialOrders }: { initialOrders: ActiveOrder[] })
               <div className="flex flex-col gap-2 min-h-[200px]">
                 {colOrders.length === 0 ? (
                   <div className={`rounded-xl border-2 border-dashed ${col.borderColor} p-4 text-center`}>
-                    <p className="text-[11px] text-[var(--muted-foreground)]">لا توجد طلبات</p>
+                    <p className="text-[11px] text-[var(--muted-foreground)]">{t.emptyColumn}</p>
                   </div>
                 ) : (
                   colOrders.map((order) => (

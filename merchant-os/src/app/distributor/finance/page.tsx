@@ -1,20 +1,15 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import { getFinanceSummaryAction, getMerchantFinanceSummariesAction } from '@/modules/finance/actions';
 import Link from 'next/link';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 
-const COMMISSION_TYPE_LABELS: Record<string, string> = {
-  PERCENTAGE: 'نسبة مئوية',
-  FLAT_FEE: 'رسوم ثابتة',
-  HYBRID: 'مختلط',
-  SUBSCRIPTION: 'اشتراك شهري',
-};
-
-const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  ACTIVE: { label: 'نشط', cls: 'bg-emerald-100 text-emerald-700' },
-  PENDING: { label: 'معلق', cls: 'bg-amber-100 text-amber-700' },
-  SUSPENDED: { label: 'موقوف', cls: 'bg-red-100 text-red-700' },
-  CLOSED: { label: 'مغلق', cls: 'bg-stone-100 text-stone-600' },
+const STATUS_CLS: Record<string, string> = {
+  ACTIVE: 'bg-emerald-100 text-emerald-700',
+  PENDING: 'bg-amber-100 text-amber-700',
+  SUSPENDED: 'bg-red-100 text-red-700',
+  CLOSED: 'bg-stone-100 text-stone-600',
 };
 
 type Summary = {
@@ -43,118 +38,119 @@ export default async function DistributorFinancePage() {
   const session = await auth();
   if (!session?.user?.distributorId) redirect('/login');
 
-  const [summaryRes, merchantsRes] = await Promise.all([
+  const [summaryRes, merchantsRes, cookieStore] = await Promise.all([
     getFinanceSummaryAction(),
     getMerchantFinanceSummariesAction(),
+    cookies(),
   ]);
 
   const summary = summaryRes.success ? (summaryRes.data as Summary) : null;
   const merchants = merchantsRes.success ? (merchantsRes.data as MerchantRow[]) : [];
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].distributorFinancePage;
 
   return (
-    <div dir="rtl" className="space-y-8">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">المالية</h1>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">نظرة عامة على الأرباح والعمولات</p>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
+          <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.subtitle}</p>
         </div>
         <div className="flex gap-3">
           <Link
             href="/distributor/finance/settlements"
             className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
           >
-            التسويات
+            {t.settlementsLink}
           </Link>
           <Link
             href="/distributor/finance/commissions"
             className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
           >
-            خطط العمولات
+            {t.commissionPlansLink}
           </Link>
         </div>
       </div>
 
-      {/* ── تجاري ────────────────────────────────────────────────────────── */}
       <section>
-        <SectionHeading label="تجاري" />
+        <SectionHeading label={t.sectionMerchants} />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <FinanceCard
             icon={<IconBox bg="bg-blue-600">🏪</IconBox>}
-            label="تجاري"
+            label={t.statMerchants}
             value={summary?.totalMerchants ?? 0}
           />
           <FinanceCard
             icon={<IconBox bg="bg-emerald-600">✅</IconBox>}
-            label="تجار نشطون"
+            label={t.statActiveMerchants}
             value={summary?.activeMerchants ?? 0}
           />
           <FinanceCard
             icon={<IconBox bg="bg-amber-500">⏳</IconBox>}
-            label="تسويات معلقة"
+            label={t.statPendingSettlements}
             value={summary?.pendingSettlements ?? 0}
           />
         </div>
       </section>
 
-      {/* ── المالية ──────────────────────────────────────────────────────── */}
       <section>
-        <SectionHeading label="المالية" />
+        <SectionHeading label={t.sectionFinance} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <FinanceCard
             icon={<IconBox bg="bg-emerald-600">💰</IconBox>}
-            label="إجمالي الأرباح"
+            label={t.statTotalRevenue}
             value={fmt(summary?.totalRevenue ?? 0)}
             suffix={summary?.currency ?? 'SDG'}
           />
           <FinanceCard
             icon={<IconBox bg="bg-red-600">💳</IconBox>}
-            label="إجمالي الرسوم"
+            label={t.statTotalFees}
             value={fmt(summary?.totalFees ?? 0)}
             suffix={summary?.currency ?? 'SDG'}
           />
           <FinanceCard
             icon={<IconBox bg="bg-purple-600">📊</IconBox>}
-            label="إجمالي العمولات"
+            label={t.statTotalCommissions}
             value={fmt(summary?.totalCommissions ?? 0)}
             suffix={summary?.currency ?? 'SDG'}
           />
         </div>
       </section>
 
-      {/* ── حساب التجار ──────────────────────────────────────────────────── */}
       <section>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)]">
           <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
             <div>
-              <h3 className="text-base font-semibold text-[var(--foreground)]">حساب التجار</h3>
-              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">العمولات والمستحقات لكل تاجر</p>
+              <h3 className="text-base font-semibold text-[var(--foreground)]">{t.merchantAccountTitle}</h3>
+              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{t.merchantAccountSubtitle}</p>
             </div>
             <Link
               href="/distributor/finance/settlements"
               className="text-sm font-medium text-[var(--primary)] hover:underline"
             >
-              إنشاء تسوية ←
+              {t.createSettlementLink}
             </Link>
           </div>
 
           {merchants.length === 0 ? (
             <div className="p-12 text-center text-sm text-[var(--muted-foreground)]">
-              لا يوجد تجار حتى الآن
+              {t.noMerchants}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
-                    {['التاجر', 'خطة العمولة', 'الطلبات', 'إجمالي المبيعات', 'العمولة', 'صافي التاجر', 'الحالة', 'إجراء'].map((h) => (
+                    {[t.colMerchant, t.colCommissionPlan, t.colOrders, t.colTotalSales, t.colCommission, t.colMerchantNet, t.colStatus, t.colAction].map((h) => (
                       <th key={h} className="py-3 px-4 text-right font-medium text-[var(--muted-foreground)]">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
                   {merchants.map((m) => {
-                    const statusInfo = STATUS_LABELS[m.status] ?? { label: m.status, cls: 'bg-gray-100 text-gray-600' };
+                    const statusCls = STATUS_CLS[m.status] ?? 'bg-gray-100 text-gray-600';
+                    const statusLabel = t.statuses[m.status as keyof typeof t.statuses] ?? m.status;
                     return (
                       <tr key={m.merchantId} className="hover:bg-[var(--muted)]/30 transition-colors">
                         <td className="py-3.5 px-4 font-medium text-[var(--foreground)]">{m.merchantName}</td>
@@ -164,12 +160,12 @@ export default async function DistributorFinancePage() {
                               {m.commissionPlan.name}
                               <br />
                               <span className="text-[var(--muted-foreground)]/70">
-                                {COMMISSION_TYPE_LABELS[m.commissionPlan.type]} — {m.commissionPlan.rate}
+                                {t.commissionTypes[m.commissionPlan.type as keyof typeof t.commissionTypes]} — {m.commissionPlan.rate}
                                 {m.commissionPlan.type === 'PERCENTAGE' ? '%' : ' SDG'}
                               </span>
                             </span>
                           ) : (
-                            <span className="text-amber-500 text-xs">لا توجد خطة</span>
+                            <span className="text-amber-500 text-xs">{t.noPlan}</span>
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono font-bold text-[var(--foreground)]">{m.totalOrders}</td>
@@ -177,8 +173,8 @@ export default async function DistributorFinancePage() {
                         <td className="py-3.5 px-4 font-mono font-semibold text-red-600">{fmt(m.commission)} SDG</td>
                         <td className="py-3.5 px-4 font-mono font-semibold text-emerald-600">{fmt(m.netAmount)} SDG</td>
                         <td className="py-3.5 px-4">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusInfo.cls}`}>
-                            {statusInfo.label}
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCls}`}>
+                            {statusLabel}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
@@ -186,7 +182,7 @@ export default async function DistributorFinancePage() {
                             href={`/distributor/finance/settlements?merchant=${m.merchantId}`}
                             className="text-xs font-medium text-[var(--primary)] hover:underline"
                           >
-                            تسوية
+                            {t.settle}
                           </Link>
                         </td>
                       </tr>
@@ -199,11 +195,10 @@ export default async function DistributorFinancePage() {
         </div>
       </section>
 
-      {/* ── Quick Links ───────────────────────────────────────────────────── */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <QuickLinkCard href="/distributor/finance/commissions" icon="📋" title="خطط العمولات" desc="إدارة هياكل العمولة للتجار" />
-        <QuickLinkCard href="/distributor/finance/settlements" icon="🧾" title="التسويات" desc="عرض وإنشاء تسويات مالية" />
-        <QuickLinkCard href="/distributor/finance/price-lists" icon="🗺️" title="قوائم الأسعار" desc="إدارة مناطق التوصيل والرسوم" />
+        <QuickLinkCard href="/distributor/finance/commissions" icon="📋" title={t.quickCommissions} desc={t.quickCommissionsDesc} />
+        <QuickLinkCard href="/distributor/finance/settlements" icon="🧾" title={t.quickSettlements} desc={t.quickSettlementsDesc} />
+        <QuickLinkCard href="/distributor/finance/price-lists" icon="🗺️" title={t.quickPriceLists} desc={t.quickPriceListsDesc} />
       </section>
     </div>
   );

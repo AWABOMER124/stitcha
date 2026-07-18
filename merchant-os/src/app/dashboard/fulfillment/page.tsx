@@ -1,7 +1,9 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { getFulfillmentStatsAction, getActiveOrdersAction } from '@/modules/fulfillment/actions';
 import { KanbanBoard } from './_components/kanban-board';
 import type { ActiveOrder } from '@/modules/fulfillment/types';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 
 function StatCard({
   label,
@@ -26,7 +28,9 @@ function StatCard({
 }
 
 async function FulfillmentStats() {
-  const result = await getFulfillmentStatsAction();
+  const [result, cookieStore] = await Promise.all([getFulfillmentStatsAction(), cookies()]);
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].fulfillmentPage;
   if (!result.success) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -37,18 +41,18 @@ async function FulfillmentStats() {
   const s = result.data;
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <StatCard label="طلبات اليوم" value={s.totalToday} />
-      <StatCard label="طلبات نشطة" value={s.activeOrders} color="text-amber-600" />
-      <StatCard label="تم التوصيل" value={s.deliveredToday} color="text-emerald-600" />
+      <StatCard label={t.statToday} value={s.totalToday} />
+      <StatCard label={t.statActive} value={s.activeOrders} color="text-amber-600" />
+      <StatCard label={t.statDelivered} value={s.deliveredToday} color="text-emerald-600" />
       <StatCard
-        label="إيرادات اليوم"
+        label={t.statRevenue}
         value={`${s.revenueToday.toLocaleString()} SDG`}
         color="text-[var(--primary)]"
       />
       <StatCard
-        label="متوسط وقت التحضير"
-        value={s.avgPrepTime > 0 ? `${s.avgPrepTime} د` : '—'}
-        sub="للطلبات المكتملة"
+        label={t.statAvgPrep}
+        value={s.avgPrepTime > 0 ? `${s.avgPrepTime} ${t.minuteAbbr}` : '—'}
+        sub={t.avgPrepSuffix}
       />
     </div>
   );
@@ -61,21 +65,25 @@ async function BoardLoader() {
 }
 
 export default async function FulfillmentPage() {
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].fulfillmentPage;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-[var(--foreground)]">لوحة التشغيل</h1>
+          <h1 className="text-2xl font-black text-[var(--foreground)]">{t.title}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            تتبع الطلبات النشطة بشكل مباشر — يتحدث كل 30 ثانية
+            {t.subtitle}
           </p>
         </div>
         <a
           href="/dashboard/orders"
           className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors"
         >
-          كل الطلبات →
+          {t.allOrders}
         </a>
       </div>
 

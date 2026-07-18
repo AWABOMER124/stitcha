@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { assignDeliveryCompanyToMerchantAction } from '@/modules/delivery-companies/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 interface DeliveryCompany {
   id: string;
@@ -17,6 +18,8 @@ export function DeliveryCompanySelect({
   preferredDeliveryCompanyId: string | null;
   deliveryCompanies: DeliveryCompany[];
 }) {
+  const { dict } = useLocale();
+  const t = dict.distributorMerchantsPage;
   const [value, setValue] = useState(preferredDeliveryCompanyId ?? '');
   const [isPending, startTransition] = useTransition();
 
@@ -34,7 +37,7 @@ export function DeliveryCompanySelect({
       onChange={(e) => handleChange(e.target.value)}
       className="rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs disabled:opacity-50"
     >
-      <option value="">— none —</option>
+      <option value="">{t.none}</option>
       {deliveryCompanies.map((c) => (
         <option key={c.id} value={c.id}>{c.name}</option>
       ))}
@@ -49,20 +52,22 @@ const NEXT_STATUS: Record<string, string> = {
   CLOSED: 'ACTIVE',
 };
 
-const ACTION_LABEL: Record<string, string> = {
-  ACTIVE: 'Suspend',
-  SUSPENDED: 'Activate',
-  PENDING: 'Approve',
-  CLOSED: 'Reactivate',
-};
-
 export function StatusToggle({ merchantId, status }: { merchantId: string; status: string }) {
+  const { dict } = useLocale();
+  const t = dict.distributorMerchantsPage;
   const [current, setCurrent] = useState(status);
   const [isPending, startTransition] = useTransition();
 
+  const ACTION_LABEL: Record<string, string> = {
+    ACTIVE: t.suspend,
+    SUSPENDED: t.activate,
+    PENDING: t.approve,
+    CLOSED: t.reactivate,
+  };
+
   function handleToggle() {
     const next = NEXT_STATUS[current] ?? 'ACTIVE';
-    if (next === 'SUSPENDED' && !confirm('Suspend this merchant? Their storefront will stop accepting orders.')) return;
+    if (next === 'SUSPENDED' && !confirm(t.confirmSuspend)) return;
 
     startTransition(async () => {
       const res = await fetch(`/api/distributor/merchants/${merchantId}/status`, {
@@ -80,7 +85,7 @@ export function StatusToggle({ merchantId, status }: { merchantId: string; statu
       disabled={isPending}
       className="text-xs font-medium text-[var(--primary)] hover:underline disabled:opacity-50"
     >
-      {isPending ? '...' : ACTION_LABEL[current] ?? 'Activate'}
+      {isPending ? '...' : ACTION_LABEL[current] ?? t.activate}
     </button>
   );
 }

@@ -1,10 +1,13 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { saveStorefrontSettingsAction } from '@/modules/storefront/actions';
+import { useLocale } from '@/lib/i18n/context';
 
 type Settings = { theme: any; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: any; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: any } | null;
 
 export function CustomizeClient({ settings, slug }: { settings: Settings; slug: string }) {
+  const { dict } = useLocale();
+  const t = dict.storefrontCustomizePage;
   const theme = (settings?.theme ?? {}) as Record<string, string>;
   const social = (settings?.socialLinks ?? {}) as Record<string, string>;
   const [isPending, startTransition] = useTransition();
@@ -38,7 +41,7 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
         socialLinks: { whatsapp: whatsapp || undefined, instagram: instagram || undefined, facebook: facebook || undefined },
       });
       if (res.success) setSaved(true);
-      else setError(res.error ?? 'خطأ');
+      else setError(res.error ?? t.genericError);
     });
   }
 
@@ -67,29 +70,29 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
   );
 
   return (
-    <div dir="rtl" className="p-6 max-w-2xl space-y-5">
+    <div className="p-6 max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
-        <a href="/dashboard/storefront" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">← المتجر</a>
-        <h1 className="text-xl font-bold text-[var(--foreground)]">تخصيص الهوية</h1>
+        <a href="/dashboard/storefront" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">{t.backToStore}</a>
+        <h1 className="text-xl font-bold text-[var(--foreground)]">{t.title}</h1>
       </div>
 
       {/* Live Preview */}
       <div className="rounded-2xl overflow-hidden border border-[var(--border)] h-24 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
         <div className="text-center text-white">
           {logoUrl ? <img src={logoUrl} alt="" className="h-8 mx-auto rounded-lg object-contain mb-1" /> : <div className="w-10 h-10 rounded-xl bg-white/20 mx-auto flex items-center justify-center text-2xl mb-1">🏪</div>}
-          <p className="font-bold text-sm">معاينة الهوية</p>
+          <p className="font-bold text-sm">{t.previewLabel}</p>
         </div>
       </div>
 
-      <Section title="🎨 الألوان">
+      <Section title={t.colorsTitle}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="اللون الرئيسي">
+          <Field label={t.primaryColorLabel}>
             <div className="flex gap-2 items-center">
               <input type="color" value={primary} onChange={e => setPrimary(e.target.value)} className="w-10 h-10 rounded-lg border border-[var(--border)] cursor-pointer p-0.5" />
               <input value={primary} onChange={e => setPrimary(e.target.value)} className={`${inputCls} flex-1`} placeholder="#b91c1c" />
             </div>
           </Field>
-          <Field label="اللون الثانوي">
+          <Field label={t.secondaryColorLabel}>
             <div className="flex gap-2 items-center">
               <input type="color" value={accent} onChange={e => setAccent(e.target.value)} className="w-10 h-10 rounded-lg border border-[var(--border)] cursor-pointer p-0.5" />
               <input value={accent} onChange={e => setAccent(e.target.value)} className={`${inputCls} flex-1`} placeholder="#dc2626" />
@@ -98,43 +101,43 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
         </div>
       </Section>
 
-      <Section title="🖼️ الصور والمحتوى">
-        <Field label="رابط اللوقو">
+      <Section title={t.imagesTitle}>
+        <Field label={t.logoUrlLabel}>
           <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className={inputCls} placeholder="https://..." />
         </Field>
-        <Field label="رابط صورة البانر">
+        <Field label={t.bannerUrlLabel}>
           <input value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} className={inputCls} placeholder="https://..." />
         </Field>
-        <Field label="رسالة الترحيب">
-          <textarea value={welcome} onChange={e => setWelcome(e.target.value)} rows={2} className={`${inputCls} resize-none`} placeholder="مرحباً بكم في متجرنا..." />
+        <Field label={t.welcomeMessageLabel}>
+          <textarea value={welcome} onChange={e => setWelcome(e.target.value)} rows={2} className={`${inputCls} resize-none`} placeholder={t.welcomePlaceholder} />
         </Field>
       </Section>
 
-      <Section title="⚙️ إعدادات الطلبات">
+      <Section title={t.orderSettingsTitle}>
         <div className="space-y-3">
-          <Toggle checked={isOpen} onChange={setIsOpen} label="المتجر مفتوح الآن" />
-          <Toggle checked={delivery} onChange={setDelivery} label="تفعيل خدمة التوصيل" />
-          <Toggle checked={pickup} onChange={setPickup} label="تفعيل الاستلام من الفرع" />
+          <Toggle checked={isOpen} onChange={setIsOpen} label={t.isOpenToggle} />
+          <Toggle checked={delivery} onChange={setDelivery} label={t.deliveryToggle} />
+          <Toggle checked={pickup} onChange={setPickup} label={t.pickupToggle} />
         </div>
-        <Field label="الحد الأدنى للطلب (SDG)">
+        <Field label={t.minOrderLabel}>
           <input type="number" value={minOrder} onChange={e => setMinOrder(e.target.value)} className={inputCls} min="0" />
         </Field>
       </Section>
 
-      <Section title="📱 التواصل الاجتماعي">
-        <Field label="رقم واتساب"><input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls} placeholder="+249912000000" /></Field>
-        <Field label="انستغرام"><input value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls} placeholder="@username" /></Field>
-        <Field label="فيسبوك"><input value={facebook} onChange={e => setFacebook(e.target.value)} className={inputCls} placeholder="facebook.com/page" /></Field>
+      <Section title={t.socialTitle}>
+        <Field label={t.whatsappLabel}><input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className={inputCls} placeholder="+249912000000" /></Field>
+        <Field label={t.instagramLabel}><input value={instagram} onChange={e => setInstagram(e.target.value)} className={inputCls} placeholder="@username" /></Field>
+        <Field label={t.facebookLabel}><input value={facebook} onChange={e => setFacebook(e.target.value)} className={inputCls} placeholder="facebook.com/page" /></Field>
       </Section>
 
       {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
-      {saved && <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-4 py-3">✓ تم الحفظ بنجاح</p>}
+      {saved && <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-4 py-3">{t.saved}</p>}
 
       <div className="flex gap-3">
         <button onClick={save} disabled={isPending} className="flex-1 py-3 rounded-xl bg-[var(--primary)] text-white font-bold disabled:opacity-60">
-          {isPending ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+          {isPending ? t.saving : t.saveButton}
         </button>
-        <a href={`/store/${slug}`} target="_blank" className="px-4 py-3 rounded-xl border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--background)] transition-colors">معاينة ↗</a>
+        <a href={`/store/${slug}`} target="_blank" className="px-4 py-3 rounded-xl border border-[var(--border)] text-sm text-[var(--foreground)] hover:bg-[var(--background)] transition-colors">{t.previewButton}</a>
       </div>
     </div>
   );

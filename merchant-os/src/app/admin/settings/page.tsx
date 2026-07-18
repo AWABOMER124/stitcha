@@ -1,22 +1,29 @@
-export default function AdminSettingsPage() {
+import { cookies } from 'next/headers';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
+
+export default async function AdminSettingsPage() {
+  const cookieStore = await cookies();
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].adminSettingsPage;
+
   return (
-    <div dir="rtl" className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">إعدادات المنصة</h1>
-        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">إعدادات عامة لمنصة وصلك</p>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
+        <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{t.subtitle}</p>
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] divide-y divide-[var(--border)]">
-        <SettingRow label="اسم المنصة" value="وصلك — Waslak" />
-        <SettingRow label="العملة الافتراضية" value="SDG (جنيه سوداني)" />
-        <SettingRow label="المنطقة الزمنية" value="Africa/Khartoum (UTC+3)" />
-        <SettingRow label="إصدار النظام" value="1.0.0" />
-        <SettingRow label="البيئة" value="Production" />
+        <SettingRow label={t.platformName} value="وصلك — Waslak" />
+        <SettingRow label={t.defaultCurrency} value="SDG" />
+        <SettingRow label={t.timezone} value="Africa/Khartoum (UTC+3)" />
+        <SettingRow label={t.systemVersion} value="1.0.0" />
+        <SettingRow label={t.environment} value="Production" />
       </div>
 
       <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center">
         <p className="text-sm text-[var(--muted-foreground)]">
-          الإعدادات المتقدمة تُدار عبر متغيرات البيئة في <code className="bg-[var(--muted)] px-1.5 py-0.5 rounded text-xs">.env</code>
+          {t.advancedNote} <code className="bg-[var(--muted)] px-1.5 py-0.5 rounded text-xs">.env</code>
         </p>
       </div>
     </div>

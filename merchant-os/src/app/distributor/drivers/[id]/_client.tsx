@@ -3,8 +3,12 @@
 import { useTransition } from 'react';
 import { updateDriverAction } from '@/modules/drivers/actions';
 import { useRouter } from 'next/navigation';
+import { useLocale } from '@/lib/i18n/context';
 
 export function DriverProfileClient({ driver }: { driver: any }) {
+  const { dict, locale } = useLocale();
+  const t = dict.driverProfilePage;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -27,7 +31,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-        <h3 className="font-bold text-[var(--foreground)] mb-4">إجراءات سريعة</h3>
+        <h3 className="font-bold text-[var(--foreground)] mb-4">{t.quickActionsTitle}</h3>
         <div className="flex flex-wrap gap-3">
           <button
             onClick={handleVerify}
@@ -38,7 +42,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
                 : 'border-blue-200 text-blue-600 hover:bg-blue-50'
             }`}
           >
-            {driver.isVerified ? 'إلغاء التوثيق' : '✓ توثيق السائق'}
+            {driver.isVerified ? t.unverify : t.verify}
           </button>
           <button
             onClick={handleToggleActive}
@@ -49,25 +53,25 @@ export function DriverProfileClient({ driver }: { driver: any }) {
                 : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
             }`}
           >
-            {driver.isActive ? 'إيقاف السائق' : 'تفعيل السائق'}
+            {driver.isActive ? t.deactivate : t.activate}
           </button>
         </div>
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--border)]">
-          <h3 className="font-bold text-[var(--foreground)]">آخر التوصيلات</h3>
+          <h3 className="font-bold text-[var(--foreground)]">{t.recentDeliveriesTitle}</h3>
         </div>
         {!driver.assignments || driver.assignments.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[var(--muted-foreground)]">لا توجد توصيلات بعد</div>
+          <div className="p-8 text-center text-sm text-[var(--muted-foreground)]">{t.noDeliveries}</div>
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {(driver.assignments as any[]).slice(0, 10).map((a: any) => (
               <div key={a.id} className="px-5 py-3.5 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-mono font-bold text-[var(--foreground)]">طلب #{a.orderId.slice(-8)}</p>
+                  <p className="text-sm font-mono font-bold text-[var(--foreground)]">{t.orderPrefix}{a.orderId.slice(-8)}</p>
                   <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
-                    {new Date(a.assignedAt).toLocaleString('ar', {
+                    {new Date(a.assignedAt).toLocaleString(dateLocale, {
                       day: '2-digit',
                       month: 'short',
                       hour: '2-digit',
@@ -80,7 +84,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
                     a.deliveredAt ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                   }`}
                 >
-                  {a.deliveredAt ? 'تم التوصيل' : 'جاري'}
+                  {a.deliveredAt ? t.delivered : t.inProgress}
                 </span>
               </div>
             ))}
@@ -91,7 +95,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
       {driver.earnings && driver.earnings.length > 0 && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
           <div className="px-5 py-4 border-b border-[var(--border)]">
-            <h3 className="font-bold text-[var(--foreground)]">الأرباح الأخيرة</h3>
+            <h3 className="font-bold text-[var(--foreground)]">{t.recentEarningsTitle}</h3>
           </div>
           <div className="divide-y divide-[var(--border)]">
             {(driver.earnings as any[]).map((e: any) => (
@@ -99,7 +103,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
                 <div>
                   <p className="text-sm font-medium text-[var(--foreground)]">{e.description ?? e.type}</p>
                   <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
-                    {new Date(e.createdAt).toLocaleDateString('ar')}
+                    {new Date(e.createdAt).toLocaleDateString(dateLocale)}
                   </p>
                 </div>
                 <span

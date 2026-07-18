@@ -1,4 +1,6 @@
+import { cookies } from 'next/headers';
 import { getPlatformUsersAction } from '@/modules/admin/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 
 type PlatformUser = {
   id: string;
@@ -10,15 +12,18 @@ type PlatformUser = {
 };
 
 export default async function AdminUsersPage() {
-  const res = await getPlatformUsersAction();
+  const [res, cookieStore] = await Promise.all([getPlatformUsersAction(), cookies()]);
   const users = res.success ? (res.data as PlatformUser[]) : [];
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].adminUsersPage;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">مستخدمو المنصة</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
-          حسابات PLATFORM_OWNER — {users.length} مستخدم
+          {t.subtitlePrefix} {users.length}
         </p>
       </div>
 
@@ -26,13 +31,13 @@ export default async function AdminUsersPage() {
         {users.length === 0 ? (
           <div className="p-16 text-center">
             <p className="text-4xl mb-3">👤</p>
-            <p className="text-sm text-[var(--muted-foreground)]">لا يوجد مستخدمون</p>
+            <p className="text-sm text-[var(--muted-foreground)]">{t.empty}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
-                {['المستخدم', 'البريد الإلكتروني', 'الدور', 'التحقق', 'تاريخ الإنشاء'].map((h) => (
+                {[t.colUser, t.colEmail, t.colRole, t.colVerification, t.colCreated].map((h) => (
                   <th key={h} className="py-3 px-5 text-right font-medium text-[var(--muted-foreground)]">{h}</th>
                 ))}
               </tr>
@@ -56,13 +61,13 @@ export default async function AdminUsersPage() {
                   </td>
                   <td className="py-3.5 px-5">
                     {u.emailVerified ? (
-                      <span className="text-xs text-emerald-600 font-medium">✓ موثّق</span>
+                      <span className="text-xs text-emerald-600 font-medium">{t.verified}</span>
                     ) : (
-                      <span className="text-xs text-amber-600">غير موثّق</span>
+                      <span className="text-xs text-amber-600">{t.unverified}</span>
                     )}
                   </td>
                   <td className="py-3.5 px-5 text-xs text-[var(--muted-foreground)]">
-                    {new Date(u.createdAt).toLocaleDateString('ar-SD')}
+                    {new Date(u.createdAt).toLocaleDateString(dateLocale)}
                   </td>
                 </tr>
               ))}
@@ -73,7 +78,7 @@ export default async function AdminUsersPage() {
 
       <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center">
         <p className="text-sm text-[var(--muted-foreground)]">
-          لإضافة مستخدم جديد للمنصة، قم بإنشاء حساب من صفحة التسجيل ثم قم بتحديث الدور إلى <code className="bg-[var(--muted)] px-1.5 py-0.5 rounded text-xs">PLATFORM_OWNER</code> مباشرةً في قاعدة البيانات.
+          {t.addUserNote} <code className="bg-[var(--muted)] px-1.5 py-0.5 rounded text-xs">PLATFORM_OWNER</code>
         </p>
       </div>
     </div>

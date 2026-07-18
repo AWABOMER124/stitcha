@@ -1,8 +1,10 @@
 import { redirect, notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import prisma from '@/lib/db/prisma';
 import Link from 'next/link';
 import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { DeliveryCompanySelect, StatusToggle } from '../_row-actions';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,7 +21,7 @@ export default async function DistributorMerchantDetailPage({
 }) {
   const session = await auth();
   if (!session?.user?.distributorId) redirect('/login');
-  const { id } = await params;
+  const [{ id }, cookieStore] = await Promise.all([params, cookies()]);
 
   const [merchant, companiesRes] = await Promise.all([
     prisma.merchant.findFirst({
@@ -47,12 +49,17 @@ export default async function DistributorMerchantDetailPage({
   if (!merchant) notFound();
 
   const deliveryCompanies = companiesRes.success ? (companiesRes.data as any[]) : [];
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const dict = dictionaries[locale];
+  const t = dict.distributorMerchantDetailPage;
+  const mt = dict.distributorMerchantsPage;
+  const statusLabel = mt.statuses[merchant.status as keyof typeof mt.statuses] ?? merchant.status;
 
   return (
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] mb-1">
-          <Link href="/distributor/merchants" className="hover:text-[var(--primary)]">Merchants</Link>
+          <Link href="/distributor/merchants" className="hover:text-[var(--primary)]">{t.breadcrumb}</Link>
           <span>/</span>
           <span>{merchant.name}</span>
         </div>
@@ -60,7 +67,7 @@ export default async function DistributorMerchantDetailPage({
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--foreground)]">{merchant.name}</h1>
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[merchant.status] ?? ''}`}>
-              {merchant.status}
+              {statusLabel}
             </span>
           </div>
           <StatusToggle merchantId={merchant.id} status={merchant.status} />
@@ -74,18 +81,18 @@ export default async function DistributorMerchantDetailPage({
         {/* Branches */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)]">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-            <h3 className="font-semibold text-[var(--foreground)]">🏠 Branches ({merchant.branches.length})</h3>
+            <h3 className="font-semibold text-[var(--foreground)]">{t.branchesTitle} ({merchant.branches.length})</h3>
           </div>
           <div className="divide-y divide-[var(--border)]">
             {merchant.branches.length === 0 ? (
-              <p className="p-5 text-sm text-[var(--muted-foreground)] text-center">No branches</p>
+              <p className="p-5 text-sm text-[var(--muted-foreground)] text-center">{t.noBranches}</p>
             ) : (
               merchant.branches.map((b) => (
                 <div key={b.id} className="px-5 py-3.5">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-[var(--foreground)]">{b.name}</p>
-                    {b.isMain && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Main</span>}
-                    {!b.isActive && <span className="text-[10px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded-full">Inactive</span>}
+                    {b.isMain && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{t.main}</span>}
+                    {!b.isActive && <span className="text-[10px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded-full">{t.inactive}</span>}
                   </div>
                   {b.address && <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{b.address}</p>}
                 </div>
@@ -97,18 +104,18 @@ export default async function DistributorMerchantDetailPage({
         {/* Users */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)]">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-            <h3 className="font-semibold text-[var(--foreground)]">👤 Users ({merchant.users.length})</h3>
+            <h3 className="font-semibold text-[var(--foreground)]">{t.usersTitle} ({merchant.users.length})</h3>
           </div>
           <div className="divide-y divide-[var(--border)]">
             {merchant.users.length === 0 ? (
-              <p className="p-5 text-sm text-[var(--muted-foreground)] text-center">No users</p>
+              <p className="p-5 text-sm text-[var(--muted-foreground)] text-center">{t.noUsers}</p>
             ) : (
               merchant.users.map((mu) => (
                 <div key={mu.user.id} className="px-5 py-3.5">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-[var(--foreground)]">{mu.user.name ?? mu.user.email}</p>
-                    {mu.isOwner && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Owner</span>}
-                    {!mu.isActive && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Inactive</span>}
+                    {mu.isOwner && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{t.owner}</span>}
+                    {!mu.isActive && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">{t.inactive}</span>}
                   </div>
                   <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{mu.role}</p>
                 </div>
@@ -119,9 +126,9 @@ export default async function DistributorMerchantDetailPage({
 
         {/* Delivery */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-          <h3 className="font-semibold text-[var(--foreground)] mb-3">🚚 Delivery Company</h3>
+          <h3 className="font-semibold text-[var(--foreground)] mb-3">{t.deliveryCompanyTitle}</h3>
           <p className="text-xs text-[var(--muted-foreground)] mb-3">
-            Default delivery company for this merchant's orders
+            {t.deliveryCompanyDesc}
           </p>
           <DeliveryCompanySelect
             merchantId={merchant.id}

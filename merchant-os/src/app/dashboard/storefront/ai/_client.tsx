@@ -1,9 +1,12 @@
 'use client';
 import { useState } from 'react';
+import { useLocale } from '@/lib/i18n/context';
 
 type AiResult = { name: string; description: string; slogan: string; primaryColor: string; welcomeText: string; categories: { name: string; products: { name: string; price: number; description: string }[] }[] };
 
 export function AiGeneratorClient() {
+  const { dict } = useLocale();
+  const t = dict.storefrontAiPage;
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiResult | null>(null);
@@ -22,8 +25,8 @@ export function AiGeneratorClient() {
       });
       const data = await res.json();
       if (data.success) setResult(data.data);
-      else setError(data.error ?? 'فشل التوليد');
-    } catch { setError('خطأ في الاتصال'); }
+      else setError(data.error ?? t.genericError);
+    } catch { setError(t.connectionError); }
     setLoading(false);
   }
 
@@ -38,34 +41,27 @@ export function AiGeneratorClient() {
     setApplying(false); setApplied(true);
   }
 
-  const examples = [
-    'عندي مطعم شاورما في الخرطوم، نخدم الوجبات السودانية والشامية',
-    'متجر ملابس نسائية عصرية في أم درمان، موضة وأزياء محتشمة',
-    'صالون حلاقة رجالي في بحري، قص وعناية بالشعر',
-    'مخبز وحلويات منزلية، كيك وبسبوسة وحلويات تقليدية',
-  ];
-
   return (
-    <div dir="rtl" className="p-6 max-w-2xl space-y-5">
+    <div className="p-6 max-w-2xl space-y-5">
       <div className="flex items-center gap-3">
-        <a href="/dashboard/storefront" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">← المتجر</a>
-        <h1 className="text-xl font-bold text-[var(--foreground)]">مولّد المتجر بالذكاء الاصطناعي</h1>
+        <a href="/dashboard/storefront" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">{t.backToStore}</a>
+        <h1 className="text-xl font-bold text-[var(--foreground)]">{t.title}</h1>
       </div>
 
       <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 rounded-2xl p-5">
-        <p className="text-sm text-violet-700 font-medium mb-1">🤖 كيف يعمل؟</p>
-        <p className="text-sm text-violet-600">اكتب وصفاً لنشاطك التجاري وسيقوم الذكاء الاصطناعي بإنشاء اسم المتجر، الوصف، الفئات، المنتجات، والألوان المناسبة تلقائياً.</p>
+        <p className="text-sm text-violet-700 font-medium mb-1">{t.howItWorksTitle}</p>
+        <p className="text-sm text-violet-600">{t.howItWorksDesc}</p>
       </div>
 
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
         <div>
-          <label className="text-sm font-medium text-[var(--foreground)] block mb-2">صف نشاطك التجاري</label>
-          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={4} className="w-full border border-[var(--border)] rounded-xl px-4 py-3 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)] resize-none" placeholder="مثال: عندي مطعم برغر في الخرطوم، نقدم برغر لحم طازج مع مشروبات ومقبلات..." />
+          <label className="text-sm font-medium text-[var(--foreground)] block mb-2">{t.promptLabel}</label>
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={4} className="w-full border border-[var(--border)] rounded-xl px-4 py-3 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)] resize-none" placeholder={t.promptPlaceholder} />
         </div>
         <div>
-          <p className="text-xs text-[var(--muted-foreground)] mb-2">أمثلة سريعة:</p>
+          <p className="text-xs text-[var(--muted-foreground)] mb-2">{t.examplesLabel}</p>
           <div className="flex flex-wrap gap-2">
-            {examples.map(ex => (
+            {t.examples.map(ex => (
               <button key={ex} onClick={() => setPrompt(ex)} className="text-xs px-3 py-1.5 rounded-full border border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors">{ex.slice(0, 35)}...</button>
             ))}
           </div>
@@ -74,9 +70,9 @@ export function AiGeneratorClient() {
           {loading ? (
             <span className="flex items-center justify-center gap-2">
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              جاري التوليد...
+              {t.generating}
             </span>
-          ) : '✨ توليد المتجر'}
+          ) : t.generateButton}
         </button>
       </div>
 
@@ -91,15 +87,15 @@ export function AiGeneratorClient() {
           </div>
           <div className="p-5 space-y-4">
             <div>
-              <p className="text-xs text-[var(--muted-foreground)] mb-1">الوصف</p>
+              <p className="text-xs text-[var(--muted-foreground)] mb-1">{t.descriptionLabel}</p>
               <p className="text-sm text-[var(--foreground)]">{result.description}</p>
             </div>
             <div>
-              <p className="text-xs text-[var(--muted-foreground)] mb-1">رسالة الترحيب</p>
+              <p className="text-xs text-[var(--muted-foreground)] mb-1">{t.welcomeMessageLabel}</p>
               <p className="text-sm text-[var(--foreground)]">{result.welcomeText}</p>
             </div>
             <div>
-              <p className="text-xs text-[var(--muted-foreground)] mb-2">الفئات والمنتجات المقترحة</p>
+              <p className="text-xs text-[var(--muted-foreground)] mb-2">{t.categoriesLabel}</p>
               <div className="space-y-3">
                 {result.categories.map(cat => (
                   <div key={cat.name} className="border border-[var(--border)] rounded-xl p-3">
@@ -122,13 +118,13 @@ export function AiGeneratorClient() {
             <div className="flex gap-3 pt-2">
               <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
                 <div className="w-5 h-5 rounded-full border-2 border-stone-300" style={{ background: result.primaryColor }} />
-                <span>اللون الرئيسي</span>
+                <span>{t.primaryColorLabel}</span>
               </div>
             </div>
             {applied
-              ? <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-4 py-3 text-center font-medium">✓ تم تطبيق المحتوى على متجرك!</p>
+              ? <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-4 py-3 text-center font-medium">{t.appliedMessage}</p>
               : <button onClick={applyToStore} disabled={applying} className="w-full py-3 rounded-xl bg-[var(--primary)] text-white font-bold disabled:opacity-50">
-                {applying ? 'جاري التطبيق...' : '🚀 تطبيق على المتجر'}
+                {applying ? t.applyingButton : t.applyButton}
               </button>
             }
           </div>

@@ -1,47 +1,54 @@
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import prisma from '@/lib/db/prisma';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 
 export default async function StorefrontPage() {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
 
-  const merchant = await prisma.merchant.findUnique({
-    where: { id: session.user.merchantId },
-    include: { storefrontSettings: true },
-  });
+  const [merchant, cookieStore] = await Promise.all([
+    prisma.merchant.findUnique({
+      where: { id: session.user.merchantId },
+      include: { storefrontSettings: true },
+    }),
+    cookies(),
+  ]);
+
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].storefrontHomePage;
 
   const settings = merchant?.storefrontSettings;
-  const theme = (settings?.theme ?? {}) as Record<string, string>;
   const storeUrl = merchant ? `/store/${merchant.slug}` : '#';
 
   const links = [
-    { href: '/dashboard/storefront/customize', icon: '🎨', title: 'تخصيص الهوية', desc: 'الألوان، اللوقو، البانر، ساعات العمل' },
-    { href: '/dashboard/storefront/ai', icon: '🤖', title: 'مولّد AI', desc: 'أنشئ محتوى متجرك بالذكاء الاصطناعي' },
-    { href: '/dashboard/products', icon: '📦', title: 'إدارة المنتجات', desc: 'أضف وعدّل منتجاتك والفئات' },
-    { href: '/dashboard/inbox', icon: '💬', title: 'صندوق الوارد', desc: 'رسائل وتواصل العملاء' },
+    { href: '/dashboard/storefront/customize', icon: '🎨', title: t.linkCustomizeTitle, desc: t.linkCustomizeDesc },
+    { href: '/dashboard/storefront/ai', icon: '🤖', title: t.linkAiTitle, desc: t.linkAiDesc },
+    { href: '/dashboard/products', icon: '📦', title: t.linkProductsTitle, desc: t.linkProductsDesc },
+    { href: '/dashboard/inbox', icon: '💬', title: t.linkInboxTitle, desc: t.linkInboxDesc },
   ];
 
   return (
-    <div dir="rtl" className="p-6 max-w-4xl space-y-6">
+    <div className="p-6 max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">المتجر الإلكتروني</h1>
-          <p className="text-[var(--muted-foreground)] text-sm mt-1">إدارة واجهة متجرك للعملاء</p>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
+          <p className="text-[var(--muted-foreground)] text-sm mt-1">{t.subtitle}</p>
         </div>
         <a href={storeUrl} target="_blank" rel="noopener" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
-          <span>🔗</span> عرض المتجر
+          {t.viewStore}
         </a>
       </div>
 
       {/* Status Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: 'حالة المتجر', value: settings?.isOpen ? 'مفتوح' : 'مغلق', icon: settings?.isOpen ? '🟢' : '🔴', color: settings?.isOpen ? 'text-emerald-600' : 'text-red-600' },
-          { label: 'التوصيل', value: settings?.deliveryEnabled ? 'مفعّل' : 'معطّل', icon: '🚚', color: settings?.deliveryEnabled ? 'text-emerald-600' : 'text-stone-500' },
-          { label: 'الاستلام', value: settings?.pickupEnabled ? 'مفعّل' : 'معطّل', icon: '🏪', color: settings?.pickupEnabled ? 'text-emerald-600' : 'text-stone-500' },
-          { label: 'الحد الأدنى', value: settings ? `${Number(settings.minimumOrderAmount)} SDG` : '—', icon: '💰', color: 'text-amber-600' },
+          { label: t.statStoreStatus, value: settings?.isOpen ? t.statOpen : t.statClosed, icon: settings?.isOpen ? '🟢' : '🔴', color: settings?.isOpen ? 'text-emerald-600' : 'text-red-600' },
+          { label: t.statDelivery, value: settings?.deliveryEnabled ? t.statEnabled : t.statDisabled, icon: '🚚', color: settings?.deliveryEnabled ? 'text-emerald-600' : 'text-stone-500' },
+          { label: t.statPickup, value: settings?.pickupEnabled ? t.statEnabled : t.statDisabled, icon: '🏪', color: settings?.pickupEnabled ? 'text-emerald-600' : 'text-stone-500' },
+          { label: t.statMinOrder, value: settings ? `${Number(settings.minimumOrderAmount)} SDG` : '—', icon: '💰', color: 'text-amber-600' },
         ].map(c => (
           <div key={c.label} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
             <span className="text-2xl">{c.icon}</span>
@@ -53,10 +60,10 @@ export default async function StorefrontPage() {
 
       {/* Store URL */}
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
-        <p className="text-sm text-[var(--muted-foreground)] mb-2">رابط متجرك</p>
+        <p className="text-sm text-[var(--muted-foreground)] mb-2">{t.storeUrlLabel}</p>
         <div className="flex items-center gap-3 bg-[var(--background)] rounded-xl px-4 py-2.5 border border-[var(--border)]">
           <span className="text-sm text-[var(--foreground)] flex-1 font-mono break-all">{process.env.NEXTAUTH_URL ?? 'https://yourdomain.com'}{storeUrl}</span>
-          <a href={storeUrl} target="_blank" rel="noopener" className="text-[var(--primary)] text-sm font-medium whitespace-nowrap hover:underline">فتح ↗</a>
+          <a href={storeUrl} target="_blank" rel="noopener" className="text-[var(--primary)] text-sm font-medium whitespace-nowrap hover:underline">{t.openLink}</a>
         </div>
       </div>
 

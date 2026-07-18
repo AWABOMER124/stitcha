@@ -1,17 +1,11 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import prisma from '@/lib/db/prisma';
 import Link from 'next/link';
 import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { DeliveryCompanySelect, StatusToggle } from './_row-actions';
-
-const STORE_TYPE_LABELS: Record<string, string> = {
-  FOOD_MENU: 'Food Menu',
-  ONLINE_STORE: 'Online Store',
-  SERVICES: 'Services',
-  BOOKING: 'Booking',
-  OTHER: 'Other',
-};
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
@@ -24,7 +18,7 @@ export default async function DistributorMerchantsPage() {
   const session = await auth();
   if (!session?.user?.distributorId) redirect('/login');
 
-  const [merchants, companiesRes] = await Promise.all([
+  const [merchants, companiesRes, cookieStore] = await Promise.all([
     prisma.merchant.findMany({
       where: { distributorId: session.user.distributorId },
       orderBy: { createdAt: 'desc' },
@@ -42,35 +36,38 @@ export default async function DistributorMerchantsPage() {
       },
     }),
     getDeliveryCompaniesAction(),
+    cookies(),
   ]);
 
   const deliveryCompanies = companiesRes.success ? (companiesRes.data as any[]) : [];
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].distributorMerchantsPage;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Merchants</h1>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Manage your merchant accounts
+            {t.subtitle}
           </p>
         </div>
         <Link
           href="/distributor/merchants/new"
           className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary)]/90"
         >
-          + Add Merchant
+          {t.addMerchant}
         </Link>
       </div>
 
       {merchants.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border)] p-12 text-center">
-          <p className="text-[var(--muted-foreground)]">No merchants yet.</p>
+          <p className="text-[var(--muted-foreground)]">{t.empty}</p>
           <Link
             href="/distributor/merchants/new"
             className="mt-3 inline-block text-sm font-medium text-[var(--primary)] hover:underline"
           >
-            Add your first merchant
+            {t.addFirst}
           </Link>
         </div>
       ) : (
@@ -79,29 +76,31 @@ export default async function DistributorMerchantsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
-                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Merchant</th>
-                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Store Type</th>
-                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Status</th>
-                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Branches</th>
-                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Users</th>
-                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Orders</th>
-                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">Delivery Co.</th>
-                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">Actions</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">{t.colMerchant}</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">{t.colStoreType}</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">{t.colStatus}</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">{t.colBranches}</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">{t.colUsers}</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">{t.colOrders}</th>
+                  <th className="px-4 py-3 text-left font-medium text-[var(--muted-foreground)]">{t.colDeliveryCo}</th>
+                  <th className="px-4 py-3 text-right font-medium text-[var(--muted-foreground)]">{t.colActions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {merchants.map((m) => (
+                {merchants.map((m) => {
+                  const statusLabel = t.statuses[m.status as keyof typeof t.statuses] ?? m.status;
+                  return (
                   <tr key={m.id} className="hover:bg-[var(--muted)]/20 transition-colors">
                     <td className="px-4 py-3">
                       <p className="font-medium text-[var(--foreground)]">{m.name}</p>
                       <p className="text-xs text-[var(--muted-foreground)]">{m.email ?? m.slug}</p>
                     </td>
                     <td className="px-4 py-3 text-[var(--muted-foreground)]">
-                      {STORE_TYPE_LABELS[m.storeType] ?? m.storeType}
+                      {t.storeTypes[m.storeType as keyof typeof t.storeTypes] ?? m.storeType}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[m.status] ?? ''}`}>
-                        {m.status}
+                        {statusLabel}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-[var(--foreground)]">{m._count.branches}</td>
@@ -120,13 +119,14 @@ export default async function DistributorMerchantsPage() {
                           href={`/distributor/merchants/${m.id}`}
                           className="text-xs font-medium text-[var(--primary)] hover:underline"
                         >
-                          Manage
+                          {t.manage}
                         </Link>
                         <StatusToggle merchantId={m.id} status={m.status} />
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>

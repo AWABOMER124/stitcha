@@ -2,20 +2,22 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import type { DailyRevenue } from '@/modules/reports/types';
+import type { Locale } from '@/lib/i18n/translations';
 
-export function RevenueChart({ data }: { data: DailyRevenue[] }) {
+export function RevenueChart({ data, locale, tooltipRevenue, tooltipOrders }: { data: DailyRevenue[]; locale: Locale; tooltipRevenue: string; tooltipOrders: string }) {
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
   const formatDate = (d: string) => {
     const date = new Date(d);
-    return date.toLocaleDateString('ar', { day: '2-digit', month: 'short' });
+    return date.toLocaleDateString(dateLocale, { day: '2-digit', month: 'short' });
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm" dir="rtl">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
         <p className="font-bold text-[var(--foreground)] mb-2">{formatDate(label)}</p>
-        <p className="text-emerald-600">الإيراد: <span className="font-mono font-bold">{payload[0]?.value?.toFixed(0)} SDG</span></p>
-        <p className="text-blue-600">الطلبات: <span className="font-mono font-bold">{payload[1]?.value}</span></p>
+        <p className="text-emerald-600">{tooltipRevenue}: <span className="font-mono font-bold">{payload[0]?.value?.toFixed(0)} SDG</span></p>
+        <p className="text-blue-600">{tooltipOrders}: <span className="font-mono font-bold">{payload[1]?.value}</span></p>
       </div>
     );
   };

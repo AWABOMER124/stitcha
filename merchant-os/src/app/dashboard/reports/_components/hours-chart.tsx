@@ -3,15 +3,15 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { HourlyOrders } from '@/modules/reports/types';
 
-export function HoursChart({ data }: { data: HourlyOrders[] }) {
+export function HoursChart({ data, ordersSuffix }: { data: HourlyOrders[]; ordersSuffix: string }) {
   const maxOrders = Math.max(...data.map((d) => d.orders), 1);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm" dir="rtl">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
         <p className="font-bold text-[var(--foreground)]">{label}</p>
-        <p className="text-amber-600 font-mono font-bold">{payload[0]?.value} طلب</p>
+        <p className="text-amber-600 font-mono font-bold">{payload[0]?.value} {ordersSuffix}</p>
       </div>
     );
   };

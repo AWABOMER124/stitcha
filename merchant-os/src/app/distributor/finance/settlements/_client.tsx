@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from 'react';
 import { createSettlementAction, markSettlementPaidAction } from '@/modules/finance/actions';
+import { useLocale } from '@/lib/i18n/context';
 
-const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: 'معلقة', cls: 'bg-amber-100 text-amber-700' },
-  PROCESSING: { label: 'قيد المعالجة', cls: 'bg-blue-100 text-blue-700' },
-  COMPLETED: { label: 'مكتملة', cls: 'bg-emerald-100 text-emerald-700' },
-  FAILED: { label: 'فشلت', cls: 'bg-red-100 text-red-700' },
+const STATUS_CLS: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700',
+  PROCESSING: 'bg-blue-100 text-blue-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
+  FAILED: 'bg-red-100 text-red-700',
 };
 
 interface Settlement {
@@ -41,6 +42,9 @@ export function SettlementsClient({
   initialSettlements: Settlement[];
   merchants: Merchant[];
 }) {
+  const { dict, locale } = useLocale();
+  const t = dict.distributorSettlementsPage;
+  const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
   const [settlements, setSettlements] = useState<Settlement[]>(initialSettlements);
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -78,7 +82,7 @@ export function SettlementsClient({
   }
 
   function handleMarkPaid(id: string) {
-    if (!confirm('تأكيد إتمام هذه التسوية؟')) return;
+    if (!confirm(t.confirmMarkPaid)) return;
     startTransition(async () => {
       const res = await markSettlementPaidAction(id);
       if (res.success) {
@@ -111,48 +115,49 @@ export function SettlementsClient({
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <p className="text-xs text-[var(--muted-foreground)] mb-1">إجمالي المبيعات</p>
+          <p className="text-xs text-[var(--muted-foreground)] mb-1">{t.totalSales}</p>
           <p className="text-xl font-black text-[var(--foreground)]">{fmt(totals.gross)} SDG</p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <p className="text-xs text-[var(--muted-foreground)] mb-1">إجمالي العمولات</p>
+          <p className="text-xs text-[var(--muted-foreground)] mb-1">{t.totalCommissions}</p>
           <p className="text-xl font-black text-red-600">{fmt(totals.commission)} SDG</p>
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <p className="text-xs text-[var(--muted-foreground)] mb-1">إجمالي صافي التجار</p>
+          <p className="text-xs text-[var(--muted-foreground)] mb-1">{t.totalMerchantNet}</p>
           <p className="text-xl font-black text-emerald-600">{fmt(totals.net)} SDG</p>
         </div>
       </div>
 
       <div className="flex justify-between items-center">
-        <p className="text-sm text-[var(--muted-foreground)]">{settlements.length} تسوية</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{settlements.length} {t.settlementsSuffix}</p>
         <button
           onClick={() => setShowForm(true)}
           className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
         >
-          + إنشاء تسوية
+          {t.createSettlement}
         </button>
       </div>
 
       {/* Table */}
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
         {settlements.length === 0 ? (
-          <div className="p-12 text-center text-sm text-[var(--muted-foreground)]">لا توجد تسويات حتى الآن</div>
+          <div className="p-12 text-center text-sm text-[var(--muted-foreground)]">{t.empty}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-[var(--muted)]/40">
-                  {['التاجر', 'الفترة', 'الطلبات', 'المبيعات', 'العمولة', 'الصافي', 'الحالة', 'إجراء'].map((h) => (
+                  {[t.colMerchant, t.colPeriod, t.colOrders, t.colSales, t.colCommission, t.colNet, t.colStatus, t.colAction].map((h) => (
                     <th key={h} className="py-3 px-4 text-right text-xs font-medium text-[var(--muted-foreground)]">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {settlements.map((s) => {
-                  const statusInfo = STATUS_CONFIG[s.status] ?? { label: s.status, cls: 'bg-gray-100 text-gray-600' };
-                  const from = new Date(s.periodFrom).toLocaleDateString('ar', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                  const to = new Date(s.periodTo).toLocaleDateString('ar', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                  const statusCls = STATUS_CLS[s.status] ?? 'bg-gray-100 text-gray-600';
+                  const statusLabel = t.statuses[s.status as keyof typeof t.statuses] ?? s.status;
+                  const from = new Date(s.periodFrom).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+                  const to = new Date(s.periodTo).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
                   return (
                     <tr key={s.id} className="hover:bg-[var(--muted)]/30 transition-colors">
                       <td className="py-3.5 px-4 font-medium text-[var(--foreground)]">{s.merchant?.name ?? '—'}</td>
@@ -162,8 +167,8 @@ export function SettlementsClient({
                       <td className="py-3.5 px-4 font-mono text-red-600 whitespace-nowrap">{fmt(Number(s.commission))} {s.currency}</td>
                       <td className="py-3.5 px-4 font-mono font-bold text-emerald-600 whitespace-nowrap">{fmt(Number(s.netAmount))} {s.currency}</td>
                       <td className="py-3.5 px-4">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusInfo.cls}`}>
-                          {statusInfo.label}
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCls}`}>
+                          {statusLabel}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
@@ -173,7 +178,7 @@ export function SettlementsClient({
                             disabled={isPending}
                             className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-50"
                           >
-                            تأكيد الدفع
+                            {t.confirmPayment}
                           </button>
                         )}
                       </td>
@@ -189,21 +194,21 @@ export function SettlementsClient({
       {/* Create Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-[var(--card)] border border-[var(--border)] p-6 shadow-2xl" dir="rtl">
-            <h2 className="text-lg font-bold text-[var(--foreground)] mb-5">إنشاء تسوية جديدة</h2>
+          <div className="w-full max-w-md rounded-2xl bg-[var(--card)] border border-[var(--border)] p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-[var(--foreground)] mb-5">{t.modalTitle}</h2>
             {error && (
               <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>
             )}
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">التاجر *</label>
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.merchantLabel}</label>
                 <select
                   required
                   value={form.merchantId}
                   onChange={(e) => setForm((p) => ({ ...p, merchantId: e.target.value }))}
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                 >
-                  <option value="">اختر التاجر</option>
+                  <option value="">{t.chooseMerchant}</option>
                   {merchants.map((m) => (
                     <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
@@ -211,33 +216,33 @@ export function SettlementsClient({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">من</label>
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.fromLabel}</label>
                   <input type="date" required value={form.periodFrom}
                     onChange={(e) => setForm((p) => ({ ...p, periodFrom: e.target.value }))}
                     className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">إلى</label>
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.toLabel}</label>
                   <input type="date" required value={form.periodTo}
                     onChange={(e) => setForm((p) => ({ ...p, periodTo: e.target.value }))}
                     className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">ملاحظات</label>
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.notesLabel}</label>
                 <textarea value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
                   rows={2}
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 resize-none"
-                  placeholder="ملاحظات اختيارية..." />
+                  placeholder={t.notesPlaceholder} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" disabled={isPending}
                   className="flex-1 rounded-lg bg-[var(--primary)] py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-opacity">
-                  {isPending ? 'جاري الحساب...' : 'إنشاء التسوية'}
+                  {isPending ? t.calculating : t.create}
                 </button>
                 <button type="button" onClick={() => setShowForm(false)}
                   className="flex-1 rounded-lg border border-[var(--border)] py-2.5 text-sm font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors">
-                  إلغاء
+                  {t.cancel}
                 </button>
               </div>
             </form>
