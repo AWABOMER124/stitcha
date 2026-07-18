@@ -101,6 +101,8 @@ export interface Dictionary {
     platformOwner: string;
     merchantOwner: string;
     viewStorefront: string;
+    viewAllNotifications: string;
+    settings: string;
   };
   navDashboard: {
     home: string;
@@ -1624,6 +1626,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       platformOwner: 'Platform Owner',
       merchantOwner: 'Merchant Owner',
       viewStorefront: 'View Storefront',
+      viewAllNotifications: 'View all notifications',
+      settings: 'Settings',
     },
     navDashboard: {
       home: 'Home',
@@ -3133,6 +3137,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       platformOwner: 'مالك المنصة',
       merchantOwner: 'مالك المتجر',
       viewStorefront: 'عرض المتجر',
+      viewAllNotifications: 'عرض كل الإشعارات',
+      settings: 'الإعدادات',
     },
     navDashboard: {
       home: 'الرئيسية',
