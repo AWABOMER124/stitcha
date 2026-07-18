@@ -35,7 +35,9 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   const catRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
+    // localStorage is unavailable during SSR, so this can't be a lazy useState initializer.
     const saved = localStorage.getItem(`cart-${merchant.slug}`);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) try { setCart(JSON.parse(saved)); } catch {}
   }, [merchant.slug]);
 
@@ -83,7 +85,6 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       })
     );
     const totalPrice = calcItemTotal(selectedProduct.price, mods, itemQty);
-    const key = `${selectedProduct.id}-${JSON.stringify(modSelections)}`;
     setCart(prev => {
       const existing = prev.find(i => i.productId === selectedProduct.id && JSON.stringify(i.selectedModifiers) === JSON.stringify(mods));
       if (existing) return prev.map(i => i === existing ? { ...i, quantity: i.quantity + itemQty, totalPrice: calcItemTotal(i.basePrice, i.selectedModifiers, i.quantity + itemQty) } : i);

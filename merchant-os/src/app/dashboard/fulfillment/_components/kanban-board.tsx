@@ -24,7 +24,7 @@ function OrderCard({
   isPending,
 }: {
   order: ActiveOrder;
-  onAdvance: (orderId: string, status: OrderStatus, label: string) => void;
+  onAdvance: (orderId: string, status: OrderStatus) => void;
   isPending: boolean;
 }) {
   const { dict } = useLocale();
@@ -112,7 +112,7 @@ function OrderCard({
           {primaryNext && nextLabel && (
             <button
               disabled={isPending}
-              onClick={() => onAdvance(order.id, primaryNext, nextLabel)}
+              onClick={() => onAdvance(order.id, primaryNext)}
               className="rounded-md bg-[var(--primary)] px-2 py-1 text-[10px] font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {nextLabel}
@@ -121,7 +121,7 @@ function OrderCard({
           {cancelNext && (cancelNext === 'CANCELLED' || cancelNext === 'REJECTED') && (
             <button
               disabled={isPending}
-              onClick={() => onAdvance(order.id, cancelNext, cancelNext === 'CANCELLED' ? t.cancel : t.reject)}
+              onClick={() => onAdvance(order.id, cancelNext)}
               className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50 transition-colors"
             >
               {cancelNext === 'CANCELLED' ? t.cancel : t.reject}
@@ -158,7 +158,7 @@ export function KanbanBoard({ initialOrders }: { initialOrders: ActiveOrder[] })
     return () => clearInterval(interval);
   }, []);
 
-  async function handleAdvance(orderId: string, status: OrderStatus, label: string) {
+  async function handleAdvance(orderId: string, status: OrderStatus) {
     setPendingId(orderId);
     try {
       const result = await advanceOrderStatusAction(orderId, { status });

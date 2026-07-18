@@ -36,7 +36,9 @@ export function CartClient({ merchant, slug }: { merchant: Merchant; slug: strin
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // localStorage is unavailable during SSR, so this can't be a lazy useState initializer.
     const saved = localStorage.getItem(`cart-${slug}`);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved) try { setCart(JSON.parse(saved)); } catch {}
     setReady(true);
   }, [slug]);

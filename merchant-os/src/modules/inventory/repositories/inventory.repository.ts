@@ -1,5 +1,5 @@
 import prisma from '@/lib/db/prisma';
-import type { InventoryItem, StockMovement, StockMovementType, Prisma } from '@prisma/client';
+import type { InventoryItem, StockMovementType, Prisma } from '@prisma/client';
 import type { InventoryFilterInput } from '../schemas/inventory.schemas';
 import { serializePrismaObject } from '@/lib/serialization';
 

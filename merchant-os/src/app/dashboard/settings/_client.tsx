@@ -76,6 +76,8 @@ export function SettingsClient({
   const [webhookUrl, setWebhookUrl] = useState('');
 
   useEffect(() => {
+    // window is unavailable during SSR, so this can't be a lazy useState initializer.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWebhookUrl(`${window.location.origin}/api/webhooks/whatsapp`);
   }, []);
 

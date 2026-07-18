@@ -3,7 +3,6 @@
  * @description Stores notifications in the database via Prisma.
  */
 
-import { prisma } from '@/lib/db/prisma';
 import type { NotificationPayload, NotificationProvider } from '../types';
 
 export class InAppProvider implements NotificationProvider {

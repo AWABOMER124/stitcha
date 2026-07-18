@@ -25,14 +25,10 @@ export function LocaleProvider({
   children: React.ReactNode;
   initialLocale?: Locale;
 }) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale ?? DEFAULT_LOCALE);
-
-  useEffect(() => {
-    const cookieLocale = readLocaleCookie();
-    if (cookieLocale && cookieLocale !== locale) setLocaleState(cookieLocale);
-    // Only run once on mount to pick up a previously-saved preference.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Lazy initializer: SSR-safe (readLocaleCookie returns null server-side)
+  // and matches initialLocale from the server-read cookie, so no hydration
+  // mismatch or extra re-render is needed to pick up a saved preference.
+  const [locale, setLocaleState] = useState<Locale>(() => initialLocale ?? readLocaleCookie() ?? DEFAULT_LOCALE);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);

@@ -90,7 +90,7 @@ async function main() {
   });
 
   // 4. Create main branch
-  const branch = await prisma.branch.create({
+  await prisma.branch.create({
     data: {
       merchantId: merchant.id,
       name: 'الفرع الرئيسي',

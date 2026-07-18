@@ -2,8 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocale } from '@/lib/i18n/context';
 
-type Message = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string };
-type Conversation = { id: string; customerName: string | null; customerPhone: string | null; channel: string; status: string; createdAt: string; updatedAt: string; messages: Message[] };
+type Message = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string | Date };
+type Conversation = { id: string; customerName: string | null; customerPhone: string | null; channel: string; status: string; createdAt: string | Date; updatedAt: string | Date; messages: Message[] };
 
 const CHANNEL_ICONS: Record<string, string> = { WEB: '🌐', WHATSAPP: '💬', MESSENGER: '📘', INSTAGRAM: '📸' };
 const STATUS_COLORS: Record<string, string> = {
@@ -12,7 +12,7 @@ const STATUS_COLORS: Record<string, string> = {
   CLOSED: 'bg-stone-100 text-stone-600',
 };
 
-export function InboxClient({ conversations: initial, merchantId }: { conversations: Conversation[]; merchantId: string }) {
+export function InboxClient({ conversations: initial }: { conversations: Conversation[] }) {
   const { dict, locale } = useLocale();
   const t = dict.inboxPage;
   const dateLocale = locale === 'ar' ? 'ar-SA' : 'en-US';

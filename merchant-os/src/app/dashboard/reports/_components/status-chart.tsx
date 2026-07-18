@@ -1,6 +1,6 @@
 'use client';
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import type { OrdersByStatus } from '@/modules/reports/types';
 
 export function StatusChart({ data, ordersSuffix }: { data: OrdersByStatus[]; ordersSuffix: string }) {

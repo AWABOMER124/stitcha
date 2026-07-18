@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { placeOrderAction } from '@/modules/storefront/actions';
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
-type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: any; isOpen: boolean; minimumOrderAmount: any; deliveryEnabled: boolean; pickupEnabled: boolean } | null };
+type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null };
 
 export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: string }) {
   const router = useRouter();
@@ -23,7 +23,9 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // localStorage is unavailable during SSR, so this can't be a lazy useState initializer.
     const raw = sp.get('cart');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (raw) try { setCart(JSON.parse(decodeURIComponent(raw))); } catch {}
     else {
       const saved = localStorage.getItem(`cart-${slug}`);

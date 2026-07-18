@@ -22,11 +22,6 @@ export async function recordPayment(data: RecordPaymentInput) {
 
 /** Mark a payment as completed */
 export async function markAsPaid(id: string, transactionRef?: string) {
-  const updateData: Record<string, unknown> = {
-    status: 'COMPLETED' as const,
-    paidAt: new Date(),
-  };
-
   if (transactionRef) {
     // Update both status and transactionRef atomically
     const payment = await prisma.payment.update({
