@@ -13,7 +13,7 @@ const STATUS_ORDER = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY
 
 export default async function OrderPage({ params }: { params: Promise<{ slug: string; orderId: string }> }) {
   const { slug, orderId } = await params;
-  let order: any = null;
+  let order: Awaited<ReturnType<typeof service.getOrderStatus>> | null = null;
   try { order = await service.getOrderStatus(orderId); } catch {}
 
   return (
@@ -53,8 +53,8 @@ export default async function OrderPage({ params }: { params: Promise<{ slug: st
           <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
             <div className="px-4 py-3 border-b border-stone-100 font-bold text-stone-900">تفاصيل الطلب</div>
             <div className="divide-y divide-stone-50">
-              {order.items.map((item: any, i: number) => {
-                const snap = item.productSnapshot as any;
+              {order.items.map((item, i: number) => {
+                const snap = item.productSnapshot as { name?: string } | null;
                 return (
                   <div key={i} className="px-4 py-3 flex justify-between text-sm">
                     <span className="text-stone-800 font-medium">{snap?.name ?? 'منتج'} × {item.quantity}</span>

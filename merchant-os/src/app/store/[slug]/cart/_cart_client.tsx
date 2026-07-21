@@ -12,7 +12,7 @@ type CartItem = {
   totalPrice: number;
 };
 
-type Merchant = {
+export type Merchant = {
   name: string;
   storefrontSettings: {
     theme: unknown;

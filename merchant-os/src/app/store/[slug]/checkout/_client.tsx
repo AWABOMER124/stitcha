@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { placeOrderAction } from '@/modules/storefront/actions';
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
-type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null };
+export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null };
 
 export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: string }) {
   const router = useRouter();

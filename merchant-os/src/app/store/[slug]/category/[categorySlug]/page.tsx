@@ -43,7 +43,7 @@ export default async function CategoryPage({
           {categoryName}
         </h1>
 
-        {(products as unknown[]).length === 0 ? (
+        {products.length === 0 ? (
           <div className="text-center py-16 text-stone-400">
             <div className="text-5xl mb-3">🔍</div>
             <p>لا توجد منتجات في هذا القسم</p>
@@ -57,16 +57,16 @@ export default async function CategoryPage({
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {(products as any[]).map((p) => (
+            {products.map((p) => (
               <a
                 key={p.id}
                 href={`/store/${slug}`}
                 className="bg-white rounded-2xl border border-stone-100 overflow-hidden text-right shadow-sm hover:shadow-md transition-all group"
               >
                 <div className="aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
-                  {p.images?.[0] ? (
+                  {(p.images as unknown as string[] | null)?.[0] ? (
                     <img
-                      src={p.images[0]}
+                      src={(p.images as unknown as string[])[0]}
                       alt={p.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />

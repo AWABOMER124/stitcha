@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth/config';
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/db/prisma';
+import type { Prisma } from '@prisma/client';
 import { placeOrderSchema } from './schemas/storefront.schemas';
 import * as storefrontService from './services/storefront.service';
 
@@ -24,14 +25,14 @@ export async function placeOrderAction(
 
 /** Save storefront customization settings */
 export async function saveStorefrontSettingsAction(data: {
-  theme?: Record<string, any>;
+  theme?: Prisma.InputJsonValue;
   bannerImage?: string;
   welcomeText?: string;
   isOpen?: boolean;
   deliveryEnabled?: boolean;
   pickupEnabled?: boolean;
   minimumOrderAmount?: number;
-  socialLinks?: Record<string, any>;
+  socialLinks?: Prisma.InputJsonValue;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await auth();
@@ -43,8 +44,8 @@ export async function saveStorefrontSettingsAction(data: {
     });
     revalidatePath('/dashboard/storefront');
     return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'حدث خطأ' };
   }
 }
 

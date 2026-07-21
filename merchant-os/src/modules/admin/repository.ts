@@ -1,4 +1,5 @@
 import prisma from '@/lib/db/prisma';
+import type { Prisma } from '@prisma/client';
 
 // ── Platform Overview ─────────────────────────────────────────────────────────
 
@@ -132,7 +133,7 @@ export async function updateDistributor(id: string, data: Partial<{
 
 export async function getAllMerchants(page = 1, limit = 25, search?: string, status?: string) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.MerchantWhereInput = {};
   if (search) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -140,7 +141,7 @@ export async function getAllMerchants(page = 1, limit = 25, search?: string, sta
       { slug: { contains: search, mode: 'insensitive' } },
     ];
   }
-  if (status) where.status = status;
+  if (status) where.status = status as Prisma.MerchantWhereInput['status'];
 
   const [data, total] = await Promise.all([
     prisma.merchant.findMany({

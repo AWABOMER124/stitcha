@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import * as service from '@/modules/storefront/services/storefront.service';
-import { StoreClient } from './_client';
+import { StoreClient, type Merchant, type Category, type Product } from './_client';
 
 export default async function StorePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -12,5 +12,11 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
     service.getProductsForStore(merchant.id),
   ]);
 
-  return <StoreClient merchant={merchant as any} categories={categories as any} products={products as any} />;
+  return (
+    <StoreClient
+      merchant={merchant as unknown as Merchant}
+      categories={categories as unknown as Category[]}
+      products={products as unknown as Product[]}
+    />
+  );
 }
