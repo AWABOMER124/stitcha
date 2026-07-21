@@ -4,7 +4,18 @@ import { auth } from '@/lib/auth/config';
 import { getDriverAction } from '@/modules/drivers/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import Link from 'next/link';
-import { DriverProfileClient } from './_client';
+import { DriverProfileClient, type DriverProfile } from './_client';
+
+interface DriverDetail extends DriverProfile {
+  name: string;
+  phone: string | null;
+  status: string;
+  rating: number | string;
+  vehicleType: string;
+  vehiclePlate: string | null;
+  nationalId: string | null;
+  _count?: { assignments: number };
+}
 
 const STATUS_CLS: Record<string, string> = {
   OFFLINE: 'bg-stone-100 text-stone-600',
@@ -28,7 +39,7 @@ export default async function DriverProfilePage({ params }: { params: Promise<{ 
   const result = await getDriverAction(id);
   if (!result.success) notFound();
 
-  const driver = result.data as any;
+  const driver = result.data as DriverDetail;
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const dict = dictionaries[locale];
   const t = dict.driverProfilePage;

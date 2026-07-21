@@ -5,7 +5,7 @@ import { assignDriverAction } from '@/modules/drivers/actions';
 import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 
-interface Order {
+export interface Order {
   id: string;
   orderNumber: string;
   status: string;
@@ -18,7 +18,7 @@ interface Order {
   branch?: { name: string } | null;
 }
 
-interface Driver {
+export interface Driver {
   id: string;
   name: string;
   phone: string;

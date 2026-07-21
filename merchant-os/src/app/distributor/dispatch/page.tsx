@@ -3,9 +3,15 @@ import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import { getPendingDispatchAction, getAllDriversAction } from '@/modules/drivers/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { DispatchClient } from './_client';
+import { DispatchClient, type Order, type Driver } from './_client';
 
 export const dynamic = 'force-dynamic';
+
+interface DispatchDriver extends Driver {
+  isActive: boolean;
+  rating: number | string;
+  totalDeliveries: number;
+}
 
 export default async function DispatchPage() {
   const session = await auth();
@@ -17,12 +23,12 @@ export default async function DispatchPage() {
     cookies(),
   ]);
 
-  const orders = ordersRes.success ? ordersRes.data : [];
-  const drivers = driversRes.success ? driversRes.data : [];
+  const orders = (ordersRes.success ? ordersRes.data : []) as Order[];
+  const drivers = (driversRes.success ? driversRes.data : []) as DispatchDriver[];
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = dictionaries[locale].dispatchPage;
 
-  const availableDrivers = (drivers as any[]).filter(
+  const availableDrivers = drivers.filter(
     (d) => d.isActive && (d.status === 'ONLINE' || d.status === 'OFFLINE'),
   );
 
@@ -38,9 +44,9 @@ export default async function DispatchPage() {
           <h2 className="font-bold text-[var(--foreground)] mb-3 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
             {t.needsDriverTitle}
-            <span className="text-sm font-normal text-[var(--muted-foreground)]">({(orders as any[]).length})</span>
+            <span className="text-sm font-normal text-[var(--muted-foreground)]">({orders.length})</span>
           </h2>
-          <DispatchClient initialOrders={orders as any[]} initialDrivers={availableDrivers as any[]} />
+          <DispatchClient initialOrders={orders} initialDrivers={availableDrivers} />
         </div>
 
         <div>
@@ -55,7 +61,7 @@ export default async function DispatchPage() {
                 {t.noAvailableDrivers}
               </div>
             ) : (
-              availableDrivers.map((d: any) => (
+              availableDrivers.map((d) => (
                 <div
                   key={d.id}
                   className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-center gap-4"

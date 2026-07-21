@@ -7,13 +7,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ convId:
   if (!session?.user?.merchantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { convId } = await params;
   try {
-    const conv = await (prisma as any).conversation.findFirst({
+    const conv = await prisma.conversation.findFirst({
       where: { id: convId, merchantId: session.user.merchantId },
       select: { id: true },
     });
     if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    const messages = await (prisma as any).inboxMessage.findMany({
+    const messages = await prisma.inboxMessage.findMany({
       where: { conversationId: convId },
       orderBy: { sentAt: 'asc' },
     });

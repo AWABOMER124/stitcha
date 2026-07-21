@@ -98,17 +98,17 @@ async function processPayload(payload: WhatsAppWebhookPayload) {
 
         const contactName = value?.contacts?.find((c) => c.wa_id === msg.from)?.profile?.name ?? null;
 
-        const existing = await (prisma as any).conversation.findFirst({
+        const existing = await prisma.conversation.findFirst({
           where: { merchantId: owner.merchantId, customerPhone: msg.from, channel: 'WHATSAPP' },
           select: { id: true },
         });
 
         const conversation = existing
-          ? await (prisma as any).conversation.update({
+          ? await prisma.conversation.update({
               where: { id: existing.id },
               data: { status: 'OPEN', updatedAt: new Date(), ...(contactName ? { customerName: contactName } : {}) },
             })
-          : await (prisma as any).conversation.create({
+          : await prisma.conversation.create({
               data: {
                 merchantId: owner.merchantId,
                 channel: 'WHATSAPP',
@@ -118,7 +118,7 @@ async function processPayload(payload: WhatsAppWebhookPayload) {
               },
             });
 
-        await (prisma as any).inboxMessage.create({
+        await prisma.inboxMessage.create({
           data: {
             conversationId: conversation.id,
             content: msg.text.body,

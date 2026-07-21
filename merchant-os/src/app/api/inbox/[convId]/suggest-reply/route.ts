@@ -8,13 +8,13 @@ export async function POST(_req: Request, { params }: { params: Promise<{ convId
 
   const { convId } = await params;
 
-  const conv = await (prisma as any).conversation.findFirst({
+  const conv = await prisma.conversation.findFirst({
     where: { id: convId, merchantId: session.user.merchantId },
     include: { merchant: { select: { name: true } } },
   });
   if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-  const messages = await (prisma as any).inboxMessage.findMany({
+  const messages = await prisma.inboxMessage.findMany({
     where: { conversationId: convId },
     orderBy: { sentAt: 'asc' },
     take: 20,
@@ -25,7 +25,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ convId
   if (!apiKey) return NextResponse.json({ error: 'AI not configured — add ANTHROPIC_API_KEY to env' }, { status: 503 });
 
   const transcript = messages
-    .map((m: any) => `${m.isFromCustomer ? 'العميل' : 'المتجر'}: ${m.content}`)
+    .map((m) => `${m.isFromCustomer ? 'العميل' : 'المتجر'}: ${m.content}`)
     .join('\n');
 
   try {
@@ -51,7 +51,7 @@ ${transcript}
     const suggestion = data.content?.[0]?.text?.trim();
     if (!suggestion) return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 });
     return NextResponse.json({ suggestion });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed to generate suggestion' }, { status: 500 });
   }
 }

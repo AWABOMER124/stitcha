@@ -1,11 +1,11 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Modifier = { id: string; name: string; required: boolean; minSelections: number; maxSelections: number; options: { name: string; price: number }[] };
 type Product = { id: string; name: string; slug: string; description: string | null; images: string[]; price: number; compareAtPrice?: number | null; isFeatured: boolean; categoryId: string; category: { id: string; name: string; slug: string }; modifiers: Modifier[] };
 type Category = { id: string; name: string; slug: string; _count: { products: number } };
-type Merchant = { id: string; name: string; slug: string; description: string | null; logo: string | null; coverImage: string | null; storefrontSettings: { theme: any; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: any; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: any } | null };
+type Merchant = { id: string; name: string; slug: string; description: string | null; logo: string | null; coverImage: string | null; storefrontSettings: { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null };
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
 
@@ -95,12 +95,12 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   }
 
   function updateQty(idx: number, delta: number) {
-    setCart(prev => prev.map((item, i) => {
+    setCart(prev => prev.map((item, i): CartItem | null => {
       if (i !== idx) return item;
       const newQty = item.quantity + delta;
-      if (newQty <= 0) return null as any;
+      if (newQty <= 0) return null;
       return { ...item, quantity: newQty, totalPrice: calcItemTotal(item.basePrice, item.selectedModifiers, newQty) };
-    }).filter(Boolean));
+    }).filter((item): item is CartItem => item !== null));
   }
 
   async function sendChat() {
@@ -138,7 +138,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
         </div>
         {/* Search */}
         <div className="px-4 pb-3 max-w-4xl mx-auto">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث عن منتج..." className="w-full bg-stone-100 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 text-stone-900 placeholder:text-stone-400" style={{ '--tw-ring-color': primary } as any} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث عن منتج..." className="w-full bg-stone-100 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 text-stone-900 placeholder:text-stone-400" style={{ '--tw-ring-color': primary } as CSSProperties} />
         </div>
       </header>
 

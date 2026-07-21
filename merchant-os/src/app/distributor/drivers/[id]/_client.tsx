@@ -6,7 +6,31 @@ import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 
-export function DriverProfileClient({ driver }: { driver: any }) {
+export interface Assignment {
+  id: string;
+  orderId: string;
+  assignedAt: string | Date;
+  deliveredAt: string | Date | null;
+}
+
+export interface Earning {
+  id: string;
+  type: string;
+  description: string | null;
+  amount: number | string;
+  currency: string;
+  createdAt: string | Date;
+}
+
+export interface DriverProfile {
+  id: string;
+  isVerified: boolean;
+  isActive: boolean;
+  assignments?: Assignment[];
+  earnings?: Earning[];
+}
+
+export function DriverProfileClient({ driver }: { driver: DriverProfile }) {
   const { dict, locale } = useLocale();
   const t = dict.driverProfilePage;
   const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
@@ -68,7 +92,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
           <div className="p-8 text-center text-sm text-[var(--muted-foreground)]">{t.noDeliveries}</div>
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {(driver.assignments as any[]).slice(0, 10).map((a: any) => (
+            {(driver.assignments ?? []).slice(0, 10).map((a) => (
               <div key={a.id} className="px-5 py-3.5 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-mono font-bold text-[var(--foreground)]">{t.orderPrefix}{a.orderId.slice(-8)}</p>
@@ -100,7 +124,7 @@ export function DriverProfileClient({ driver }: { driver: any }) {
             <h3 className="font-bold text-[var(--foreground)]">{t.recentEarningsTitle}</h3>
           </div>
           <div className="divide-y divide-[var(--border)]">
-            {(driver.earnings as any[]).map((e: any) => (
+            {(driver.earnings ?? []).map((e) => (
               <div key={e.id} className="px-5 py-3.5 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[var(--foreground)]">{e.description ?? e.type}</p>

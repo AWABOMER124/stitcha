@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     if (!match) return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 });
     const parsed = JSON.parse(match[0]);
     return NextResponse.json({ success: true, data: parsed });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed to generate store' }, { status: 500 });
   }
 }

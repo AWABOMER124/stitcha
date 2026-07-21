@@ -10,7 +10,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ convId:
   const { content } = await req.json();
   if (!content?.trim()) return NextResponse.json({ error: 'Content required' }, { status: 400 });
   try {
-    const conv = await (prisma as any).conversation.findFirst({
+    const conv = await prisma.conversation.findFirst({
       where: { id: convId, merchantId: session.user.merchantId },
       select: { id: true, channel: true, customerPhone: true },
     });
@@ -26,12 +26,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ convId:
       }
     }
 
-    const message = await (prisma as any).inboxMessage.create({
+    const message = await prisma.inboxMessage.create({
       data: { conversationId: convId, content, isFromCustomer: false, senderName: 'المتجر' },
     });
-    await (prisma as any).conversation.update({ where: { id: convId }, data: { updatedAt: new Date() } });
+    await prisma.conversation.update({ where: { id: convId }, data: { updatedAt: new Date() } });
     return NextResponse.json({ message, deliveryError });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed to send reply' }, { status: 500 });
   }
 }

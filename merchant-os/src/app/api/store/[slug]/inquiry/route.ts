@@ -10,7 +10,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     const id = merchantId ?? (await prisma.merchant.findUnique({ where: { slug }, select: { id: true } }))?.id;
     if (!id) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
 
-    const conv = await (prisma as any).conversation.create({
+    const conv = await prisma.conversation.create({
       data: {
         merchantId: id,
         customerName,
@@ -24,7 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     }).catch(() => null);
 
     return NextResponse.json({ success: true, conversationId: conv?.id });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed to submit inquiry' }, { status: 500 });
   }
 }
