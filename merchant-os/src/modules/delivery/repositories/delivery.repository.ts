@@ -1,5 +1,5 @@
 import prisma from '@/lib/db/prisma';
-import type { DeliveryStatus } from '@prisma/client';
+import type { DeliveryStatus, DeliveryMethod } from '@prisma/client';
 import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 
 // ============================================================================
@@ -52,7 +52,7 @@ export async function create(data: {
   const delivery = await prisma.delivery.create({
     data: {
       orderId: data.orderId,
-      type: data.type as DeliveryStatus extends string ? never : any,
+      type: data.type as DeliveryMethod,
       address: data.address,
       area: data.area,
       city: data.city,

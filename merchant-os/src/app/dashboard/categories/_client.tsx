@@ -6,7 +6,7 @@ import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 
-interface Category {
+export interface Category {
   id: string;
   name: string;
   slug: string;

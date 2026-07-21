@@ -7,7 +7,21 @@ import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 
-export function CustomerProfileClient({ customer }: { customer: any }) {
+export interface CustomerDetail {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  address: string | null;
+  segment: string;
+  totalOrders: number;
+  totalSpent: number | string;
+  isBlocked: boolean;
+  notes: string | null;
+  loyaltyAccount: { points: number } | null;
+}
+
+export function CustomerProfileClient({ customer }: { customer: CustomerDetail }) {
   const { dict } = useLocale();
   const t = dict.customerProfilePage;
   const router = useRouter();

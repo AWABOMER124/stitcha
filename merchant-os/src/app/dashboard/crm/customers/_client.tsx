@@ -5,7 +5,17 @@ import Link from 'next/link';
 import { SEGMENT_CONFIG } from '@/modules/crm/types';
 import { useLocale } from '@/lib/i18n/context';
 
-export function CustomersClient({ initialCustomers }: { initialCustomers: any[] }) {
+export interface CrmCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  segment: string;
+  totalOrders: number;
+  totalSpent: number | string;
+  lastOrderAt: string | Date | null;
+}
+
+export function CustomersClient({ initialCustomers }: { initialCustomers: CrmCustomer[] }) {
   const { dict, locale } = useLocale();
   const t = dict.crmCustomersPage;
   const [search, setSearch] = useState('');

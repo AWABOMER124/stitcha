@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import { getLoyaltyConfigAction, getLoyaltyLeaderboardAction } from '@/modules/crm/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { LoyaltyClient } from './_client';
+import { LoyaltyClient, type LoyaltyConfig, type LoyaltyLeaderboardEntry } from './_client';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +18,8 @@ export default async function LoyaltyPage() {
     cookies(),
   ]);
 
-  const config = configRes.success ? configRes.data : null;
-  const leaderboard = leaderboardRes.success ? (leaderboardRes.data as any[]) : [];
+  const config = configRes.success ? (configRes.data as unknown as LoyaltyConfig) : null;
+  const leaderboard = leaderboardRes.success ? (leaderboardRes.data as unknown as LoyaltyLeaderboardEntry[]) : [];
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = dictionaries[locale].loyaltyPage;
 
@@ -34,7 +34,7 @@ export default async function LoyaltyPage() {
         <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{t.subtitle}</p>
       </div>
-      <LoyaltyClient initialConfig={config as any} leaderboard={leaderboard} />
+      <LoyaltyClient initialConfig={config} leaderboard={leaderboard} />
     </div>
   );
 }

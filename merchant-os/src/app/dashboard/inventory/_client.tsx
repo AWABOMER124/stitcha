@@ -4,7 +4,7 @@ import { Fragment, useState, useTransition } from 'react';
 import { adjustStockAction } from '@/modules/inventory/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface InventoryItem {
+export interface InventoryItem {
   id: string;
   productId: string;
   quantity: number;

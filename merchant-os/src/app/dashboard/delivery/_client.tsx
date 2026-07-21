@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { updateDeliveryStatusAction, assignDriverAction } from '@/modules/delivery/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface Delivery {
+export interface Delivery {
   id: string;
   status: string;
   driverName: string | null;

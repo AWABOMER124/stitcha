@@ -5,6 +5,7 @@ import { getCustomerStatsAction, getAllCustomersAction } from '@/modules/crm/act
 import { SEGMENT_CONFIG } from '@/modules/crm/types';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import Link from 'next/link';
+import type { CrmCustomer } from './customers/_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export default async function CrmPage() {
     vipCustomers: number; inactiveCustomers: number; totalRevenue: number;
   }) : null;
 
-  const recentCustomers = customersRes.success ? (customersRes.data as any[]).slice(0, 8) : [];
+  const recentCustomers = customersRes.success ? (customersRes.data as CrmCustomer[]).slice(0, 8) : [];
 
   return (
     <div className="space-y-6">
@@ -90,7 +91,7 @@ export default async function CrmPage() {
             <Link href="/dashboard/crm/customers" className="text-xs text-[var(--primary)] hover:underline">{t.viewAll}</Link>
           </div>
           <div className="divide-y divide-[var(--border)]">
-            {recentCustomers.map((c: any) => {
+            {recentCustomers.map((c) => {
               const seg = SEGMENT_CONFIG[c.segment as keyof typeof SEGMENT_CONFIG];
               return (
                 <Link key={c.id} href={`/dashboard/crm/customers/${c.id}`}

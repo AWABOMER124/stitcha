@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { updateLoyaltyConfigAction } from '@/modules/crm/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface LoyaltyConfig {
+export interface LoyaltyConfig {
   isEnabled: boolean;
   pointsPerOrder: number;
   pointsPerSDG: number;
@@ -12,12 +12,18 @@ interface LoyaltyConfig {
   redemptionValueSDG: number;
 }
 
+export interface LoyaltyLeaderboardEntry {
+  id: string;
+  points: number;
+  customer: { name: string | null; phone: string } | null;
+}
+
 export function LoyaltyClient({
   initialConfig,
   leaderboard,
 }: {
   initialConfig: LoyaltyConfig | null;
-  leaderboard: any[];
+  leaderboard: LoyaltyLeaderboardEntry[];
 }) {
   const { dict } = useLocale();
   const t = dict.loyaltyPage;
@@ -117,7 +123,7 @@ export function LoyaltyClient({
             <h3 className="font-bold text-[var(--foreground)]">{t.leaderboardTitle}</h3>
           </div>
           <div className="divide-y divide-[var(--border)]">
-            {leaderboard.map((acc: any, i: number) => (
+            {leaderboard.map((acc, i) => (
               <div key={acc.id} className="px-5 py-3.5 flex items-center gap-4">
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${
                   i === 0 ? 'bg-amber-400 text-white' :

@@ -5,7 +5,15 @@ import { getCustomerAction, getCustomerOrdersAction } from '@/modules/crm/action
 import { SEGMENT_CONFIG } from '@/modules/crm/types';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import Link from 'next/link';
-import { CustomerProfileClient } from './_client';
+import { CustomerProfileClient, type CustomerDetail } from './_client';
+
+interface CustomerOrder {
+  id: string;
+  orderNumber: string;
+  createdAt: string | Date;
+  status: string;
+  total: number | string;
+}
 
 export default async function CustomerProfilePage({ params }: { params: { id: string } }) {
   const session = await auth();
@@ -19,8 +27,8 @@ export default async function CustomerProfilePage({ params }: { params: { id: st
 
   if (!customerRes.success) notFound();
 
-  const customer = customerRes.data as any;
-  const orders = ordersRes.success ? (ordersRes.data as any[]) : [];
+  const customer = customerRes.data as unknown as CustomerDetail;
+  const orders = ordersRes.success ? (ordersRes.data as unknown as CustomerOrder[]) : [];
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const dict = dictionaries[locale];
   const t = dict.customerProfilePage;
@@ -89,7 +97,7 @@ export default async function CustomerProfilePage({ params }: { params: { id: st
               <p className="px-5 py-8 text-center text-sm text-[var(--muted-foreground)]">{t.noOrders}</p>
             ) : (
               <div className="divide-y divide-[var(--border)]">
-                {orders.map((o: any) => (
+                {orders.map((o) => (
                   <div key={o.id} className="px-5 py-3.5 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-mono font-bold text-[var(--foreground)]">{o.orderNumber}</p>

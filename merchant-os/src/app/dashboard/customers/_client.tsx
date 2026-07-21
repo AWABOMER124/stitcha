@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { createCustomerAction, updateCustomerAction } from '@/modules/customers/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface Customer {
+export interface Customer {
   id: string;
   name: string;
   phone: string;
