@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { getFulfillmentStatsAction, getActiveOrdersAction } from '@/modules/fulfillment/actions';
 import { KanbanBoard } from './_components/kanban-board';
@@ -79,12 +80,12 @@ export default async function FulfillmentPage() {
             {t.subtitle}
           </p>
         </div>
-        <a
+        <Link
           href="/dashboard/orders"
           className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors"
         >
           {t.allOrders}
-        </a>
+        </Link>
       </div>
 
       {/* Stats */}

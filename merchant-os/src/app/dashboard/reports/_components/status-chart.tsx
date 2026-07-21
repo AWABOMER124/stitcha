@@ -6,21 +6,22 @@ import type { OrdersByStatus } from '@/modules/reports/types';
 interface ChartTooltipProps {
   active?: boolean;
   payload?: { payload: OrdersByStatus }[];
+  ordersSuffix?: string;
 }
 
-export function StatusChart({ data, ordersSuffix }: { data: OrdersByStatus[]; ordersSuffix: string }) {
-  const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
-    if (!active || !payload?.length) return null;
-    const d = payload[0].payload;
-    return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
-        <p className="font-bold" style={{ color: d.color }}>{d.label}</p>
-        <p className="text-[var(--foreground)] font-mono font-bold">{d.count} {ordersSuffix}</p>
-      </div>
-    );
-  };
+function CustomTooltip({ active, payload, ordersSuffix }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
+      <p className="font-bold" style={{ color: d.color }}>{d.label}</p>
+      <p className="text-[var(--foreground)] font-mono font-bold">{d.count} {ordersSuffix}</p>
+    </div>
+  );
+}
 
-  const CustomLegend = () => (
+function CustomLegend({ data }: { data: OrdersByStatus[] }) {
+  return (
     <div className="flex flex-wrap gap-2 justify-center mt-3">
       {data.map((d) => (
         <div key={d.status} className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
@@ -31,7 +32,9 @@ export function StatusChart({ data, ordersSuffix }: { data: OrdersByStatus[]; or
       ))}
     </div>
   );
+}
 
+export function StatusChart({ data, ordersSuffix }: { data: OrdersByStatus[]; ordersSuffix: string }) {
   return (
     <div>
       <ResponsiveContainer width="100%" height={220}>
@@ -41,10 +44,10 @@ export function StatusChart({ data, ordersSuffix }: { data: OrdersByStatus[]; or
               <Cell key={i} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip ordersSuffix={ordersSuffix} />} />
         </PieChart>
       </ResponsiveContainer>
-      <CustomLegend />
+      <CustomLegend data={data} />
     </div>
   );
 }

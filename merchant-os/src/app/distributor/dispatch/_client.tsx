@@ -66,6 +66,8 @@ export function DispatchClient({
   return (
     <div className="space-y-3">
       {orders.map((order) => {
+        // Date.now() here is a snapshot for a "minutes ago" label, not used for memoization-sensitive logic.
+        // eslint-disable-next-line react-hooks/purity
         const ageMin = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
         const isUrgent = ageMin > 15;
 

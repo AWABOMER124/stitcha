@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { useLocale } from '@/lib/i18n/context';
 
@@ -65,9 +66,9 @@ export function DashboardHomeClient({
             <h2 className="text-lg font-semibold text-[var(--foreground)]">{t.recentOrders}</h2>
             <p className="text-sm text-[var(--muted-foreground)]">{t.recentOrdersSubtitle}</p>
           </div>
-          <a href="/dashboard/orders" className="text-sm font-medium text-[var(--primary)] hover:underline">
+          <Link href="/dashboard/orders" className="text-sm font-medium text-[var(--primary)] hover:underline">
             {t.viewAll}
-          </a>
+          </Link>
         </div>
 
         {recentOrders.length === 0 ? (

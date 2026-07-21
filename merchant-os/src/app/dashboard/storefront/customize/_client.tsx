@@ -5,6 +5,37 @@ import { useLocale } from '@/lib/i18n/context';
 
 export type Settings = { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null;
 
+const inputCls = "w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)]";
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
+      <h2 className="font-bold text-[var(--foreground)]">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-sm text-[var(--muted-foreground)] block mb-1.5">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)} className="flex items-center justify-between w-full">
+      <span className="text-sm text-[var(--foreground)]">{label}</span>
+      <div className={`w-11 h-6 rounded-full transition-colors relative ${checked ? 'bg-[var(--primary)]' : 'bg-stone-300'}`}>
+        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${checked ? 'right-1' : 'left-1'}`} />
+      </div>
+    </button>
+  );
+}
+
 export function CustomizeClient({ settings, slug }: { settings: Settings; slug: string }) {
   const { dict } = useLocale();
   const t = dict.storefrontCustomizePage;
@@ -44,30 +75,6 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
       else setError(res.error ?? t.genericError);
     });
   }
-
-  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
-      <h2 className="font-bold text-[var(--foreground)]">{title}</h2>
-      {children}
-    </div>
-  );
-
-  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <label className="text-sm text-[var(--muted-foreground)] block mb-1.5">{label}</label>
-      {children}
-    </div>
-  );
-
-  const inputCls = "w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)]";
-  const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
-    <button type="button" onClick={() => onChange(!checked)} className="flex items-center justify-between w-full">
-      <span className="text-sm text-[var(--foreground)]">{label}</span>
-      <div className={`w-11 h-6 rounded-full transition-colors relative ${checked ? 'bg-[var(--primary)]' : 'bg-stone-300'}`}>
-        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${checked ? 'right-1' : 'left-1'}`} />
-      </div>
-    </button>
-  );
 
   return (
     <div className="p-6 max-w-2xl space-y-5">

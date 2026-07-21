@@ -24,6 +24,8 @@ export default async function ApprovalsPage() {
     },
   });
 
+  // Server Component: rendered once per request, so Date.now() here is not memoization-sensitive.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const initialMerchants = pendingMerchants.map((m) => ({
     ...m,

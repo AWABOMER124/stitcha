@@ -7,20 +7,21 @@ interface ChartTooltipProps {
   active?: boolean;
   payload?: { value?: number }[];
   label?: string;
+  ordersSuffix?: string;
+}
+
+function CustomTooltip({ active, payload, label, ordersSuffix }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
+      <p className="font-bold text-[var(--foreground)]">{label}</p>
+      <p className="text-amber-600 font-mono font-bold">{payload[0]?.value} {ordersSuffix}</p>
+    </div>
+  );
 }
 
 export function HoursChart({ data, ordersSuffix }: { data: HourlyOrders[]; ordersSuffix: string }) {
   const maxOrders = Math.max(...data.map((d) => d.orders), 1);
-
-  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
-        <p className="font-bold text-[var(--foreground)]">{label}</p>
-        <p className="text-amber-600 font-mono font-bold">{payload[0]?.value} {ordersSuffix}</p>
-      </div>
-    );
-  };
 
   return (
     <ResponsiveContainer width="100%" height={200}>
@@ -29,7 +30,7 @@ export function HoursChart({ data, ordersSuffix }: { data: HourlyOrders[]; order
         <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false}
           tickFormatter={(v) => v.split(':')[0]} interval={2} />
         <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickLine={false} axisLine={false} />
-        <Tooltip content={<CustomTooltip />} />
+        <Tooltip content={<CustomTooltip ordersSuffix={ordersSuffix} />} />
         <Bar dataKey="orders" radius={[3, 3, 0, 0]}>
           {data.map((entry, i) => (
             <Cell key={i} fill={entry.orders === maxOrders ? '#f59e0b' : '#b91c1c'} opacity={0.6 + (entry.orders / maxOrders) * 0.4} />
