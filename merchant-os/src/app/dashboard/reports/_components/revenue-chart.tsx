@@ -4,6 +4,12 @@ import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, C
 import type { DailyRevenue } from '@/modules/reports/types';
 import type { Locale } from '@/lib/i18n/translations';
 
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: { value?: number }[];
+  label?: string;
+}
+
 export function RevenueChart({ data, locale, tooltipRevenue, tooltipOrders }: { data: DailyRevenue[]; locale: Locale; tooltipRevenue: string; tooltipOrders: string }) {
   const dateLocale = locale === 'ar' ? 'ar-SD' : 'en-US';
   const formatDate = (d: string) => {
@@ -11,11 +17,11 @@ export function RevenueChart({ data, locale, tooltipRevenue, tooltipOrders }: { 
     return date.toLocaleDateString(dateLocale, { day: '2-digit', month: 'short' });
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (!active || !payload?.length) return null;
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
-        <p className="font-bold text-[var(--foreground)] mb-2">{formatDate(label)}</p>
+        <p className="font-bold text-[var(--foreground)] mb-2">{label ? formatDate(label) : ''}</p>
         <p className="text-emerald-600">{tooltipRevenue}: <span className="font-mono font-bold">{payload[0]?.value?.toFixed(0)} SDG</span></p>
         <p className="text-blue-600">{tooltipOrders}: <span className="font-mono font-bold">{payload[1]?.value}</span></p>
       </div>

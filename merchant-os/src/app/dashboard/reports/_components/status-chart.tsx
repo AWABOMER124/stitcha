@@ -3,8 +3,13 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import type { OrdersByStatus } from '@/modules/reports/types';
 
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: { payload: OrdersByStatus }[];
+}
+
 export function StatusChart({ data, ordersSuffix }: { data: OrdersByStatus[]; ordersSuffix: string }) {
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
     return (

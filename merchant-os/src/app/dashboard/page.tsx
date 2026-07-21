@@ -1,7 +1,7 @@
 import { getTodayOverviewAction, getOrdersAction } from '@/modules/orders/actions';
 import { getLowStockAlertsAction } from '@/modules/inventory/actions';
 import { OnboardingChecklist } from '@/components/dashboard/onboarding-checklist';
-import { DashboardHomeClient } from './_client';
+import { DashboardHomeClient, type OrderRow } from './_client';
 
 export default async function DashboardPage() {
   const [overviewResult, recentResult, lowStockResult] = await Promise.all([
@@ -10,14 +10,16 @@ export default async function DashboardPage() {
     getLowStockAlertsAction(),
   ]);
 
-  const overview = overviewResult.success ? overviewResult.data : null;
-  const recentOrders = recentResult.success ? (recentResult.data?.data ?? []) : [];
+  const overview = overviewResult.success
+    ? { ...overviewResult.data, revenue: Number(overviewResult.data.revenue) }
+    : null;
+  const recentOrders = (recentResult.success ? (recentResult.data?.data ?? []) : []) as unknown as OrderRow[];
   const lowStockCount = lowStockResult.success ? (lowStockResult.data as unknown[]).length : 0;
 
   return (
     <DashboardHomeClient
-      overview={overview as any}
-      recentOrders={recentOrders as any}
+      overview={overview}
+      recentOrders={recentOrders}
       lowStockCount={lowStockCount}
       onboardingChecklist={<OnboardingChecklist />}
     />

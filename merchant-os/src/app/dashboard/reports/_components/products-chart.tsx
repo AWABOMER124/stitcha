@@ -3,12 +3,17 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { TopProduct } from '@/modules/reports/types';
 
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: { payload: TopProduct }[];
+}
+
 export function ProductsChart({ data, tooltipQuantity, tooltipRevenue }: { data: TopProduct[]; tooltipQuantity: string; tooltipRevenue: string }) {
   const top = data.slice(0, 8);
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: ChartTooltipProps) => {
     if (!active || !payload?.length) return null;
-    const d = payload[0].payload as TopProduct;
+    const d = payload[0].payload;
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm max-w-48">
         <p className="font-bold text-[var(--foreground)] truncate">{d.name}</p>

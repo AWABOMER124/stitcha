@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { markAsReadAction } from '@/modules/notifications/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface Notification {
+export interface Notification {
   id: string;
   type: string;
   channel: string;
   title: string;
   body: string;
   isRead: boolean;
-  createdAt: string;
+  createdAt: string | Date;
 }
 
 const TYPE_ICON: Record<string, string> = {

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/config';
 import { getNotificationsAction } from '@/modules/notifications/actions';
-import { NotificationsClient } from './_client';
+import { NotificationsClient, type Notification } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export default async function NotificationsPage({
 
   return (
     <NotificationsClient
-      initialNotifications={notifications as any[]}
+      initialNotifications={notifications as unknown as Notification[]}
       initialPagination={pagination}
       activeTab={isUnread ? 'unread' : 'all'}
     />

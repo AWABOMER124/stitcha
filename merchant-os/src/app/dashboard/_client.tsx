@@ -4,13 +4,13 @@ import type { ReactNode } from 'react';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { useLocale } from '@/lib/i18n/context';
 
-interface OrderRow {
+export interface OrderRow {
   id: string;
   customerName: string | null;
   orderNumber: string;
-  createdAt: string;
+  createdAt: string | Date;
   status: string;
-  total: number;
+  total: number | string;
 }
 
 const STATUS_COLORS: Record<string, string> = {

@@ -3,10 +3,16 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { HourlyOrders } from '@/modules/reports/types';
 
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: { value?: number }[];
+  label?: string;
+}
+
 export function HoursChart({ data, ordersSuffix }: { data: HourlyOrders[]; ordersSuffix: string }) {
   const maxOrders = Math.max(...data.map((d) => d.orders), 1);
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (!active || !payload?.length) return null;
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-lg text-sm">
