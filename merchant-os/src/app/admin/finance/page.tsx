@@ -11,6 +11,15 @@ type FinanceStats = {
   totalPaidOut: number;
 };
 
+type DistributorRow = {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  commissionRate: number | string;
+  _count: { merchants: number };
+};
+
 function fmt(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -29,7 +38,7 @@ export default async function AdminFinancePage() {
 
   const stats = statsRes.success ? (statsRes.data as FinanceStats) : null;
   const distributors = distributorsRes.success
-    ? (distributorsRes.data as { data: any[] }).data
+    ? (distributorsRes.data as { data: DistributorRow[] }).data
     : [];
 
   return (
@@ -69,7 +78,7 @@ export default async function AdminFinancePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {distributors.map((d: any) => (
+                {distributors.map((d) => (
                   <tr key={d.id} className="hover:bg-[var(--muted)]/20 transition-colors">
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-3">

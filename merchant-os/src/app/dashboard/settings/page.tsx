@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth/config';
 import { getMerchantSettingsAction, getStorefrontSettingsAction } from '@/modules/settings/actions';
 import { getWhatsAppConfigAction } from '@/modules/whatsapp-channel/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { SettingsClient } from './_client';
+import { SettingsClient, type MerchantSettings, type StorefrontSettings, type WhatsAppConfig } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,9 +19,9 @@ export default async function SettingsPage() {
     cookies(),
   ]);
 
-  const merchant = merchantRes.success ? (merchantRes.data as any) : null;
-  const storefront = storefrontRes.success ? (storefrontRes.data as any) : null;
-  const whatsapp = whatsappRes.success ? (whatsappRes.data as any) : { isConfigured: false };
+  const merchant = merchantRes.success ? (merchantRes.data as unknown as MerchantSettings) : null;
+  const storefront = storefrontRes.success ? (storefrontRes.data as unknown as StorefrontSettings) : null;
+  const whatsapp = whatsappRes.success ? (whatsappRes.data as unknown as WhatsAppConfig) : { isConfigured: false };
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = dictionaries[locale].settingsPage;
 

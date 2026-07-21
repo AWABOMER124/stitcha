@@ -5,7 +5,7 @@ import { updateMerchantSettingsAction, updateStorefrontSettingsAction } from '@/
 import { saveWhatsAppConfigAction, removeWhatsAppConfigAction } from '@/modules/whatsapp-channel/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface MerchantSettings {
+export interface MerchantSettings {
   name: string;
   description: string | null;
   phone: string | null;
@@ -14,7 +14,7 @@ interface MerchantSettings {
   currency: string;
 }
 
-interface StorefrontSettings {
+export interface StorefrontSettings {
   welcomeText: string | null;
   isOpen: boolean;
   minimumOrderAmount: number;
@@ -22,7 +22,7 @@ interface StorefrontSettings {
   pickupEnabled: boolean;
 }
 
-interface WhatsAppConfig {
+export interface WhatsAppConfig {
   isConfigured: boolean;
   phoneNumberId?: string;
   wabaId?: string | null;

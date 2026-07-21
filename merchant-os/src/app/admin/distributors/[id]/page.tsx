@@ -18,6 +18,18 @@ const MERCHANT_STATUS_CLS: Record<string, string> = {
   CLOSED: 'bg-stone-100 text-stone-600',
 };
 
+interface DistributorDetail {
+  id: string;
+  name: string;
+  slug: string;
+  email: string | null;
+  status: string;
+  commissionRate: number | string;
+  _count: { merchants: number; drivers: number };
+  users: { id: string; isOwner: boolean; user: { name: string | null; email: string } }[];
+  merchants: { id: string; name: string; slug: string; status: string; createdAt: string | Date; _count: { orders: number } }[];
+}
+
 export default async function DistributorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, cookieStore] = await Promise.all([params, cookies()]);
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
@@ -29,7 +41,7 @@ export default async function DistributorDetailPage({ params }: { params: Promis
   const res = await getDistributorByIdAction(id);
   if (!res.success) notFound();
 
-  const d = res.data as any;
+  const d = res.data as unknown as DistributorDetail;
   const statusLabel = dt.statuses[d.status as keyof typeof dt.statuses] ?? d.status;
   const statusCls = STATUS_CLS[d.status] ?? STATUS_CLS.PENDING;
 
@@ -88,7 +100,7 @@ export default async function DistributorDetailPage({ params }: { params: Promis
             {d.users.length === 0 ? (
               <p className="p-5 text-sm text-[var(--muted-foreground)] text-center">{t.noUsers}</p>
             ) : (
-              d.users.map((u: any) => (
+              d.users.map((u) => (
                 <div key={u.id} className="px-5 py-3.5 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-[var(--foreground)]">{u.user.name ?? '—'}</p>
@@ -123,7 +135,7 @@ export default async function DistributorDetailPage({ params }: { params: Promis
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)]">
-                  {d.merchants.map((m: any) => {
+                  {d.merchants.map((m) => {
                     const mLabel = t.merchantStatuses[m.status as keyof typeof t.merchantStatuses] ?? m.status;
                     const mCls = MERCHANT_STATUS_CLS[m.status] ?? MERCHANT_STATUS_CLS.PENDING;
                     return (

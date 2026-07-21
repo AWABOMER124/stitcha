@@ -3,7 +3,7 @@ import { useState, useTransition } from 'react';
 import { saveStorefrontSettingsAction } from '@/modules/storefront/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-type Settings = { theme: any; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: any; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: any } | null;
+export type Settings = { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null;
 
 export function CustomizeClient({ settings, slug }: { settings: Settings; slug: string }) {
   const { dict } = useLocale();

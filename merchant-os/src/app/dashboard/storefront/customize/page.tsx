@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth/config';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/db/prisma';
-import { CustomizeClient } from './_client';
+import { CustomizeClient, type Settings } from './_client';
 
 export default async function CustomizePage() {
   const session = await auth();
@@ -12,5 +12,5 @@ export default async function CustomizePage() {
     include: { storefrontSettings: true },
   });
 
-  return <CustomizeClient settings={merchant?.storefrontSettings as any} slug={merchant?.slug ?? ''} />;
+  return <CustomizeClient settings={(merchant?.storefrontSettings as unknown as Settings) ?? null} slug={merchant?.slug ?? ''} />;
 }

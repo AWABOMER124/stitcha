@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useLocale } from '@/lib/i18n/context';
 
-type Stats = {
+export type Stats = {
   totalDistributors: number;
   activeDistributors: number;
   pendingDistributors: number;
@@ -17,10 +17,10 @@ type Stats = {
   newMerchantsThisMonth: number;
 };
 
-type Activity = {
-  recentOrders: Array<{ id: string; orderNumber: string; status: string; total: any; createdAt: any; merchant: { name: string } | null }>;
-  recentMerchants: Array<{ id: string; name: string; status: string; businessType: string; createdAt: any }>;
-  recentDistributors: Array<{ id: string; name: string; status: string; createdAt: any }>;
+export type Activity = {
+  recentOrders: Array<{ id: string; orderNumber: string; status: string; total: number | string; createdAt: string | Date; merchant: { name: string } | null }>;
+  recentMerchants: Array<{ id: string; name: string; status: string; businessType: string; createdAt: string | Date }>;
+  recentDistributors: Array<{ id: string; name: string; status: string; createdAt: string | Date }>;
 };
 
 function orderStatusStyle(status: string): string {
