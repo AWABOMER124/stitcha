@@ -6,7 +6,7 @@ import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 
-interface Zone {
+export interface Zone {
   id: string;
   name: string;
   description?: string | null;

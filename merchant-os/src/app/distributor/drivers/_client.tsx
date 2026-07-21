@@ -21,7 +21,7 @@ const STATUS_DOT: Record<string, string> = {
   ON_BREAK: 'bg-blue-400',
 };
 
-interface Driver {
+export interface Driver {
   id: string;
   name: string;
   phone: string;

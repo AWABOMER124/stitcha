@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth/config';
 import { getAllDriversAction, getDriverStatsAction } from '@/modules/drivers/actions';
 import Link from 'next/link';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { DriversClient } from './_client';
+import { DriversClient, type Driver } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +49,7 @@ export default async function DriversPage() {
         </div>
       )}
 
-      <DriversClient initialDrivers={drivers as any[]} />
+      <DriversClient initialDrivers={drivers as unknown as Driver[]} />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
 import { getDistributorUsersAction } from '@/modules/users/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { DistributorUsersClient } from './_client';
+import { DistributorUsersClient, type DistributorUserRow } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +24,7 @@ export default async function DistributorUsersPage() {
           {t.subtitle}
         </p>
       </div>
-      <DistributorUsersClient initialUsers={users as any[]} currentUserId={session.user.id} />
+      <DistributorUsersClient initialUsers={users as unknown as DistributorUserRow[]} currentUserId={session.user.id} />
     </div>
   );
 }

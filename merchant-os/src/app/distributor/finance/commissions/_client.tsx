@@ -13,7 +13,7 @@ const TYPE_COLORS: Record<string, string> = {
   SUBSCRIPTION: 'bg-emerald-100 text-emerald-700',
 };
 
-interface Plan {
+export interface Plan {
   id: string;
   name: string;
   description?: string | null;

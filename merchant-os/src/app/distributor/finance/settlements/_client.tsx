@@ -13,7 +13,7 @@ const STATUS_CLS: Record<string, string> = {
   FAILED: 'bg-red-100 text-red-700',
 };
 
-interface Settlement {
+export interface Settlement {
   id: string;
   merchantId: string;
   status: string;

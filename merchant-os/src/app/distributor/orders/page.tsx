@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getDistributorOrdersAction } from '@/modules/orders/actions';
 import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { OrderDeliveryCompanySelect } from './_client';
+import { OrderDeliveryCompanySelect, type Company } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +19,16 @@ const STATUS_CLS: Record<string, string> = {
   CANCELLED: 'bg-red-100 text-red-700',
   REJECTED: 'bg-stone-100 text-stone-600',
 };
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  customerName: string | null;
+  total: number | string;
+  merchant?: { name: string } | null;
+  delivery?: { deliveryCompanyId: string | null } | null;
+}
 
 export default async function DistributorOrdersPage({
   searchParams,
@@ -46,9 +56,11 @@ export default async function DistributorOrdersPage({
     getDeliveryCompaniesAction(),
   ]);
 
-  const result = ordersRes.success ? (ordersRes.data as any) : { data: [], pagination: { page: 1, totalPages: 1 } };
-  const orders = result.data as any[];
-  const companies = companiesRes.success ? (companiesRes.data as any[]) : [];
+  const result = ordersRes.success
+    ? (ordersRes.data as unknown as { data: Order[]; pagination: { page: number; totalPages: number } })
+    : { data: [], pagination: { page: 1, totalPages: 1 } };
+  const orders = result.data;
+  const companies = companiesRes.success ? (companiesRes.data as unknown as Company[]) : [];
 
   return (
     <div className="space-y-6">

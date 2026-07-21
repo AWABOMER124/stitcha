@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth/config';
 import { getCommissionPlansAction } from '@/modules/finance/actions';
 import Link from 'next/link';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { CommissionPlansClient } from './_client';
+import { CommissionPlansClient, type Plan } from './_client';
 
 export default async function CommissionsPage() {
   const session = await auth();
@@ -28,7 +28,7 @@ export default async function CommissionsPage() {
         <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.subtitle}</p>
       </div>
 
-      <CommissionPlansClient initialPlans={plans as any[]} />
+      <CommissionPlansClient initialPlans={plans as unknown as Plan[]} />
     </div>
   );
 }

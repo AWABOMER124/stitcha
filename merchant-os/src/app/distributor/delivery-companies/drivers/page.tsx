@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getDriversWithAssignmentAction } from '@/modules/delivery-companies/actions';
 import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { DeliveryCompanyDriversClient } from './_client';
+import { DeliveryCompanyDriversClient, type Driver, type Company } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +19,8 @@ export default async function DeliveryCompanyDriversPage() {
     cookies(),
   ]);
 
-  const drivers = driversRes.success ? (driversRes.data as any[]) : [];
-  const companies = companiesRes.success ? (companiesRes.data as any[]) : [];
+  const drivers = driversRes.success ? (driversRes.data as unknown as Driver[]) : [];
+  const companies = companiesRes.success ? (companiesRes.data as unknown as Company[]) : [];
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const dict = dictionaries[locale];
   const t = dict.deliveryCompanyDriversPage;

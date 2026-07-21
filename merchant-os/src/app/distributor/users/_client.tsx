@@ -9,7 +9,7 @@ import {
 } from '@/modules/users/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface DistributorUserRow {
+export interface DistributorUserRow {
   id: string;
   userId: string;
   role: string;

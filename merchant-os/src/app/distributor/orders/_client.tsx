@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { assignOrderDeliveryCompanyAction } from '@/modules/orders/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface Company {
+export interface Company {
   id: string;
   name: string;
 }

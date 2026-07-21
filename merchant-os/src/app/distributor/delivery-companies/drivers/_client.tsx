@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { assignDriverToDeliveryCompanyAction } from '@/modules/delivery-companies/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface Driver {
+export interface Driver {
   id: string;
   name: string;
   phone: string;
@@ -13,7 +13,7 @@ interface Driver {
   deliveryCompany: { id: string; name: string } | null;
 }
 
-interface Company {
+export interface Company {
   id: string;
   name: string;
 }

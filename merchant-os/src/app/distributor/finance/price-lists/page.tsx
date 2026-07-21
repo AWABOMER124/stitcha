@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth/config';
 import { getDeliveryZonesAction } from '@/modules/finance/actions';
 import Link from 'next/link';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { PriceListsClient } from './_client';
+import { PriceListsClient, type Zone } from './_client';
 
 export default async function PriceListsPage() {
   const session = await auth();
@@ -28,7 +28,7 @@ export default async function PriceListsPage() {
         <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.subtitle}</p>
       </div>
 
-      <PriceListsClient initialZones={zones as any[]} />
+      <PriceListsClient initialZones={zones as unknown as Zone[]} />
     </div>
   );
 }

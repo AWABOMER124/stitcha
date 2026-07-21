@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/config';
 import { getDistributorSettingsAction } from '@/modules/distributor-settings/actions';
-import { SettingsClient } from './_client';
+import { SettingsClient, type DistributorSettings } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ export default async function DistributorSettingsPage() {
   if (!session?.user?.distributorId) redirect('/login');
 
   const result = await getDistributorSettingsAction();
-  const settings = result.success ? (result.data as any) : null;
+  const settings = result.success ? (result.data as unknown as DistributorSettings) : null;
 
   return <SettingsClient initialSettings={settings} />;
 }

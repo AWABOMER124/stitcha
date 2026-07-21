@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth/config';
 import { getSettlementsAction } from '@/modules/finance/actions';
 import Link from 'next/link';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { SettlementsClient } from './_client';
+import { SettlementsClient, type Settlement } from './_client';
 import prisma from '@/lib/db/prisma';
 
 export default async function SettlementsPage() {
@@ -42,7 +42,7 @@ export default async function SettlementsPage() {
         <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.subtitle}</p>
       </div>
 
-      <SettlementsClient initialSettlements={settlements as any[]} merchants={merchants} />
+      <SettlementsClient initialSettlements={settlements as unknown as Settlement[]} merchants={merchants} />
     </div>
   );
 }

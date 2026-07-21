@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth/config';
 import Link from 'next/link';
 import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { DeliveryCompaniesClient } from './_client';
+import { DeliveryCompaniesClient, type DeliveryCompany } from './_client';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ export default async function DeliveryCompaniesPage() {
   if (!session?.user?.distributorId) redirect('/login');
 
   const [result, cookieStore] = await Promise.all([getDeliveryCompaniesAction(), cookies()]);
-  const companies = result.success ? (result.data as any[]) : [];
+  const companies = result.success ? (result.data as unknown as DeliveryCompany[]) : [];
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = dictionaries[locale].deliveryCompaniesPage;
 

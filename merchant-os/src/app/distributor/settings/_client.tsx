@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { updateDistributorSettingsAction } from '@/modules/distributor-settings/actions';
 import { useLocale } from '@/lib/i18n/context';
 
-interface DistributorSettings {
+export interface DistributorSettings {
   name: string;
   phone: string | null;
   email: string | null;

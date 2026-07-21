@@ -5,7 +5,7 @@ import prisma from '@/lib/db/prisma';
 import Link from 'next/link';
 import { getDeliveryCompaniesAction } from '@/modules/delivery-companies/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
-import { DeliveryCompanySelect, StatusToggle } from '../_row-actions';
+import { DeliveryCompanySelect, StatusToggle, type DeliveryCompany } from '../_row-actions';
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
@@ -48,7 +48,7 @@ export default async function DistributorMerchantDetailPage({
 
   if (!merchant) notFound();
 
-  const deliveryCompanies = companiesRes.success ? (companiesRes.data as any[]) : [];
+  const deliveryCompanies = companiesRes.success ? (companiesRes.data as unknown as DeliveryCompany[]) : [];
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const dict = dictionaries[locale];
   const t = dict.distributorMerchantDetailPage;

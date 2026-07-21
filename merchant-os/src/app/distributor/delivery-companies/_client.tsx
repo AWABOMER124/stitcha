@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 
-interface DeliveryCompany {
+export interface DeliveryCompany {
   id: string;
   name: string;
   contactName: string | null;
