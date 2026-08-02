@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
 import { auth } from '@/lib/auth/config';
 import { WhatsAppProvider } from '@/services/notifications/providers/whatsapp.provider';
+import { uniqueSlug } from '@/lib/slug';
 
 const REGISTRATION_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const whatsAppProvider = new WhatsAppProvider();
@@ -32,12 +33,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Store name, phone, and location are required' }, { status: 400 });
   }
 
-  const slug =
-    name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .slice(0, 50) + '-' + Date.now().toString(36);
+  const slug = uniqueSlug(name);
 
   const registrationToken = crypto.randomBytes(24).toString('hex');
 

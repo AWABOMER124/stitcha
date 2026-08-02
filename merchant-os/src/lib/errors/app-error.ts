@@ -62,3 +62,9 @@ export class TenantError extends AppError {
     super(message, 403, 'TENANT_SCOPE_VIOLATION');
   }
 }
+
+export class RateLimitError extends AppError {
+  constructor(message = 'محاولات كثيرة جداً، حاول مرة أخرى لاحقاً') {
+    super(message, 429, 'RATE_LIMITED');
+  }
+}

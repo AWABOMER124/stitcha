@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     message: 'If an account exists for this email, a reset link has been sent.',
   });
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
   if (!user || !user.passwordHash) return genericResponse;
 
   const rawToken = crypto.randomBytes(32).toString('hex');

@@ -45,9 +45,14 @@ export function DashboardTopbar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getUnreadCountAction().then((res) => {
-      if (res.success) setUnreadCount(res.data);
-    });
+    function refreshUnreadCount() {
+      getUnreadCountAction().then((res) => {
+        if (res.success) setUnreadCount(res.data);
+      });
+    }
+    refreshUnreadCount();
+    const interval = setInterval(refreshUnreadCount, 20_000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

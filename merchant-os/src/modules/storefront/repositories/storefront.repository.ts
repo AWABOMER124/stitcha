@@ -71,3 +71,25 @@ export async function getStorefrontSettings(merchantId: string) {
   const settings = await prisma.storefrontSettings.findUnique({ where: { merchantId } });
   return serializePrismaObject(settings);
 }
+
+const MERCHANT_LIST_SELECT = {
+  id: true, name: true, slug: true, description: true, logo: true,
+  coverImage: true, businessType: true,
+} as const;
+
+export async function listActiveMerchants() {
+  const merchants = await prisma.merchant.findMany({
+    where: { isActive: true, status: 'ACTIVE' },
+    select: MERCHANT_LIST_SELECT,
+    orderBy: { createdAt: 'desc' },
+  });
+  return serializePrismaArray(merchants);
+}
+
+export async function getMerchantById(id: string) {
+  const merchant = await prisma.merchant.findUnique({
+    where: { id, isActive: true, status: 'ACTIVE' },
+    select: { ...MERCHANT_LIST_SELECT, storefrontSettings: true },
+  });
+  return serializePrismaObject(merchant);
+}

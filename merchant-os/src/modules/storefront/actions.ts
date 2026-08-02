@@ -2,12 +2,21 @@
 
 import { auth } from '@/lib/auth/config';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import prisma from '@/lib/db/prisma';
 import type { Prisma } from '@prisma/client';
 import { placeOrderSchema } from './schemas/storefront.schemas';
 import * as storefrontService from './services/storefront.service';
+import { enforceRateLimit } from '@/lib/security/rate-limit';
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
+
+async function getRequestIp(): Promise<string> {
+  const h = await headers();
+  const forwardedFor = h.get('x-forwarded-for');
+  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+  return h.get('x-real-ip')?.trim() ?? 'unknown';
+}
 
 /** Place an order from the public storefront */
 export async function placeOrderAction(
@@ -15,6 +24,9 @@ export async function placeOrderAction(
   input: unknown
 ): Promise<ActionResult<{ orderId: string; orderNumber: string }>> {
   try {
+    // 20 orders / min per IP — same public-write limit as the mobile /api/orders route.
+    enforceRateLimit(`place-order:${await getRequestIp()}`, 20, 60_000);
+
     const data = placeOrderSchema.parse(input);
     const result = await storefrontService.placeOrder(slug, data);
     return { success: true, data: result };

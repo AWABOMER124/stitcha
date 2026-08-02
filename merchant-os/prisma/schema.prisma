@@ -155,15 +155,15 @@ enum PromoType {
 
 /// Platform user — can be linked to distributors and/or merchants
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String?
-  name          String?
-  phone         String?   @unique
-  role          UserRole  @default(CASHIER)
-  emailVerified DateTime?
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String?
+  name            String?
+  phone           String?   @unique
+  role            UserRole  @default(CASHIER)
+  emailVerified   DateTime?
   phoneVerifiedAt DateTime?
-  image         String?
+  image           String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -263,9 +263,9 @@ model Session {
 
 /// A distributor manages multiple merchants and their stores on their behalf
 model Distributor {
-  id    String            @id @default(cuid())
+  id    String  @id @default(cuid())
   name  String
-  slug  String            @unique
+  slug  String  @unique
   email String?
   phone String?
   logo  String?
@@ -286,21 +286,86 @@ model Distributor {
   drivers           Driver[]
   deliveryCompanies DeliveryCompany[]
   notificationLogs  DistributorNotificationLog[]
+  apiKeys           ApiKey[]
+  storeDrafts       StoreDraft[]
 
   @@index([slug])
   @@index([status])
   @@map("distributors")
 }
 
+/// Credential issued to a third-party integration (e.g. an AI agent that
+/// generates store drafts on a distributor's behalf). The raw key is shown
+/// to the distributor exactly once at creation time — only its SHA-256 hash
+/// is persisted, and `keyPrefix` (first 12 chars) is kept for display/lookup
+/// in the dashboard without needing to re-hash on every render.
+model ApiKey {
+  id            String    @id @default(cuid())
+  distributorId String
+  name          String
+  keyHash       String    @unique
+  keyPrefix     String
+  scopes        String[]
+  lastUsedAt    DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  distributor Distributor  @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  storeDrafts StoreDraft[]
+
+  @@index([distributorId])
+  @@map("api_keys")
+}
+
+enum StoreDraftStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// AI-agent-submitted store proposal, queued for human review. Approval
+/// creates the real Merchant (+ Category/Product rows) via the same
+/// invite-by-link mechanism as the distributor's manual "Add Merchant" flow
+/// (see /api/distributor/merchants) — the agent never writes Merchant rows
+/// directly.
+model StoreDraft {
+  id              String           @id @default(cuid())
+  distributorId   String
+  apiKeyId        String?
+  prompt          String
+  name            String
+  description     String?
+  slogan          String?
+  primaryColor    String?
+  welcomeText     String?
+  categories      Json             @default("[]") // [{ name, products: [{ name, price, description? }] }]
+  status          StoreDraftStatus @default(PENDING)
+  rejectionReason String?
+  merchantId      String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  apiKey      ApiKey?     @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  merchant    Merchant?   @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+
+  @@index([distributorId, status])
+  @@index([apiKeyId])
+  @@map("store_drafts")
+}
+
 /// External delivery company a distributor can hand off orders to
 /// (as opposed to delivering with the distributor's own Driver fleet).
 model DeliveryCompany {
-  id          String  @id @default(cuid())
+  id            String  @id @default(cuid())
   distributorId String
-  name        String
-  contactName String?
-  phone       String?
-  isActive    Boolean @default(true)
+  name          String
+  contactName   String?
+  phone         String?
+  isActive      Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -308,7 +373,7 @@ model DeliveryCompany {
   distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
   deliveries  Delivery[]
   drivers     Driver[]
-  merchants   Merchant[] @relation("MerchantPreferredDeliveryCompany")
+  merchants   Merchant[]  @relation("MerchantPreferredDeliveryCompany")
 
   @@index([distributorId])
   @@map("delivery_companies")
@@ -316,7 +381,7 @@ model DeliveryCompany {
 
 /// Staff members of a distributor
 model DistributorUser {
-  id            String @id @default(cuid())
+  id            String   @id @default(cuid())
   userId        String
   distributorId String
   role          UserRole
@@ -343,9 +408,9 @@ model DistributorUser {
 
 /// A merchant (business) is the primary tenant boundary
 model Merchant {
-  id          String         @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  slug        String         @unique
+  slug        String  @unique
   description String?
   logo        String?
   coverImage  String?
@@ -380,25 +445,26 @@ model Merchant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  distributor        Distributor?        @relation(fields: [distributorId], references: [id], onDelete: SetNull)
-  commissionPlan     CommissionPlan?     @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
-  preferredDeliveryCompany DeliveryCompany? @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
-  users              MerchantUser[]
-  branches           Branch[]
-  products           Product[]
-  categories         Category[]
-  orders             Order[]
-  customers          Customer[]
-  inventoryItems     InventoryItem[]
-  storefrontSettings StorefrontSettings?
-  notificationLogs   NotificationLog[]
-  roles              Role[]
-  transactions       FinancialTransaction[]
-  settlements        Settlement[]
-  promoCodes         PromoCode[]
-  loyaltyConfig      LoyaltyConfig?
-  conversations      Conversation[]
-  whatsappConfig     WhatsAppConfig?
+  distributor              Distributor?           @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  commissionPlan           CommissionPlan?        @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  preferredDeliveryCompany DeliveryCompany?       @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
+  users                    MerchantUser[]
+  branches                 Branch[]
+  products                 Product[]
+  categories               Category[]
+  orders                   Order[]
+  customers                Customer[]
+  inventoryItems           InventoryItem[]
+  storefrontSettings       StorefrontSettings?
+  notificationLogs         NotificationLog[]
+  roles                    Role[]
+  transactions             FinancialTransaction[]
+  settlements              Settlement[]
+  promoCodes               PromoCode[]
+  loyaltyConfig            LoyaltyConfig?
+  conversations            Conversation[]
+  whatsappConfig           WhatsAppConfig?
+  storeDrafts              StoreDraft[]
 
   @@index([slug])
   @@index([status])
@@ -424,10 +490,10 @@ model MerchantUser {
   updatedAt DateTime @updatedAt
 
   // Relations
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  merchant     Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  assignedRole Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
-  branch       Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchant     Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  assignedRole Role?    @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  branch       Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@unique([userId, merchantId])
   @@index([merchantId])
@@ -461,8 +527,8 @@ model Role {
 model Permission {
   id          String  @id @default(cuid())
   name        String  @unique
-  module      String  // e.g. "orders", "products", "inventory"
-  action      String  // e.g. "create", "read", "update", "delete"
+  module      String // e.g. "orders", "products", "inventory"
+  action      String // e.g. "create", "read", "update", "delete"
   description String?
 
   // Relations
@@ -507,7 +573,7 @@ model Branch {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant       Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchant       Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   merchantUsers  MerchantUser[]
   inventoryItems InventoryItem[]
   orders         Order[]
@@ -558,7 +624,7 @@ model Product {
   name        String
   slug        String
   description String?
-  images      Json   @default("[]") // Array of image URLs
+  images      Json    @default("[]") // Array of image URLs
 
   price          Decimal  @db.Decimal(10, 2)
   compareAtPrice Decimal? @db.Decimal(10, 2) // Strike-through / original price
@@ -574,8 +640,8 @@ model Product {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant      Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  category      Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  merchant      Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  category      Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   modifiers     ProductModifier[]
   inventoryItem InventoryItem?
   orderItems    OrderItem[]
@@ -678,6 +744,7 @@ model StockMovement {
 model Customer {
   id         String          @id @default(cuid())
   merchantId String
+  accountId  String?
   name       String
   phone      String
   email      String?
@@ -686,8 +753,8 @@ model Customer {
   segment    CustomerSegment @default(NEW)
   isBlocked  Boolean         @default(false)
 
-  totalOrders Int      @default(0)
-  totalSpent  Decimal  @default(0) @db.Decimal(10, 2)
+  totalOrders Int       @default(0)
+  totalSpent  Decimal   @default(0) @db.Decimal(10, 2)
   lastOrderAt DateTime?
 
   createdAt DateTime @default(now())
@@ -695,6 +762,7 @@ model Customer {
 
   // Relations
   merchant       Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  account        CustomerAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
   addresses      CustomerAddress[]
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
@@ -703,14 +771,35 @@ model Customer {
   @@index([merchantId])
   @@index([phone])
   @@index([segment])
+  @@index([accountId])
   @@map("customers")
+}
+
+/// Global end-customer identity for the Flutter app — distinct from the
+/// merchant-scoped `Customer` CRM record and from the staff `User` model
+/// (whose `email` is required/unique and unrelated to app customers).
+/// One account can be linked to several per-merchant `Customer` rows.
+model CustomerAccount {
+  id           String  @id @default(cuid())
+  phone        String  @unique
+  passwordHash String
+  name         String
+  fcmToken     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  customers Customer[]
+
+  @@map("customer_accounts")
 }
 
 /// Saved delivery address for a customer
 model CustomerAddress {
   id         String  @id @default(cuid())
   customerId String
-  label      String  // e.g. "Home", "Work"
+  label      String // e.g. "Home", "Work"
   address    String
   area       String?
   city       String?
@@ -735,7 +824,7 @@ model CustomerAddress {
 
 /// The central order entity — scoped to a merchant
 model Order {
-  id          String @id @default(cuid())
+  id          String  @id @default(cuid())
   merchantId  String
   orderNumber String
   customerId  String
@@ -796,7 +885,7 @@ model OrderItem {
   unitPrice Decimal @db.Decimal(10, 2)
   total     Decimal @db.Decimal(10, 2)
 
-  modifiers Json?   // Selected modifiers with prices
+  modifiers Json? // Selected modifiers with prices
   notes     String?
 
   createdAt DateTime @default(now())
@@ -876,7 +965,7 @@ model Payment {
   method  PaymentMethod
   status  PaymentStatus @default(PENDING)
 
-  amount         Decimal  @db.Decimal(10, 2)
+  amount         Decimal   @db.Decimal(10, 2)
   transactionRef String?
   paidAt         DateTime?
   metadata       Json?
@@ -922,10 +1011,10 @@ model NotificationLog {
 
 /// Log of every notification sent within a distributor's scope
 model DistributorNotificationLog {
-  id            String                       @id @default(cuid())
+  id            String                      @id @default(cuid())
   distributorId String
   type          DistributorNotificationType
-  channel       NotificationChannel          @default(IN_APP)
+  channel       NotificationChannel         @default(IN_APP)
 
   title String
   body  String
@@ -974,7 +1063,7 @@ model StorefrontSettings {
   id         String @id @default(cuid())
   merchantId String @unique
 
-  theme       Json?   // { primaryColor, accentColor, layout, ... }
+  theme       Json? // { primaryColor, accentColor, layout, ... }
   bannerImage String?
   welcomeText String?
 
@@ -1053,7 +1142,7 @@ model CommissionPlan {
 
 /// Immutable financial transaction log (distributor-scoped)
 model FinancialTransaction {
-  id            String               @id @default(cuid())
+  id            String  @id @default(cuid())
   distributorId String
   merchantId    String?
   orderId       String?
@@ -1151,32 +1240,32 @@ enum VehicleType {
 }
 
 model Driver {
-  id              String       @id @default(cuid())
-  distributorId   String
+  id                String       @id @default(cuid())
+  distributorId     String
   deliveryCompanyId String?
-  name            String
-  phone           String
-  nationalId      String?
-  photo           String?
-  vehicleType     VehicleType  @default(MOTORCYCLE)
-  vehiclePlate    String?
-  status          DriverStatus @default(OFFLINE)
-  isActive        Boolean      @default(true)
-  isVerified      Boolean      @default(false)
-  rating          Decimal      @default(5.0) @db.Decimal(3, 2)
-  totalDeliveries Int          @default(0)
-  currentLat      Float?
-  currentLng      Float?
-  lastSeenAt      DateTime?
-  notes           String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  name              String
+  phone             String
+  nationalId        String?
+  photo             String?
+  vehicleType       VehicleType  @default(MOTORCYCLE)
+  vehiclePlate      String?
+  status            DriverStatus @default(OFFLINE)
+  isActive          Boolean      @default(true)
+  isVerified        Boolean      @default(false)
+  rating            Decimal      @default(5.0) @db.Decimal(3, 2)
+  totalDeliveries   Int          @default(0)
+  currentLat        Float?
+  currentLng        Float?
+  lastSeenAt        DateTime?
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  distributor     Distributor      @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  deliveryCompany DeliveryCompany? @relation(fields: [deliveryCompanyId], references: [id], onDelete: SetNull)
-  assignments  DriverAssignment[]
-  locationLogs DriverLocationLog[]
-  earnings     DriverEarning[]
+  distributor     Distributor         @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  deliveryCompany DeliveryCompany?    @relation(fields: [deliveryCompanyId], references: [id], onDelete: SetNull)
+  assignments     DriverAssignment[]
+  locationLogs    DriverLocationLog[]
+  earnings        DriverEarning[]
 
   @@unique([distributorId, phone])
   @@index([distributorId])
@@ -1338,17 +1427,17 @@ enum ConvStatus {
 }
 
 model Conversation {
-  id            String       @id @default(cuid())
+  id            String         @id @default(cuid())
   merchantId    String
-  channel       InboxChannel @default(WEB)
+  channel       InboxChannel   @default(WEB)
   customerName  String?
   customerPhone String?
-  status        ConvStatus   @default(OPEN)
+  status        ConvStatus     @default(OPEN)
   assignedToId  String?
   messages      InboxMessage[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  merchant      Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  merchant      Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
 
   @@index([merchantId])
   @@index([status])

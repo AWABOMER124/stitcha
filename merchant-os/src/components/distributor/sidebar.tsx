@@ -27,6 +27,7 @@ function buildNavItems(nav: Dictionary["navDistributor"]): NavItem[] {
     { type: "section", label: nav.operationsSection },
     { type: "link", label: nav.orders, href: "/distributor/orders", icon: "📋" },
     { type: "link", label: nav.approvals, href: "/distributor/approvals", icon: "✅" },
+    { type: "link", label: nav.storeDrafts, href: "/distributor/store-drafts", icon: "🤖" },
     { type: "link", label: nav.drivers, href: "/distributor/drivers", icon: "🏍️" },
     {
       type: "group",
@@ -53,6 +54,7 @@ function buildNavItems(nav: Dictionary["navDistributor"]): NavItem[] {
     { type: "divider" },
     { type: "section", label: nav.settingsSection },
     { type: "link", label: nav.generalSettings, href: "/distributor/settings", icon: "⚙️" },
+    { type: "link", label: nav.apiKeys, href: "/distributor/settings/api-keys", icon: "🔑" },
     { type: "link", label: nav.exportData, href: "/distributor/export", icon: "📤" },
   ];
 }

@@ -143,6 +143,7 @@ export interface Dictionary {
     orders: string;
     approvals: string;
     drivers: string;
+    storeDrafts: string;
     deliveryCompanies: string;
     deliveryCompaniesList: string;
     assignDrivers: string;
@@ -154,6 +155,7 @@ export interface Dictionary {
     priceLists: string;
     settingsSection: string;
     generalSettings: string;
+    apiKeys: string;
     exportData: string;
   };
   navAdmin: {
@@ -262,6 +264,68 @@ export interface Dictionary {
     orders: string;
     ordersDesc: string;
     download: string;
+  };
+  distributorApiKeys: {
+    title: string;
+    subtitle: string;
+    newKeyButton: string;
+    formName: string;
+    formNamePlaceholder: string;
+    formScopes: string;
+    scopeStoresDraft: string;
+    scopeMerchantsRead: string;
+    scopeOrdersRead: string;
+    create: string;
+    creating: string;
+    cancel: string;
+    revealTitle: string;
+    revealHint: string;
+    copy: string;
+    copied: string;
+    close: string;
+    colName: string;
+    colScopes: string;
+    colLastUsed: string;
+    colCreated: string;
+    colStatus: string;
+    statusActive: string;
+    statusRevoked: string;
+    never: string;
+    revoke: string;
+    revokeConfirmTitle: string;
+    revokeConfirmBody: string;
+    revokedToast: string;
+    createdToast: string;
+    empty: string;
+  };
+  distributorStoreDrafts: {
+    title: string;
+    subtitle: string;
+    empty: string;
+    statusPending: string;
+    statusApproved: string;
+    statusRejected: string;
+    promptLabel: string;
+    categoriesLabel: string;
+    productsCount: string;
+    submittedVia: string;
+    approveButton: string;
+    rejectButton: string;
+    phoneLabel: string;
+    phonePlaceholder: string;
+    addressLabel: string;
+    addressPlaceholder: string;
+    submitApprove: string;
+    reasonLabel: string;
+    reasonPlaceholder: string;
+    submitReject: string;
+    cancel: string;
+    submitting: string;
+    approvedNote: string;
+    rejectedNote: string;
+    viewMerchant: string;
+    approvedToast: string;
+    rejectedToast: string;
   };
   crud: {
     cancel: string;
@@ -1669,6 +1733,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       orders: 'Orders',
       approvals: 'Approvals',
       drivers: 'Drivers',
+      storeDrafts: 'Store Drafts (AI)',
       deliveryCompanies: 'Delivery Companies',
       deliveryCompaniesList: 'Companies List',
       assignDrivers: 'Assign Drivers',
@@ -1680,6 +1745,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       priceLists: 'Price Lists',
       settingsSection: 'Settings',
       generalSettings: 'General Settings',
+      apiKeys: 'API Keys',
       exportData: 'Export Data',
     },
     navAdmin: {
@@ -1788,6 +1854,68 @@ export const dictionaries: Record<Locale, Dictionary> = {
       orders: 'Orders',
       ordersDesc: 'Recent orders across all your merchants (last 5,000)',
       download: 'Download CSV',
+    },
+    distributorApiKeys: {
+      title: 'API Keys',
+      subtitle: 'Credentials for third-party AI agents that generate store drafts on your behalf',
+      newKeyButton: '+ New API Key',
+      formName: 'Key name',
+      formNamePlaceholder: 'e.g. Store Generator Agent',
+      formScopes: 'Permissions',
+      scopeStoresDraft: 'Submit store drafts',
+      scopeMerchantsRead: 'Read merchant list',
+      scopeOrdersRead: 'Read order status',
+      create: 'Create key',
+      creating: 'Creating...',
+      cancel: 'Cancel',
+      revealTitle: 'Copy this key now',
+      revealHint: "This is the only time it's shown — it can't be retrieved again after you close this.",
+      copy: 'Copy',
+      copied: 'Copied',
+      close: "I've saved it — close",
+      colName: 'Name',
+      colScopes: 'Permissions',
+      colLastUsed: 'Last used',
+      colCreated: 'Created',
+      colStatus: 'Status',
+      statusActive: 'Active',
+      statusRevoked: 'Revoked',
+      never: 'Never',
+      revoke: 'Revoke',
+      revokeConfirmTitle: 'Revoke this key?',
+      revokeConfirmBody: 'Any agent using "{name}" will immediately lose access. This cannot be undone.',
+      revokedToast: 'Key revoked',
+      createdToast: 'Key created',
+      empty: 'No API keys yet — create one to connect an AI agent.',
+    },
+    distributorStoreDrafts: {
+      title: 'Store Drafts (AI)',
+      subtitle: 'Stores proposed by an AI agent, waiting for your review before they go live',
+      empty: 'No store drafts yet.',
+      statusPending: 'Pending review',
+      statusApproved: 'Approved',
+      statusRejected: 'Rejected',
+      promptLabel: 'Original prompt',
+      categoriesLabel: 'Categories',
+      productsCount: '{count} products',
+      submittedVia: 'Submitted via',
+      approveButton: 'Approve',
+      rejectButton: 'Reject',
+      phoneLabel: 'Store phone',
+      phonePlaceholder: '09XXXXXXXX',
+      addressLabel: 'Store address',
+      addressPlaceholder: 'Neighborhood, city',
+      submitApprove: 'Approve & create store',
+      reasonLabel: 'Reason (optional)',
+      reasonPlaceholder: "Why isn't this a good fit?",
+      submitReject: 'Reject draft',
+      cancel: 'Cancel',
+      submitting: 'Submitting...',
+      approvedNote: 'Approved — the owner was sent a WhatsApp link to finish registration.',
+      rejectedNote: 'Rejected',
+      viewMerchant: 'View merchant →',
+      approvedToast: 'Store created and invite sent',
+      rejectedToast: 'Draft rejected',
     },
     crud: {
       cancel: 'Cancel',
@@ -3181,6 +3309,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       orders: 'الطلبيات',
       approvals: 'الموافقات',
       drivers: 'السائقون',
+      storeDrafts: 'مسودات المتاجر (ذكاء اصطناعي)',
       deliveryCompanies: 'شركات التوصيل',
       deliveryCompaniesList: 'قائمة الشركات',
       assignDrivers: 'تعيين مندوبين',
@@ -3192,6 +3321,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       priceLists: 'قوائم الأسعار',
       settingsSection: 'الإعدادات',
       generalSettings: 'الإعدادات العامة',
+      apiKeys: 'مفاتيح API',
       exportData: 'تصدير البيانات',
     },
     navAdmin: {
@@ -3300,6 +3430,68 @@ export const dictionaries: Record<Locale, Dictionary> = {
       orders: 'الطلبات',
       ordersDesc: 'أحدث الطلبات عبر كل تجارك (آخر 5000)',
       download: 'تنزيل CSV',
+    },
+    distributorApiKeys: {
+      title: 'مفاتيح API',
+      subtitle: 'بيانات اعتماد لوكلاء الذكاء الاصطناعي الخارجيين اللي يولّدون مسودات متاجر نيابة عنك',
+      newKeyButton: '+ مفتاح جديد',
+      formName: 'اسم المفتاح',
+      formNamePlaceholder: 'مثال: وكيل توليد المتاجر',
+      formScopes: 'الصلاحيات',
+      scopeStoresDraft: 'إرسال مسودات متاجر',
+      scopeMerchantsRead: 'قراءة قائمة التجار',
+      scopeOrdersRead: 'قراءة حالة الطلبات',
+      create: 'إنشاء المفتاح',
+      creating: 'جاري الإنشاء...',
+      cancel: 'إلغاء',
+      revealTitle: 'انسخ هذا المفتاح الآن',
+      revealHint: 'هذه المرة الوحيدة اللي بيظهر فيها — ما بتقدر تسترجعه بعد ما تقفل هذه الرسالة.',
+      copy: 'نسخ',
+      copied: 'تم النسخ',
+      close: 'حفظته — إغلاق',
+      colName: 'الاسم',
+      colScopes: 'الصلاحيات',
+      colLastUsed: 'آخر استخدام',
+      colCreated: 'تاريخ الإنشاء',
+      colStatus: 'الحالة',
+      statusActive: 'فعّال',
+      statusRevoked: 'مُلغى',
+      never: 'لم يُستخدم',
+      revoke: 'إلغاء',
+      revokeConfirmTitle: 'إلغاء هذا المفتاح؟',
+      revokeConfirmBody: 'أي وكيل يستخدم "{name}" هيفقد الوصول فوراً. هذا الإجراء لا يمكن التراجع عنه.',
+      revokedToast: 'تم إلغاء المفتاح',
+      createdToast: 'تم إنشاء المفتاح',
+      empty: 'ما فيه مفاتيح API بعد — أنشئ واحداً لربط وكيل ذكاء اصطناعي.',
+    },
+    distributorStoreDrafts: {
+      title: 'مسودات المتاجر (ذكاء اصطناعي)',
+      subtitle: 'متاجر اقترحها وكيل ذكاء اصطناعي، بانتظار مراجعتك قبل ما تصير فعّالة',
+      empty: 'ما فيه مسودات متاجر بعد.',
+      statusPending: 'بانتظار المراجعة',
+      statusApproved: 'تمت الموافقة',
+      statusRejected: 'مرفوضة',
+      promptLabel: 'الوصف الأصلي',
+      categoriesLabel: 'الفئات',
+      productsCount: '{count} منتج',
+      submittedVia: 'أُرسلت عبر',
+      approveButton: 'موافقة',
+      rejectButton: 'رفض',
+      phoneLabel: 'رقم هاتف المتجر',
+      phonePlaceholder: '09XXXXXXXX',
+      addressLabel: 'عنوان المتجر',
+      addressPlaceholder: 'الحي، المدينة',
+      submitApprove: 'موافقة وإنشاء المتجر',
+      reasonLabel: 'السبب (اختياري)',
+      reasonPlaceholder: 'ليش هذا المتجر غير مناسب؟',
+      submitReject: 'رفض المسودة',
+      cancel: 'إلغاء',
+      submitting: 'جاري الإرسال...',
+      approvedNote: 'تمت الموافقة — تم إرسال رابط عبر واتساب لصاحب المتجر لإكمال التسجيل.',
+      rejectedNote: 'مرفوضة',
+      viewMerchant: 'عرض المتجر ←',
+      approvedToast: 'تم إنشاء المتجر وإرسال الدعوة',
+      rejectedToast: 'تم رفض المسودة',
     },
     crud: {
       cancel: 'إلغاء',

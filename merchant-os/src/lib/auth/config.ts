@@ -22,7 +22,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const password = credentials.password as string;
 
         const user = await prisma.user.findFirst({
-          where: { OR: [{ email: identifier }, { phone: identifier }] },
+          where: { OR: [{ email: { equals: identifier, mode: 'insensitive' } }, { phone: identifier }] },
           include: {
             merchantUsers: {
               where: { isActive: true },

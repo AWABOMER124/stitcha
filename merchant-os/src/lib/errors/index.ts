@@ -12,6 +12,7 @@ export {
   ConflictError,
   BusinessRuleError,
   TenantError,
+  RateLimitError,
 } from './app-error';
 
 export { handleError, handleActionError } from './handler';
