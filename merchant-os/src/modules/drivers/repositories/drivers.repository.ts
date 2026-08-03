@@ -83,6 +83,55 @@ export async function findOnlineDrivers(distributorId: string) {
   return serializePrismaArray(drivers);
 }
 
+/** Online, active drivers with a known location and no active (undelivered) assignment — auto-assign candidates. */
+export async function findAvailableDriversForAutoAssign(distributorId: string) {
+  return prisma.driver.findMany({
+    where: {
+      distributorId,
+      status: 'ONLINE',
+      isActive: true,
+      currentLat: { not: null },
+      currentLng: { not: null },
+      assignments: { none: { deliveredAt: null } },
+    },
+    select: { id: true, name: true, currentLat: true, currentLng: true },
+  });
+}
+
+/**
+ * The order's own delivery coordinates if set, else its merchant's main
+ * branch coordinates. Scoped to `distributorId` — returns null (rather than
+ * another distributor's order data) if the order isn't one of theirs.
+ */
+export async function findOrderLocation(distributorId: string, orderId: string): Promise<{ lat: number; lng: number } | null> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, merchant: { distributorId } },
+    select: { merchantId: true, branch: { select: { lat: true, lng: true } } },
+  });
+  if (!order) return null;
+
+  if (order.branch?.lat != null && order.branch?.lng != null) {
+    return { lat: order.branch.lat, lng: order.branch.lng };
+  }
+
+  const mainBranch = await prisma.branch.findFirst({
+    where: { merchantId: order.merchantId, isMain: true },
+    select: { lat: true, lng: true },
+  });
+  if (mainBranch?.lat != null && mainBranch?.lng != null) {
+    return { lat: mainBranch.lat, lng: mainBranch.lng };
+  }
+  return null;
+}
+
+export async function orderBelongsToDistributor(distributorId: string, orderId: string): Promise<boolean> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, merchant: { distributorId } },
+    select: { id: true },
+  });
+  return !!order;
+}
+
 export async function assignDriver(data: AssignDriverInput) {
   return prisma.driverAssignment.upsert({
     where: { orderId: data.orderId },
@@ -157,7 +206,17 @@ export async function getPendingDispatchOrders(distributorId: string) {
     },
     orderBy: { createdAt: 'asc' },
   });
-  return serializePrismaArray(orders);
+
+  // DriverAssignment.orderId isn't a declared Prisma relation on Order, so
+  // exclude already-assigned orders (e.g. auto-assigned on the READY
+  // transition) with a separate lookup instead of an `include`.
+  const assigned = await prisma.driverAssignment.findMany({
+    where: { orderId: { in: orders.map((o) => o.id) }, deliveredAt: null },
+    select: { orderId: true },
+  });
+  const assignedOrderIds = new Set(assigned.map((a) => a.orderId));
+
+  return serializePrismaArray(orders.filter((o) => !assignedOrderIds.has(o.id)));
 }
 
 export async function getDriverEarnings(driverId: string, page: number, limit: number) {

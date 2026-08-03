@@ -1278,6 +1278,10 @@ export interface Dictionary {
     assign: string;
     noDriversAvailable: string;
     minAbbr: string;
+    autoAssign: string;
+    autoAssigning: string;
+    autoAssignedToast: string;
+    orAssignManually: string;
   };
   driversPage: {
     title: string;
@@ -2975,6 +2979,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       assign: 'Assign',
       noDriversAvailable: 'No drivers available — add drivers first',
       minAbbr: 'm',
+      autoAssign: '🎯 Auto-assign nearest driver',
+      autoAssigning: 'Finding nearest driver...',
+      autoAssignedToast: 'Assigned to the nearest available driver',
+      orAssignManually: 'or choose manually',
     },
     driversPage: {
       title: 'Drivers',
@@ -4670,6 +4678,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       assign: 'تعيين',
       noDriversAvailable: 'لا يوجد سائقون متاحون — أضف سائقين أولاً',
       minAbbr: 'د',
+      autoAssign: '🎯 إسناد تلقائي لأقرب سائق',
+      autoAssigning: 'جارٍ البحث عن أقرب سائق...',
+      autoAssignedToast: 'تم الإسناد لأقرب سائق متاح',
+      orAssignManually: 'أو اختر يدوياً',
     },
     driversPage: {
       title: 'السائقون',

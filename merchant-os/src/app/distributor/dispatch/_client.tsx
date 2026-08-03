@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { assignDriverAction } from '@/modules/drivers/actions';
+import { assignDriverAction, autoAssignNearestDriverAction } from '@/modules/drivers/actions';
 import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 
@@ -47,6 +47,18 @@ export function DispatchClient({
       const res = await assignDriverAction({ driverId, orderId });
       if (res.success) {
         setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  function handleAutoAssign(orderId: string) {
+    startTransition(async () => {
+      const res = await autoAssignNearestDriverAction({ orderId });
+      if (res.success) {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+        toast.success(t.autoAssignedToast);
       } else {
         toast.error(res.error);
       }
@@ -104,26 +116,36 @@ export function DispatchClient({
             )}
 
             {initialDrivers.length > 0 ? (
-              <div className="flex gap-2">
-                <select
-                  value={selectedDriver[order.id] ?? ''}
-                  onChange={(e) => setSelectedDriver((p) => ({ ...p, [order.id]: e.target.value }))}
-                  className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-                >
-                  <option value="">{t.chooseDriver}</option>
-                  {initialDrivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} — {d.phone} {d.status === 'ONLINE' ? '🟢' : '⚫'}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2">
                 <button
-                  onClick={() => handleAssign(order.id)}
-                  disabled={isPending || !selectedDriver[order.id]}
-                  className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-40 transition-colors"
+                  onClick={() => handleAutoAssign(order.id)}
+                  disabled={isPending}
+                  className="w-full rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/10 px-4 py-2 text-sm font-bold text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-40 transition-colors"
                 >
-                  {t.assign}
+                  {t.autoAssign}
                 </button>
+                <p className="text-center text-xs text-[var(--muted-foreground)]">{t.orAssignManually}</p>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedDriver[order.id] ?? ''}
+                    onChange={(e) => setSelectedDriver((p) => ({ ...p, [order.id]: e.target.value }))}
+                    className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                  >
+                    <option value="">{t.chooseDriver}</option>
+                    {initialDrivers.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} — {d.phone} {d.status === 'ONLINE' ? '🟢' : '⚫'}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleAssign(order.id)}
+                    disabled={isPending || !selectedDriver[order.id]}
+                    className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-40 transition-colors"
+                  >
+                    {t.assign}
+                  </button>
+                </div>
               </div>
             ) : (
               <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">

@@ -7,6 +7,7 @@ import {
   createDriverSchema,
   updateDriverSchema,
   assignDriverSchema,
+  autoAssignSchema,
 } from './schemas/drivers.schemas';
 import type { ActionResult } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
@@ -79,6 +80,18 @@ export async function assignDriverAction(input: unknown): Promise<ActionResult<u
     const distributorId = await getDistributorId();
     const parsed = assignDriverSchema.parse(input);
     const data = await driversService.assignDriver(distributorId, parsed);
+    revalidatePath('/distributor/dispatch');
+    return { success: true, data };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Failed' };
+  }
+}
+
+export async function autoAssignNearestDriverAction(input: unknown): Promise<ActionResult<unknown>> {
+  try {
+    const distributorId = await getDistributorId();
+    const parsed = autoAssignSchema.parse(input);
+    const data = await driversService.autoAssignNearestDriverOrThrow(distributorId, parsed.orderId);
     revalidatePath('/distributor/dispatch');
     return { success: true, data };
   } catch (e) {

@@ -3,6 +3,7 @@ import { NotFoundError, BusinessRuleError, ValidationError } from '@/lib/errors'
 import * as ordersRepo from '../repositories/orders.repository';
 import * as inventoryService from '@/modules/inventory/services/inventory.service';
 import * as customerSubscriptionsService from '@/modules/customer-subscriptions/services/customer-subscriptions.service';
+import * as driversService from '@/modules/drivers/services/drivers.service';
 import type { CreateOrderInput, OrderFilterInput } from '../schemas/orders.schemas';
 import type { OrderStatus } from '@prisma/client';
 import { nanoid } from 'nanoid';
@@ -210,6 +211,23 @@ export async function updateOrderStatus(
   }
 
   const updated = await ordersRepo.updateStatus(merchantId, id, newStatus, note, userId);
+
+  // Hybrid driver assignment: automation's first attempt is the nearest
+  // available driver; if that fails (no location data, nobody online), the
+  // order is simply left for a human to assign manually from the dispatch
+  // board. Only meaningful for the platform's own delivery fleet — a
+  // merchant handling its own delivery or an external company has no Driver
+  // records to assign.
+  if (newStatus === 'READY' && order.deliveryMethod === 'WASLAK_DELIVERY') {
+    try {
+      const merchantRecord = await prisma.merchant.findUnique({ where: { id: merchantId }, select: { distributorId: true } });
+      if (merchantRecord?.distributorId) {
+        await driversService.autoAssignNearestDriver(merchantRecord.distributorId, id);
+      }
+    } catch (err) {
+      console.error('[orders] Auto-assign nearest driver failed for order', order.orderNumber, err);
+    }
+  }
 
   if (STOCK_RESTORING_STATUSES.includes(newStatus)) {
     // Best-effort, same reasoning as the deduction side in createOrder().

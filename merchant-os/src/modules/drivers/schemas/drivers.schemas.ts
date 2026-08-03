@@ -21,6 +21,10 @@ export const assignDriverSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+export const autoAssignSchema = z.object({
+  orderId: z.string().cuid(),
+});
+
 export const updateLocationSchema = z.object({
   driverId: z.string().cuid(),
   lat: z.number().min(-90).max(90),
@@ -33,4 +37,5 @@ export const updateLocationSchema = z.object({
 export type CreateDriverInput = z.infer<typeof createDriverSchema>;
 export type UpdateDriverInput = z.infer<typeof updateDriverSchema>;
 export type AssignDriverInput = z.infer<typeof assignDriverSchema>;
+export type AutoAssignInput = z.infer<typeof autoAssignSchema>;
 export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;

@@ -23,10 +23,15 @@ const customerSubscriptionsServiceMock = {
   hasActiveDeliveryPerk: vi.fn(),
 };
 
+const driversServiceMock = {
+  autoAssignNearestDriver: vi.fn(),
+};
+
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
 vi.mock('../repositories/orders.repository', () => ordersRepoMock);
 vi.mock('@/modules/inventory/services/inventory.service', () => inventoryServiceMock);
 vi.mock('@/modules/customer-subscriptions/services/customer-subscriptions.service', () => customerSubscriptionsServiceMock);
+vi.mock('@/modules/drivers/services/drivers.service', () => driversServiceMock);
 
 const { createOrder, updateOrderStatus, getOrder } = await import('./orders.service');
 
@@ -43,6 +48,7 @@ function resetMocks() {
   ordersRepoMock.updateStatus.mockReset();
   inventoryServiceMock.deductForOrder.mockReset().mockResolvedValue([]);
   inventoryServiceMock.restoreForCancellation.mockReset().mockResolvedValue([]);
+  driversServiceMock.autoAssignNearestDriver.mockReset().mockResolvedValue(null);
 }
 
 describe('orders.service', () => {
@@ -310,6 +316,64 @@ describe('orders.service', () => {
       inventoryServiceMock.restoreForCancellation.mockRejectedValue(new Error('db down'));
 
       await expect(updateOrderStatus('merchant_1', 'order_1', 'CANCELLED' as never)).resolves.toBeTruthy();
+    });
+  });
+
+  describe('updateOrderStatus — hybrid driver auto-assignment on READY', () => {
+    const wasaklOrder = (status: string) => ({
+      id: 'order_1',
+      status,
+      orderNumber: 'ORD-SM1',
+      deliveryMethod: 'WASLAK_DELIVERY',
+      items: [{ productId: 'prod_1', quantity: 1 }],
+    });
+
+    it('auto-assigns the nearest driver when a WASLAK_DELIVERY order becomes READY', async () => {
+      ordersRepoMock.findById.mockResolvedValue(wasaklOrder('PREPARING'));
+      ordersRepoMock.updateStatus.mockResolvedValue(wasaklOrder('READY'));
+      prismaMock.merchant.findUnique.mockResolvedValue({ distributorId: 'dist_1' });
+
+      await updateOrderStatus('merchant_1', 'order_1', 'READY' as never);
+
+      expect(driversServiceMock.autoAssignNearestDriver).toHaveBeenCalledWith('dist_1', 'order_1');
+    });
+
+    it('does not attempt auto-assignment for a PICKUP order', async () => {
+      const pickupOrder = (status: string) => ({ ...wasaklOrder(status), deliveryMethod: 'PICKUP' });
+      ordersRepoMock.findById.mockResolvedValue(pickupOrder('PREPARING'));
+      ordersRepoMock.updateStatus.mockResolvedValue(pickupOrder('READY'));
+
+      await updateOrderStatus('merchant_1', 'order_1', 'READY' as never);
+
+      expect(driversServiceMock.autoAssignNearestDriver).not.toHaveBeenCalled();
+    });
+
+    it('does not attempt auto-assignment for a merchant with no distributor', async () => {
+      ordersRepoMock.findById.mockResolvedValue(wasaklOrder('PREPARING'));
+      ordersRepoMock.updateStatus.mockResolvedValue(wasaklOrder('READY'));
+      prismaMock.merchant.findUnique.mockResolvedValue({ distributorId: null });
+
+      await updateOrderStatus('merchant_1', 'order_1', 'READY' as never);
+
+      expect(driversServiceMock.autoAssignNearestDriver).not.toHaveBeenCalled();
+    });
+
+    it('does not attempt auto-assignment for transitions other than -> READY', async () => {
+      ordersRepoMock.findById.mockResolvedValue(wasaklOrder('READY'));
+      ordersRepoMock.updateStatus.mockResolvedValue(wasaklOrder('OUT_FOR_DELIVERY'));
+
+      await updateOrderStatus('merchant_1', 'order_1', 'OUT_FOR_DELIVERY' as never);
+
+      expect(driversServiceMock.autoAssignNearestDriver).not.toHaveBeenCalled();
+    });
+
+    it('does not fail the status update if auto-assignment throws (best-effort side effect)', async () => {
+      ordersRepoMock.findById.mockResolvedValue(wasaklOrder('PREPARING'));
+      ordersRepoMock.updateStatus.mockResolvedValue(wasaklOrder('READY'));
+      prismaMock.merchant.findUnique.mockResolvedValue({ distributorId: 'dist_1' });
+      driversServiceMock.autoAssignNearestDriver.mockRejectedValue(new Error('db down'));
+
+      await expect(updateOrderStatus('merchant_1', 'order_1', 'READY' as never)).resolves.toBeTruthy();
     });
   });
 
