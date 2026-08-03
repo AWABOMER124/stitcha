@@ -11,12 +11,6 @@ const _kMerchantLocation = LatLng(15.5518, 32.5324); // merchant/restaurant
 const _kCustomerLocation = LatLng(15.4934, 32.5605); // customer destination
 const _kKhartoumCenter   = LatLng(15.5007, 32.5599); // fallback center
 
-// Google Maps API key setup:
-//   Android → android/app/src/main/AndroidManifest.xml
-//     <meta-data android:name="com.google.android.geo.API_KEY" android:value="YOUR_KEY"/>
-//   iOS → ios/Runner/AppDelegate.swift
-//     GMSServices.provideAPIKey("YOUR_KEY")
-
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   final String orderId;
   const OrderTrackingScreen({super.key, required this.orderId});
@@ -42,7 +36,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       case 'preparing':
         next = _kMerchantLocation;
       case 'delivering':
-        next = const LatLng(
+        next = LatLng(
           (_kMerchantLocation.latitude + _kCustomerLocation.latitude) / 2,
           (_kMerchantLocation.longitude + _kCustomerLocation.longitude) / 2,
         );

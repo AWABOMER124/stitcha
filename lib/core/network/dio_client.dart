@@ -21,7 +21,9 @@ class DioClient {
   DioClient(this._storage) {
     _dio = Dio(
       BaseOptions(
-        baseUrl: 'https://api.wassalk.com/v1',
+        // TODO: point at the real production domain once merchant-os is deployed.
+        // 10.0.2.2 is the Android emulator's alias for the host machine's localhost.
+        baseUrl: 'http://10.0.2.2:3000/api',
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
         responseType: ResponseType.json,

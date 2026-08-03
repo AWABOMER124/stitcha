@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "494148696771",
+    "project_id": "wassalkapp-hh095a",
+    "storage_bucket": "wassalkapp-hh095a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494148696771:android:4e64038f60337cb71a4076",
+        "android_client_info": {
+          "package_name": "com.example.wassalk_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_RvwNd5XGh0L_xzkbCDNVitMkfXq5j48"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

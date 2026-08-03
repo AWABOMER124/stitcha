@@ -35,3 +35,7 @@ merchant-os/out/
 merchant-os/.vercel
 merchant-os/*.tsbuildinfo
 merchant-os/next-env.d.ts
+
+# Build cache / crash dumps (not source)
+android/.kotlin/
+android/hs_err_pid*.log

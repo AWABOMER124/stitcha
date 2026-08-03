@@ -9,18 +9,12 @@ import 'core/notifications/fcm_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/ui_constants.dart';
 
-// Firebase setup (one-time):
-//   1. Install FlutterFire CLI: dart pub global activate flutterfire_cli
-//   2. Run: flutterfire configure  (generates lib/firebase_options.dart)
-//   3. Uncomment the two imports below:
-// import 'package:firebase_core/firebase_core.dart';
-// import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Uncomment after running `flutterfire configure`:
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const ProviderScope(child: WassalkApp()));
 }
