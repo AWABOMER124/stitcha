@@ -18,6 +18,7 @@ export interface Dictionary {
     or: string;
     somethingWrong: string;
     loading: string;
+    tryAgain: string;
   };
   login: {
     welcomeBack: string;
@@ -153,6 +154,7 @@ export interface Dictionary {
     commissionPlans: string;
     settlements: string;
     priceLists: string;
+    featuredPlacements: string;
     settingsSection: string;
     generalSettings: string;
     apiKeys: string;
@@ -166,6 +168,7 @@ export interface Dictionary {
     merchants: string;
     financeReportsSection: string;
     finance: string;
+    customerSubscriptions: string;
     systemSection: string;
     users: string;
     settings: string;
@@ -326,6 +329,122 @@ export interface Dictionary {
     viewMerchant: string;
     approvedToast: string;
     rejectedToast: string;
+  };
+  distributorFeaturedPlacements: {
+    title: string;
+    subtitle: string;
+    newPlacementButton: string;
+    formMerchant: string;
+    formMerchantPlaceholder: string;
+    formStartsAt: string;
+    formEndsAt: string;
+    formAmount: string;
+    formNotes: string;
+    create: string;
+    creating: string;
+    cancel: string;
+    colMerchant: string;
+    colPeriod: string;
+    colAmount: string;
+    colStatus: string;
+    statusActive: string;
+    statusScheduled: string;
+    statusExpired: string;
+    remove: string;
+    removeConfirmTitle: string;
+    removeConfirmBody: string;
+    empty: string;
+    createdToast: string;
+    removedToast: string;
+  };
+  adminCustomerSubscriptions: {
+    title: string;
+    subtitle: string;
+    newSubscriptionButton: string;
+    formPhone: string;
+    formPhonePlaceholder: string;
+    formStartsAt: string;
+    formEndsAt: string;
+    formNotes: string;
+    grant: string;
+    granting: string;
+    cancel: string;
+    colCustomer: string;
+    colPhone: string;
+    colPeriod: string;
+    colStatus: string;
+    statusActive: string;
+    statusScheduled: string;
+    statusExpired: string;
+    statusCancelled: string;
+    cancelSubscription: string;
+    cancelConfirmTitle: string;
+    cancelConfirmBody: string;
+    empty: string;
+    grantedToast: string;
+    cancelledToast: string;
+  };
+  storefrontPublic: {
+    open: string;
+    closed: string;
+    searchPlaceholder: string;
+    pickupOnlyNote: string;
+    allCategory: string;
+    noProducts: string;
+    noProductsInCategory: string;
+    backToMenu: string;
+    viewCart: string;
+    required: string;
+    chooseUpTo: string;
+    notesLabel: string;
+    notesPlaceholder: string;
+    addToCart: string;
+    storeClosed: string;
+    cartTitle: string;
+    cartEmpty: string;
+    cartEmptySubtitle: string;
+    browseMenu: string;
+    total: string;
+    minOrderNote: string;
+    checkoutButton: string;
+    contactUs: string;
+    messageSent: string;
+    messageSentSubtitle: string;
+    namePlaceholder: string;
+    messagePlaceholder: string;
+    send: string;
+    checkoutTitle: string;
+    orderSummary: string;
+    yourDetails: string;
+    nameLabel: string;
+    fullNamePlaceholder: string;
+    phoneLabel: string;
+    deliveryMethodTitle: string;
+    pickupOption: string;
+    deliveryOption: string;
+    addressPlaceholder: string;
+    notesForMerchant: string;
+    paymentMethodTitle: string;
+    cashOnDelivery: string;
+    confirmOrder: string;
+    placingOrder: string;
+    errNameRequired: string;
+    errAddressRequired: string;
+    errMinOrder: string;
+    errGeneric: string;
+    orderReceivedTitle: string;
+    newOrder: string;
+    orderNumberLabel: string;
+    orderStatusTitle: string;
+    orderDetailsTitle: string;
+    thankYouNote: string;
+    unknownProduct: string;
+    statusNew: string;
+    statusAccepted: string;
+    statusPreparing: string;
+    statusReady: string;
+    statusOutForDelivery: string;
+    statusDelivered: string;
   };
   crud: {
     cancel: string;
@@ -1608,6 +1727,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       or: 'or',
       somethingWrong: 'Something went wrong. Please try again.',
       loading: 'Loading...',
+      tryAgain: 'Try again',
     },
     login: {
       welcomeBack: 'Welcome back',
@@ -1743,6 +1863,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       commissionPlans: 'Commission Plans',
       settlements: 'Settlements',
       priceLists: 'Price Lists',
+      featuredPlacements: 'Featured Placements',
       settingsSection: 'Settings',
       generalSettings: 'General Settings',
       apiKeys: 'API Keys',
@@ -1756,6 +1877,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       merchants: 'Merchants',
       financeReportsSection: 'Finance & Reports',
       finance: 'Finance',
+      customerSubscriptions: 'Customer Subscriptions',
       systemSection: 'System',
       users: 'Users',
       settings: 'Settings',
@@ -1916,6 +2038,122 @@ export const dictionaries: Record<Locale, Dictionary> = {
       viewMerchant: 'View merchant →',
       approvedToast: 'Store created and invite sent',
       rejectedToast: 'Draft rejected',
+    },
+    distributorFeaturedPlacements: {
+      title: 'Featured Placements',
+      subtitle: 'Sell boosted visibility in the customer app discovery feed to merchants in your portfolio',
+      newPlacementButton: '+ New Placement',
+      formMerchant: 'Merchant',
+      formMerchantPlaceholder: 'Select a merchant',
+      formStartsAt: 'Starts',
+      formEndsAt: 'Ends',
+      formAmount: 'Amount (SDG)',
+      formNotes: 'Notes (optional)',
+      create: 'Create placement',
+      creating: 'Creating...',
+      cancel: 'Cancel',
+      colMerchant: 'Merchant',
+      colPeriod: 'Period',
+      colAmount: 'Amount',
+      colStatus: 'Status',
+      statusActive: 'Active now',
+      statusScheduled: 'Scheduled',
+      statusExpired: 'Expired',
+      remove: 'Remove',
+      removeConfirmTitle: 'Remove this placement?',
+      removeConfirmBody: 'This does not refund "{name}" — it just stops the boost immediately.',
+      empty: 'No featured placements yet — sell one to a merchant to boost their visibility.',
+      createdToast: 'Placement created',
+      removedToast: 'Placement removed',
+    },
+    adminCustomerSubscriptions: {
+      title: 'Customer Subscriptions',
+      subtitle: 'Grant a delivery-perk subscription to a Flutter app customer by phone number',
+      newSubscriptionButton: '+ Grant Subscription',
+      formPhone: 'Customer phone',
+      formPhonePlaceholder: '09XXXXXXXX',
+      formStartsAt: 'Starts',
+      formEndsAt: 'Ends',
+      formNotes: 'Notes (optional)',
+      grant: 'Grant subscription',
+      granting: 'Granting...',
+      cancel: 'Cancel',
+      colCustomer: 'Customer',
+      colPhone: 'Phone',
+      colPeriod: 'Period',
+      colStatus: 'Status',
+      statusActive: 'Active now',
+      statusScheduled: 'Scheduled',
+      statusExpired: 'Expired',
+      statusCancelled: 'Cancelled',
+      cancelSubscription: 'Cancel',
+      cancelConfirmTitle: 'Cancel this subscription?',
+      cancelConfirmBody: '"{name}" will lose the delivery perk immediately.',
+      empty: 'No customer subscriptions yet.',
+      grantedToast: 'Subscription granted',
+      cancelledToast: 'Subscription cancelled',
+    },
+    storefrontPublic: {
+      open: 'Open',
+      closed: 'Closed',
+      searchPlaceholder: 'Search products...',
+      pickupOnlyNote: 'Pickup only',
+      allCategory: 'All',
+      noProducts: 'No products found',
+      noProductsInCategory: 'No products in this category',
+      backToMenu: 'Back to menu',
+      viewCart: 'View cart',
+      required: 'Required',
+      chooseUpTo: 'Choose up to {n}',
+      notesLabel: 'Notes (optional)',
+      notesPlaceholder: 'Any special requests...',
+      addToCart: 'Add to cart',
+      storeClosed: 'Store closed',
+      cartTitle: 'Your cart',
+      cartEmpty: 'Your cart is empty',
+      cartEmptySubtitle: 'Add items from the menu to get started',
+      browseMenu: 'Browse menu',
+      total: 'Total',
+      minOrderNote: 'Minimum order {min} SDG — add {remaining} SDG more',
+      checkoutButton: 'Checkout',
+      contactUs: 'Contact us',
+      messageSent: 'Message sent!',
+      messageSentSubtitle: "We'll get back to you soon",
+      namePlaceholder: 'Your name',
+      messagePlaceholder: 'How can we help?',
+      send: 'Send',
+      checkoutTitle: 'Checkout',
+      orderSummary: 'Order summary',
+      yourDetails: 'Your details',
+      nameLabel: 'Name',
+      fullNamePlaceholder: 'Your full name',
+      phoneLabel: 'Phone number',
+      deliveryMethodTitle: 'Delivery method',
+      pickupOption: 'Pickup',
+      deliveryOption: 'Home delivery',
+      addressPlaceholder: 'Detailed address',
+      notesForMerchant: 'Notes for the store (optional)',
+      paymentMethodTitle: 'Payment method',
+      cashOnDelivery: '💵 Cash on delivery',
+      confirmOrder: 'Confirm order',
+      placingOrder: 'Placing your order...',
+      errNameRequired: 'Name and phone number are required',
+      errAddressRequired: 'Address is required for delivery',
+      errMinOrder: 'Minimum order is {min} SDG',
+      errGeneric: 'Something went wrong',
+      orderReceivedTitle: 'Your order has been received',
+      newOrder: 'New order',
+      orderNumberLabel: 'Order #{number}',
+      orderStatusTitle: 'Order status',
+      orderDetailsTitle: 'Order details',
+      thankYouNote: "Thanks for your order! We'll contact you at your registered phone number",
+      unknownProduct: 'Product',
+      statusNew: 'Order placed',
+      statusAccepted: 'Accepted',
+      statusPreparing: 'Preparing',
+      statusReady: 'Ready',
+      statusOutForDelivery: 'On the way',
+      statusDelivered: 'Delivered',
     },
     crud: {
       cancel: 'Cancel',
@@ -3184,6 +3422,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       or: 'أو',
       somethingWrong: 'حدث خطأ ما. حاول مرة أخرى.',
       loading: 'جاري التحميل...',
+      tryAgain: 'حاول مرة أخرى',
     },
     login: {
       welcomeBack: 'أهلاً بعودتك',
@@ -3319,6 +3558,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       commissionPlans: 'خطط العمولات',
       settlements: 'التسويات',
       priceLists: 'قوائم الأسعار',
+      featuredPlacements: 'الظهور المميز',
       settingsSection: 'الإعدادات',
       generalSettings: 'الإعدادات العامة',
       apiKeys: 'مفاتيح API',
@@ -3332,6 +3572,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       merchants: 'التجار',
       financeReportsSection: 'المالية والتقارير',
       finance: 'المالية',
+      customerSubscriptions: 'اشتراكات العملاء',
       systemSection: 'النظام',
       users: 'المستخدمون',
       settings: 'الإعدادات',
@@ -3492,6 +3733,122 @@ export const dictionaries: Record<Locale, Dictionary> = {
       viewMerchant: 'عرض المتجر ←',
       approvedToast: 'تم إنشاء المتجر وإرسال الدعوة',
       rejectedToast: 'تم رفض المسودة',
+    },
+    distributorFeaturedPlacements: {
+      title: 'الظهور المميز',
+      subtitle: 'بيع ظهور مميز في شاشة الاكتشاف بتطبيق العميل لتجار محفظتك',
+      newPlacementButton: '+ ظهور جديد',
+      formMerchant: 'التاجر',
+      formMerchantPlaceholder: 'اختر تاجراً',
+      formStartsAt: 'البداية',
+      formEndsAt: 'النهاية',
+      formAmount: 'المبلغ (SDG)',
+      formNotes: 'ملاحظات (اختياري)',
+      create: 'إنشاء الظهور المميز',
+      creating: 'جاري الإنشاء...',
+      cancel: 'إلغاء',
+      colMerchant: 'التاجر',
+      colPeriod: 'الفترة',
+      colAmount: 'المبلغ',
+      colStatus: 'الحالة',
+      statusActive: 'فعّال الآن',
+      statusScheduled: 'مجدول',
+      statusExpired: 'منتهي',
+      remove: 'إزالة',
+      removeConfirmTitle: 'إزالة هذا الظهور المميز؟',
+      removeConfirmBody: 'هذا لا يسترجع المبلغ من "{name}" — بس يوقف الظهور فوراً.',
+      empty: 'ما فيه ظهور مميز بعد — بيعه لتاجر عشان تعزّز ظهوره.',
+      createdToast: 'تم إنشاء الظهور المميز',
+      removedToast: 'تم إزالة الظهور المميز',
+    },
+    adminCustomerSubscriptions: {
+      title: 'اشتراكات العملاء',
+      subtitle: 'امنح اشتراك مزايا التوصيل لعميل تطبيق الفلاتر برقم هاتفه',
+      newSubscriptionButton: '+ منح اشتراك',
+      formPhone: 'هاتف العميل',
+      formPhonePlaceholder: '09XXXXXXXX',
+      formStartsAt: 'البداية',
+      formEndsAt: 'النهاية',
+      formNotes: 'ملاحظات (اختياري)',
+      grant: 'منح الاشتراك',
+      granting: 'جاري المنح...',
+      cancel: 'إلغاء',
+      colCustomer: 'العميل',
+      colPhone: 'الهاتف',
+      colPeriod: 'الفترة',
+      colStatus: 'الحالة',
+      statusActive: 'فعّال الآن',
+      statusScheduled: 'مجدول',
+      statusExpired: 'منتهي',
+      statusCancelled: 'ملغى',
+      cancelSubscription: 'إلغاء',
+      cancelConfirmTitle: 'إلغاء هذا الاشتراك؟',
+      cancelConfirmBody: '"{name}" هيفقد ميزة التوصيل فوراً.',
+      empty: 'ما فيه اشتراكات عملاء بعد.',
+      grantedToast: 'تم منح الاشتراك',
+      cancelledToast: 'تم إلغاء الاشتراك',
+    },
+    storefrontPublic: {
+      open: 'مفتوح',
+      closed: 'مغلق',
+      searchPlaceholder: 'ابحث عن منتج...',
+      pickupOnlyNote: 'الاستلام من الفرع فقط',
+      allCategory: 'الكل',
+      noProducts: 'لا توجد منتجات',
+      noProductsInCategory: 'لا توجد منتجات في هذا القسم',
+      backToMenu: 'العودة للقائمة',
+      viewCart: 'عرض السلة',
+      required: 'مطلوب',
+      chooseUpTo: 'اختر حتى {n}',
+      notesLabel: 'ملاحظات (اختياري)',
+      notesPlaceholder: 'أي طلبات خاصة...',
+      addToCart: 'أضف للسلة',
+      storeClosed: 'المتجر مغلق',
+      cartTitle: 'سلة الطلبات',
+      cartEmpty: 'السلة فارغة',
+      cartEmptySubtitle: 'أضف منتجات من القائمة للبدء',
+      browseMenu: 'تصفح القائمة',
+      total: 'الإجمالي',
+      minOrderNote: 'الحد الأدنى للطلب {min} SDG — أضف {remaining} SDG',
+      checkoutButton: 'إتمام الطلب',
+      contactUs: 'تواصل معنا',
+      messageSent: 'تم إرسال رسالتك!',
+      messageSentSubtitle: 'سنتواصل معك قريباً',
+      namePlaceholder: 'اسمك',
+      messagePlaceholder: 'كيف نقدر نساعدك؟',
+      send: 'إرسال',
+      checkoutTitle: 'إتمام الطلب',
+      orderSummary: 'ملخص الطلب',
+      yourDetails: 'بياناتك',
+      nameLabel: 'الاسم',
+      fullNamePlaceholder: 'اسمك الكامل',
+      phoneLabel: 'رقم الهاتف',
+      deliveryMethodTitle: 'طريقة الاستلام',
+      pickupOption: 'استلام من الفرع',
+      deliveryOption: 'توصيل للمنزل',
+      addressPlaceholder: 'العنوان التفصيلي',
+      notesForMerchant: 'ملاحظات للمطعم (اختياري)',
+      paymentMethodTitle: 'طريقة الدفع',
+      cashOnDelivery: '💵 الدفع عند الاستلام',
+      confirmOrder: 'تأكيد الطلب',
+      placingOrder: 'جاري إرسال الطلب...',
+      errNameRequired: 'الاسم ورقم الهاتف مطلوبان',
+      errAddressRequired: 'العنوان مطلوب للتوصيل',
+      errMinOrder: 'الحد الأدنى للطلب {min} SDG',
+      errGeneric: 'حدث خطأ',
+      orderReceivedTitle: 'تم استلام طلبك',
+      newOrder: 'طلب جديد',
+      orderNumberLabel: 'طلب رقم {number}',
+      orderStatusTitle: 'حالة الطلب',
+      orderDetailsTitle: 'تفاصيل الطلب',
+      thankYouNote: 'شكراً لطلبك! سنتواصل معك على رقم الهاتف المسجّل',
+      unknownProduct: 'منتج',
+      statusNew: 'تم الطلب',
+      statusAccepted: 'مقبول',
+      statusPreparing: 'يُحضَّر',
+      statusReady: 'جاهز',
+      statusOutForDelivery: 'في الطريق',
+      statusDelivered: 'تم التسليم',
     },
     crud: {
       cancel: 'إلغاء',

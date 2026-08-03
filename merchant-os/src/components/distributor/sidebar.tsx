@@ -49,6 +49,7 @@ function buildNavItems(nav: Dictionary["navDistributor"]): NavItem[] {
         { label: nav.commissionPlans, href: "/distributor/finance/commissions" },
         { label: nav.settlements, href: "/distributor/finance/settlements" },
         { label: nav.priceLists, href: "/distributor/finance/price-lists" },
+        { label: nav.featuredPlacements, href: "/distributor/finance/featured" },
       ],
     },
     { type: "divider" },

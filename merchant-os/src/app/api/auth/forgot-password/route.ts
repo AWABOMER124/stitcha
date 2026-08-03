@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
 import { EmailProvider } from '@/services/notifications/providers/email.provider';
+import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 
 // Password reset emails aren't merchant-scoped (any role can request one), so
 // this sends directly through the EmailProvider rather than the merchant-
@@ -11,6 +12,13 @@ const emailProvider = new EmailProvider();
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export async function POST(req: Request) {
+  if (!checkRateLimit(`forgot-password:${getClientIp(req)}`, 5, 15 * 60_000)) {
+    return NextResponse.json(
+      { message: 'If an account exists for this email, a reset link has been sent.' },
+      { status: 200 }
+    );
+  }
+
   const body = await req.json();
   const { email } = body;
 

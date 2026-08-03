@@ -18,10 +18,10 @@ export async function findAll(merchantId: string) {
   });
 }
 
-/** Find a role by ID with permissions */
-export async function findById(id: string) {
-  return prisma.role.findUnique({
-    where: { id },
+/** Find a role by ID, scoped to the merchant that owns it (excludes system roles — those are never mutable by a merchant) */
+export async function findOwnedById(id: string, merchantId: string) {
+  return prisma.role.findFirst({
+    where: { id, merchantId },
     include: {
       permissions: {
         include: { permission: true },
@@ -45,21 +45,21 @@ export async function create(merchantId: string, data: CreateRoleInput) {
   });
 }
 
-/** Update a role */
-export async function update(id: string, data: UpdateRoleInput) {
-  return prisma.role.update({
+/** Update a role — the mutation itself is scoped by merchantId too (defense-in-depth beyond the service-layer ownership check) */
+export async function update(id: string, merchantId: string, data: UpdateRoleInput) {
+  await prisma.role.updateMany({ where: { id, merchantId }, data });
+  return prisma.role.findUnique({
     where: { id },
-    data,
     include: {
       _count: { select: { permissions: true, merchantUsers: true } },
     },
   });
 }
 
-/** Delete a role */
-export async function remove(id: string) {
-  return prisma.role.delete({
-    where: { id },
+/** Delete a role — scoped by merchantId */
+export async function remove(id: string, merchantId: string) {
+  return prisma.role.deleteMany({
+    where: { id, merchantId },
   });
 }
 

@@ -6,10 +6,10 @@ import { serializePrismaObject } from '@/lib/serialization';
 // Payments Repository — Data access layer
 // ============================================================================
 
-/** Find payment by order ID */
-export async function findByOrder(orderId: string) {
-  const payment = await prisma.payment.findUnique({
-    where: { orderId },
+/** Find payment by order ID — scoped to the merchant that owns the order */
+export async function findByOrder(orderId: string, merchantId: string) {
+  const payment = await prisma.payment.findFirst({
+    where: { orderId, order: { merchantId } },
   });
   return serializePrismaObject(payment);
 }
@@ -32,14 +32,16 @@ export async function create(data: {
   return serializePrismaObject(payment);
 }
 
-/** Update payment status */
-export async function updateStatus(id: string, status: PaymentStatus, paidAt?: Date) {
-  const payment = await prisma.payment.update({
-    where: { id },
+/** Update payment status — scoped to the merchant that owns the underlying order. Returns null if no matching (id, merchant-owned) payment exists. */
+export async function updateStatus(id: string, merchantId: string, status: PaymentStatus, paidAt?: Date) {
+  const result = await prisma.payment.updateMany({
+    where: { id, order: { merchantId } },
     data: {
       status,
       ...(paidAt && { paidAt }),
     },
   });
+  if (result.count === 0) return null;
+  const payment = await prisma.payment.findUnique({ where: { id } });
   return serializePrismaObject(payment);
 }

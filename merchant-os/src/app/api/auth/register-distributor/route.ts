@@ -3,8 +3,13 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
 import * as platformNotificationsService from '@/modules/platform-notifications/services/platform-notifications.service';
+import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 
 export async function POST(req: Request) {
+  if (!checkRateLimit(`register-distributor:${getClientIp(req)}`, 5, 60 * 60_000)) {
+    return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 });
+  }
+
   const body = await req.json();
   const { distributorName, ownerName, phone, password } = body;
 

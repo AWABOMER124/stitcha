@@ -5,6 +5,11 @@ import { useState, useTransition } from 'react';
 import { approveStoreDraftAction, rejectStoreDraftAction } from '@/modules/agent-integration/actions';
 import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
 
 interface DraftCategory {
   name: string;
@@ -24,10 +29,10 @@ export interface StoreDraftListItem {
   apiKey?: { name: string } | null;
 }
 
-const STATUS_STYLES: Record<StoreDraftListItem['status'], string> = {
-  PENDING: 'bg-amber-100 text-amber-700',
-  APPROVED: 'bg-emerald-100 text-emerald-700',
-  REJECTED: 'bg-red-100 text-red-700',
+const STATUS_VARIANT: Record<StoreDraftListItem['status'], 'warning' | 'success' | 'destructive'> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'destructive',
 };
 
 function DraftReviewForm({ draft, onDone }: { draft: StoreDraftListItem; onDone: (updated: Partial<StoreDraftListItem>) => void }) {
@@ -72,18 +77,12 @@ function DraftReviewForm({ draft, onDone }: { draft: StoreDraftListItem; onDone:
   if (mode === null) {
     return (
       <div className="flex gap-2">
-        <button
-          onClick={() => setMode('approve')}
-          className="rounded-lg bg-[var(--primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors"
-        >
+        <Button size="sm" onClick={() => setMode('approve')}>
           {t.approveButton}
-        </button>
-        <button
-          onClick={() => setMode('reject')}
-          className="rounded-lg border border-[var(--border)] px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
-        >
+        </Button>
+        <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50" onClick={() => setMode('reject')}>
           {t.rejectButton}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -94,32 +93,27 @@ function DraftReviewForm({ draft, onDone }: { draft: StoreDraftListItem; onDone:
         {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-xs text-red-700">{error}</div>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.phoneLabel}</label>
-            <input
+            <Label>{t.phoneLabel}</Label>
+            <Input
               type="text" required value={phone} onChange={(e) => setPhone(e.target.value)}
               placeholder={t.phonePlaceholder}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.addressLabel}</label>
-            <input
+            <Label>{t.addressLabel}</Label>
+            <Input
               type="text" required value={address} onChange={(e) => setAddress(e.target.value)}
               placeholder={t.addressPlaceholder}
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
             />
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            type="submit" disabled={isPending}
-            className="rounded-lg bg-[var(--primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors"
-          >
+          <Button type="submit" size="sm" disabled={isPending}>
             {isPending ? t.submitting : t.submitApprove}
-          </button>
-          <button type="button" onClick={() => setMode(null)} className="rounded-lg border border-[var(--border)] px-4 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors">
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => setMode(null)}>
             {t.cancel}
-          </button>
+          </Button>
         </div>
       </form>
     );
@@ -129,23 +123,19 @@ function DraftReviewForm({ draft, onDone }: { draft: StoreDraftListItem; onDone:
     <form onSubmit={submitReject} className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
       {error && <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-xs text-red-700">{error}</div>}
       <div>
-        <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.reasonLabel}</label>
-        <input
+        <Label>{t.reasonLabel}</Label>
+        <Input
           type="text" value={reason} onChange={(e) => setReason(e.target.value)}
           placeholder={t.reasonPlaceholder}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         />
       </div>
       <div className="flex gap-2">
-        <button
-          type="submit" disabled={isPending}
-          className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
-        >
+        <Button type="submit" size="sm" variant="destructive" disabled={isPending}>
           {isPending ? t.submitting : t.submitReject}
-        </button>
-        <button type="button" onClick={() => setMode(null)} className="rounded-lg border border-[var(--border)] px-4 py-2 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors">
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setMode(null)}>
           {t.cancel}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -170,10 +160,7 @@ export function StoreDraftsClient({ initialDrafts }: { initialDrafts: StoreDraft
       </div>
 
       {drafts.length === 0 ? (
-        <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
-          <p className="text-4xl mb-3">🤖</p>
-          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
-        </div>
+        <EmptyState icon="🤖" title={t.empty} />
       ) : (
         <div className="space-y-4">
           {drafts.map((draft) => {
@@ -184,9 +171,7 @@ export function StoreDraftsClient({ initialDrafts }: { initialDrafts: StoreDraft
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-base font-semibold text-[var(--foreground)]">{draft.name}</h3>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[draft.status]}`}>
-                        {statusLabel[draft.status]}
-                      </span>
+                      <Badge variant={STATUS_VARIANT[draft.status]}>{statusLabel[draft.status]}</Badge>
                     </div>
                     {draft.description && <p className="mt-1 text-sm text-[var(--muted-foreground)]">{draft.description}</p>}
                   </div>

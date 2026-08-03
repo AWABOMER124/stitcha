@@ -24,6 +24,7 @@ function buildNavItems(nav: Dictionary['navAdmin']): NavItem[] {
     { type: 'divider' },
     { type: 'section', label: nav.financeReportsSection },
     { type: 'link', label: nav.finance, href: '/admin/finance', icon: '💰' },
+    { type: 'link', label: nav.customerSubscriptions, href: '/admin/customer-subscriptions', icon: '⭐' },
     { type: 'divider' },
     { type: 'section', label: nav.systemSection },
     { type: 'link', label: nav.users, href: '/admin/users', icon: '👤' },

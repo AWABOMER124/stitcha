@@ -198,6 +198,7 @@ type MerchantForApp = {
   logo: string | null;
   coverImage: string | null;
   businessType: string;
+  isFeatured?: boolean;
 };
 
 function mapMerchantForApp(merchant: MerchantForApp) {
@@ -209,6 +210,7 @@ function mapMerchantForApp(merchant: MerchantForApp) {
     rating: null as number | null,
     deliveryTime: DEFAULT_DELIVERY_TIME,
     deliveryFee: DEFAULT_DELIVERY_FEE,
+    isFeatured: merchant.isFeatured ?? false,
   };
 }
 

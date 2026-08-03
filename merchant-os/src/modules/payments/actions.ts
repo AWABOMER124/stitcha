@@ -15,7 +15,7 @@ export async function getPaymentAction(orderId: string): Promise<ActionResult<Pa
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'payments:read');
-    const payment = await paymentsService.getPayment(orderId);
+    const payment = await paymentsService.getPayment(auth.merchantId, orderId);
     return { success: true, data: payment };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to get payment' };
@@ -28,7 +28,7 @@ export async function recordPaymentAction(formData: unknown): Promise<ActionResu
     const auth = await getAuthContext();
     requirePermission(auth, 'payments:create');
     const parsed = recordPaymentSchema.parse(formData);
-    const payment = await paymentsService.recordPayment(parsed);
+    const payment = await paymentsService.recordPayment(auth.merchantId, parsed);
     return { success: true, data: payment };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to record payment' };
@@ -43,7 +43,7 @@ export async function markAsPaidAction(
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'payments:update');
-    const payment = await paymentsService.markAsPaid(id, transactionRef);
+    const payment = await paymentsService.markAsPaid(auth.merchantId, id, transactionRef);
     return { success: true, data: payment };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to mark payment as paid' };
@@ -55,7 +55,7 @@ export async function refundPaymentAction(id: string): Promise<ActionResult<Paym
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'payments:update');
-    const payment = await paymentsService.refund(id);
+    const payment = await paymentsService.refund(auth.merchantId, id);
     return { success: true, data: payment };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to refund payment' };

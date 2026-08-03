@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import prisma from '@/lib/db/prisma';
 import { findMerchantByPhoneNumberId } from '@/modules/whatsapp-channel/services/whatsapp-channel.service';
+import { handleInboundMessage } from '@/modules/whatsapp-ordering/services/whatsapp-ordering.service';
 
 /**
  * Meta WhatsApp Cloud API webhook. One shared URL/App for the whole
@@ -126,6 +127,16 @@ async function processPayload(payload: WhatsAppWebhookPayload) {
             senderName: contactName,
           },
         });
+
+        // Best-effort — the ordering bot is a side channel on top of the
+        // inbox message logged above, never allowed to break it.
+        await handleInboundMessage({
+          merchantId: owner.merchantId,
+          conversationId: conversation.id,
+          customerName: contactName,
+          customerPhone: msg.from,
+          text: msg.text.body,
+        }).catch((err) => console.error('[whatsapp-webhook] ordering bot failed:', err));
       }
     }
   }

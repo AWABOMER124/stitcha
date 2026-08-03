@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLocale } from '@/lib/i18n/context';
 
 type CartItem = {
   productId: string;
@@ -27,6 +28,8 @@ function calcItemTotal(basePrice: number, mods: { price: number }[], qty: number
 
 export function CartClient({ merchant, slug }: { merchant: Merchant; slug: string }) {
   const router = useRouter();
+  const { dict, dir } = useLocale();
+  const t = dict.storefrontPublic;
   const settings = merchant.storefrontSettings;
   const theme = (settings?.theme ?? {}) as Record<string, string>;
   const primary = theme.primaryColor ?? '#b91c1c';
@@ -69,7 +72,7 @@ export function CartClient({ merchant, slug }: { merchant: Merchant; slug: strin
   }
 
   return (
-    <div className="min-h-screen bg-stone-50" dir="rtl">
+    <div className="min-h-screen bg-stone-50" dir={dir}>
       <style>{`:root{--sp:${primary}}`}</style>
 
       <header className="sticky top-0 z-40 bg-white border-b border-stone-200 shadow-sm">
@@ -78,7 +81,7 @@ export function CartClient({ merchant, slug }: { merchant: Merchant; slug: strin
             ← <span>{merchant.name}</span>
           </a>
           <span className="text-stone-300">/</span>
-          <h1 className="font-bold text-stone-900">سلة الطلبات</h1>
+          <h1 className="font-bold text-stone-900">{t.cartTitle}</h1>
         </div>
       </header>
 
@@ -86,14 +89,14 @@ export function CartClient({ merchant, slug }: { merchant: Merchant; slug: strin
         {cart.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🛒</div>
-            <h2 className="text-lg font-semibold text-stone-700">السلة فارغة</h2>
-            <p className="text-sm text-stone-500 mt-2">أضف منتجات من القائمة للبدء</p>
+            <h2 className="text-lg font-semibold text-stone-700">{t.cartEmpty}</h2>
+            <p className="text-sm text-stone-500 mt-2">{t.cartEmptySubtitle}</p>
             <a
               href={`/store/${slug}`}
               className="mt-6 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all"
               style={{ background: primary }}
             >
-              تصفح القائمة
+              {t.browseMenu}
             </a>
           </div>
         ) : (
@@ -134,12 +137,11 @@ export function CartClient({ merchant, slug }: { merchant: Merchant; slug: strin
             <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm space-y-3">
               {minOrder > 0 && subtotal < minOrder && (
                 <p className="text-xs text-amber-600 bg-amber-50 rounded-lg py-2 px-3 text-center">
-                  الحد الأدنى للطلب {minOrder.toLocaleString()} SDG — أضف{' '}
-                  {(minOrder - subtotal).toLocaleString()} SDG
+                  {t.minOrderNote.replace('{min}', minOrder.toLocaleString()).replace('{remaining}', (minOrder - subtotal).toLocaleString())}
                 </p>
               )}
               <div className="flex justify-between text-stone-600 text-sm">
-                <span>الإجمالي</span>
+                <span>{t.total}</span>
                 <span className="font-bold text-stone-900">{subtotal.toLocaleString()} SDG</span>
               </div>
               <button
@@ -152,7 +154,7 @@ export function CartClient({ merchant, slug }: { merchant: Merchant; slug: strin
                 className="w-full py-3.5 rounded-2xl text-white font-bold text-base disabled:opacity-50 transition-all active:scale-95"
                 style={{ background: primary }}
               >
-                {!isOpen ? 'المتجر مغلق' : 'إتمام الطلب'}
+                {!isOpen ? t.storeClosed : t.checkoutButton}
               </button>
             </div>
           </div>

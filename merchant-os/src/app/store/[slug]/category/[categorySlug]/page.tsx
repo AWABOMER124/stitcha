@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import * as service from '@/modules/storefront/services/storefront.service';
+import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 
 export default async function CategoryPage({
   params,
@@ -8,10 +10,14 @@ export default async function CategoryPage({
 }) {
   const { slug, categorySlug } = await params;
 
-  const [storeData, products] = await Promise.all([
+  const [storeData, products, cookieStore] = await Promise.all([
     service.getStoreData(slug).catch(() => null),
     service.getStoreProducts(slug, categorySlug).catch(() => []),
+    cookies(),
   ]);
+  const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
+  const t = dictionaries[locale].storefrontPublic;
+  const dir = locale === 'ar' ? 'rtl' : 'ltr';
 
   if (!storeData) notFound();
 
@@ -21,7 +27,7 @@ export default async function CategoryPage({
   const categoryName = categorySlug.replace(/-/g, ' ');
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-stone-50" dir={dir}>
       <style>{`:root{--sp:${primary}}`}</style>
 
       <header className="sticky top-0 z-40 bg-white border-b border-stone-200 shadow-sm">
@@ -46,13 +52,13 @@ export default async function CategoryPage({
         {products.length === 0 ? (
           <div className="text-center py-16 text-stone-400">
             <div className="text-5xl mb-3">🔍</div>
-            <p>لا توجد منتجات في هذا القسم</p>
+            <p>{t.noProductsInCategory}</p>
             <a
               href={`/store/${slug}`}
               className="mt-5 inline-flex text-sm font-medium px-5 py-2.5 rounded-xl text-white"
               style={{ background: primary }}
             >
-              العودة للقائمة
+              {t.backToMenu}
             </a>
           </div>
         ) : (

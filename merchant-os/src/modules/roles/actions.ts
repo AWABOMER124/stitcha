@@ -41,7 +41,7 @@ export async function updateRoleAction(id: string, formData: unknown): Promise<A
     const auth = await getAuthContext();
     requirePermission(auth, 'roles:update');
     const parsed = updateRoleSchema.parse(formData);
-    const role = await rolesService.updateRole(id, parsed);
+    const role = await rolesService.updateRole(auth.merchantId, id, parsed);
     return { success: true, data: role as unknown as Role };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to update role' };
@@ -53,7 +53,7 @@ export async function deleteRoleAction(id: string): Promise<ActionResult<Role>> 
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'roles:delete');
-    const role = await rolesService.deleteRole(id);
+    const role = await rolesService.deleteRole(auth.merchantId, id);
     return { success: true, data: role };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to delete role' };
@@ -66,7 +66,7 @@ export async function assignPermissionsAction(formData: unknown): Promise<Action
     const auth = await getAuthContext();
     requirePermission(auth, 'roles:update');
     const parsed = assignPermissionsSchema.parse(formData);
-    const result = await rolesService.assignPermissions(parsed.roleId, parsed.permissionIds);
+    const result = await rolesService.assignPermissions(auth.merchantId, parsed.roleId, parsed.permissionIds);
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to assign permissions' };

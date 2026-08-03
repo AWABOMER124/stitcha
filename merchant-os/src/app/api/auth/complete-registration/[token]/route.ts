@@ -3,8 +3,13 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
 import * as distributorNotificationsService from '@/modules/distributor-notifications/services/distributor-notifications.service';
+import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 
-export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ token: string }> }) {
+  if (!checkRateLimit(`complete-registration-get:${getClientIp(req)}`, 30, 15 * 60_000)) {
+    return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 });
+  }
+
   const { token } = await params;
 
   const merchant = await prisma.merchant.findFirst({
@@ -27,6 +32,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
+  if (!checkRateLimit(`complete-registration-post:${getClientIp(req)}`, 10, 15 * 60_000)) {
+    return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 });
+  }
+
   const { token } = await params;
   const body = await req.json();
   const { ownerName, password, businessType } = body;

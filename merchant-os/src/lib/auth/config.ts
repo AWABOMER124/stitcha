@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db/prisma';
 import type { UserRole } from '@prisma/client';
+import { enforceRateLimit, getClientIp } from '@/lib/security/rate-limit';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -12,7 +13,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: 'Email or Phone', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
 
         // The field is still named "email" for the credentials provider
@@ -20,6 +21,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // either an email address or a phone number as the login identifier.
         const identifier = (credentials.email as string).trim();
         const password = credentials.password as string;
+
+        // Two independent limits: coarse per-IP (catches credential-stuffing
+        // across many accounts from one source) and per-identifier (catches
+        // targeted brute-force against one account regardless of IP rotation).
+        enforceRateLimit(`login-ip:${getClientIp(request)}`, 20, 15 * 60_000);
+        enforceRateLimit(`login-id:${identifier.toLowerCase()}`, 8, 15 * 60_000);
 
         const user = await prisma.user.findFirst({
           where: { OR: [{ email: { equals: identifier, mode: 'insensitive' } }, { phone: identifier }] },

@@ -28,6 +28,13 @@ export async function getCategories(merchantId: string) {
   });
 }
 
+// Public, unauthenticated endpoint (storefront page + /api/stores/[id]/products +
+// the external agent's read surface) — capped so a merchant with an unusually
+// large catalog can't turn a single anonymous request into an unbounded query.
+// No real storefront needs more than this on one page; raise it (or move to real
+// cursor pagination) if a legitimate catalog ever gets close to the limit.
+const MAX_STOREFRONT_PRODUCTS = 300;
+
 export async function getProducts(merchantId: string, categoryId?: string, search?: string) {
   const products = await prisma.product.findMany({
     where: {
@@ -52,6 +59,7 @@ export async function getProducts(merchantId: string, categoryId?: string, searc
       },
     },
     orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+    take: MAX_STOREFRONT_PRODUCTS,
   });
   return serializePrismaArray(products);
 }
@@ -77,13 +85,33 @@ const MERCHANT_LIST_SELECT = {
   coverImage: true, businessType: true,
 } as const;
 
+/**
+ * Active merchants for the discovery feed, with currently-paid-featured
+ * merchants (see FeaturedPlacement, sold by distributors — /distributor/finance/featured)
+ * sorted first. `isFeatured` is exposed so the client can badge them visually.
+ */
 export async function listActiveMerchants() {
+  const now = new Date();
   const merchants = await prisma.merchant.findMany({
     where: { isActive: true, status: 'ACTIVE' },
-    select: MERCHANT_LIST_SELECT,
+    select: {
+      ...MERCHANT_LIST_SELECT,
+      featuredPlacements: {
+        where: { startsAt: { lte: now }, endsAt: { gte: now } },
+        select: { id: true },
+        take: 1,
+      },
+    },
     orderBy: { createdAt: 'desc' },
   });
-  return serializePrismaArray(merchants);
+
+  const withFeaturedFlag = merchants.map(({ featuredPlacements, ...m }) => ({
+    ...m,
+    isFeatured: featuredPlacements.length > 0,
+  }));
+  withFeaturedFlag.sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured));
+
+  return serializePrismaArray(withFeaturedFlag);
 }
 
 export async function getMerchantById(id: string) {

@@ -16,26 +16,27 @@ export async function createRole(merchantId: string, data: CreateRoleInput) {
   return rolesRepo.create(merchantId, data);
 }
 
-/** Update a role */
-export async function updateRole(id: string, data: UpdateRoleInput) {
-  const role = await rolesRepo.findById(id);
+/** Update a role — must belong to the calling merchant (system roles are never mutable here) */
+export async function updateRole(merchantId: string, id: string, data: UpdateRoleInput) {
+  const role = await rolesRepo.findOwnedById(id, merchantId);
   if (!role) throw new NotFoundError('Role', id);
-  return rolesRepo.update(id, data);
+  return rolesRepo.update(id, merchantId, data);
 }
 
-/** Delete a role — system roles cannot be deleted */
-export async function deleteRole(id: string) {
-  const role = await rolesRepo.findById(id);
+/** Delete a role — must belong to the calling merchant; system roles cannot be deleted */
+export async function deleteRole(merchantId: string, id: string) {
+  const role = await rolesRepo.findOwnedById(id, merchantId);
   if (!role) throw new NotFoundError('Role', id);
   if (role.isSystem) {
     throw new BusinessRuleError('System roles cannot be deleted');
   }
-  return rolesRepo.remove(id);
+  await rolesRepo.remove(id, merchantId);
+  return role;
 }
 
-/** Assign permissions to a role */
-export async function assignPermissions(roleId: string, permissionIds: string[]) {
-  const role = await rolesRepo.findById(roleId);
+/** Assign permissions to a role — must belong to the calling merchant */
+export async function assignPermissions(merchantId: string, roleId: string, permissionIds: string[]) {
+  const role = await rolesRepo.findOwnedById(roleId, merchantId);
   if (!role) throw new NotFoundError('Role', roleId);
   return rolesRepo.assignPermissions(roleId, permissionIds);
 }

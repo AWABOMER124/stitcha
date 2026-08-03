@@ -37,47 +37,36 @@ export async function getLowStockAlerts(merchantId: string) {
 }
 
 /**
- * Deduct stock when an order is placed.
- * Called by orders service during order creation.
+ * Deduct stock when an order is placed. Called by orders service during
+ * order creation. Products without inventory tracking enabled are skipped
+ * silently (see inventoryRepo.batchAdjustStock).
  */
 export async function deductForOrder(
   merchantId: string,
   items: { productId: string; quantity: number }[]
 ) {
-  const results = [];
-  for (const item of items) {
-    const result = await inventoryRepo.adjustStock(
-      merchantId,
-      item.productId,
-      -item.quantity,
-      'SALE',
-      'Order placed',
-    );
-    results.push(result);
-  }
-  return results;
+  return inventoryRepo.batchAdjustStock(
+    merchantId,
+    items.map((item) => ({ productId: item.productId, delta: -item.quantity })),
+    'SALE',
+    'Order placed',
+  );
 }
 
 /**
- * Restore stock when an order is cancelled.
- * Called by orders service during order cancellation.
+ * Restore stock when an order is cancelled or rejected. Called by orders
+ * service on that status transition.
  */
 export async function restoreForCancellation(
   merchantId: string,
   items: { productId: string; quantity: number }[]
 ) {
-  const results = [];
-  for (const item of items) {
-    const result = await inventoryRepo.adjustStock(
-      merchantId,
-      item.productId,
-      item.quantity,
-      'RETURN',
-      'Order cancelled',
-    );
-    results.push(result);
-  }
-  return results;
+  return inventoryRepo.batchAdjustStock(
+    merchantId,
+    items.map((item) => ({ productId: item.productId, delta: item.quantity })),
+    'RETURN',
+    'Order cancelled',
+  );
 }
 
 /** Get stock movement history for a product */

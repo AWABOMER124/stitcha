@@ -9,6 +9,10 @@ import {
 import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { EmptyState } from '@/components/shared/empty-state';
 
 export interface DeliveryCompany {
   id: string;
@@ -84,12 +88,9 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
 
   return (
     <div className="space-y-5">
-      <button
-        onClick={() => (showForm ? resetForm() : setShowForm(true))}
-        className="rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors"
-      >
+      <Button onClick={() => (showForm ? resetForm() : setShowForm(true))}>
         {showForm ? t.cancel : t.newCompany}
-      </button>
+      </Button>
 
       {showForm && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
@@ -97,48 +98,38 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
           {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.nameLabel}</label>
-              <input
+              <Label>{t.nameLabel}</Label>
+              <Input
                 type="text" required minLength={2}
                 value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder={t.namePlaceholder}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.contactNameLabel}</label>
-              <input
+              <Label>{t.contactNameLabel}</Label>
+              <Input
                 type="text"
                 value={form.contactName} onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.phoneLabel}</label>
-              <input
+              <Label>{t.phoneLabel}</Label>
+              <Input
                 type="text"
                 value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
               />
             </div>
             <div className="sm:col-span-3">
-              <button
-                type="submit" disabled={isPending}
-                className="rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors"
-              >
+              <Button type="submit" disabled={isPending}>
                 {isPending ? t.saving : editingId ? t.save : t.create}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
       )}
 
       {companies.length === 0 && !showForm ? (
-        <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
-          <p className="text-4xl mb-3">🚚</p>
-          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
-          <p className="text-sm text-[var(--muted-foreground)] mt-1">{t.emptySubtitle}</p>
-        </div>
+        <EmptyState icon="🚚" title={t.empty} description={t.emptySubtitle} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {companies.map((c) => (
@@ -163,19 +154,17 @@ export function DeliveryCompaniesClient({ initialCompanies }: { initialCompanies
                 {c._count?.drivers ?? 0} {t.driversSuffix} · {c._count?.merchants ?? 0} {t.linkedMerchantsSuffix}
               </p>
               <div className="mt-4 flex items-center gap-2">
-                <button
-                  onClick={() => startEdit(c)}
-                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
-                >
+                <Button variant="outline" size="sm" onClick={() => startEdit(c)}>
                   {t.edit}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline" size="sm"
                   onClick={() => handleDelete(c)}
                   disabled={isPending}
-                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                  className="text-red-600 hover:bg-red-50"
                 >
                   {t.delete}
-                </button>
+                </Button>
               </div>
             </div>
           ))}

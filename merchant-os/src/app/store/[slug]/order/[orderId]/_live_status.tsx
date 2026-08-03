@@ -3,15 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { OrderStatus } from '@prisma/client';
+import { useLocale } from '@/lib/i18n/context';
 
-const STATUS_STEPS = [
-  { key: 'NEW', label: 'تم الطلب', icon: '📋' },
-  { key: 'ACCEPTED', label: 'مقبول', icon: '✅' },
-  { key: 'PREPARING', label: 'يُحضَّر', icon: '👨‍🍳' },
-  { key: 'READY', label: 'جاهز', icon: '📦' },
-  { key: 'OUT_FOR_DELIVERY', label: 'في الطريق', icon: '🚚' },
-  { key: 'DELIVERED', label: 'تم التسليم', icon: '🎉' },
-];
 const STATUS_ORDER = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
 export interface LiveOrder {
@@ -23,7 +16,18 @@ export interface LiveOrder {
 }
 
 export function LiveOrderStatus({ slug, orderId, initialOrder }: { slug: string; orderId: string; initialOrder: LiveOrder }) {
+  const { dict, locale } = useLocale();
+  const t = dict.storefrontPublic;
   const [status, setStatus] = useState<OrderStatus>(initialOrder.status);
+
+  const STATUS_STEPS = [
+    { key: 'NEW', label: t.statusNew, icon: '📋' },
+    { key: 'ACCEPTED', label: t.statusAccepted, icon: '✅' },
+    { key: 'PREPARING', label: t.statusPreparing, icon: '👨‍🍳' },
+    { key: 'READY', label: t.statusReady, icon: '📦' },
+    { key: 'OUT_FOR_DELIVERY', label: t.statusOutForDelivery, icon: '🚚' },
+    { key: 'DELIVERED', label: t.statusDelivered, icon: '🎉' },
+  ];
 
   useEffect(() => {
     const source = new EventSource(`/api/tracking/${orderId}`);
@@ -42,13 +46,13 @@ export function LiveOrderStatus({ slug, orderId, initialOrder }: { slug: string;
     <div className="space-y-6">
       <div className="text-center">
         <div className="text-5xl mb-3">{status === 'DELIVERED' ? '🎉' : status === 'CANCELLED' ? '❌' : '✅'}</div>
-        <h1 className="text-2xl font-bold text-stone-900">طلب رقم {initialOrder.orderNumber}</h1>
-        <p className="text-stone-500 text-sm mt-1">{new Date(initialOrder.createdAt).toLocaleString('ar-SA')}</p>
+        <h1 className="text-2xl font-bold text-stone-900">{t.orderNumberLabel.replace('{number}', initialOrder.orderNumber)}</h1>
+        <p className="text-stone-500 text-sm mt-1">{new Date(initialOrder.createdAt).toLocaleString(locale === 'ar' ? 'ar-SA' : 'en-US')}</p>
       </div>
 
       {status !== 'CANCELLED' && (
         <div className="bg-white rounded-2xl border border-stone-100 p-5">
-          <h2 className="font-bold text-stone-900 mb-4">حالة الطلب</h2>
+          <h2 className="font-bold text-stone-900 mb-4">{t.orderStatusTitle}</h2>
           <div className="flex items-start justify-between">
             {STATUS_STEPS.map((step, i) => {
               const cur = STATUS_ORDER.indexOf(status);
@@ -69,28 +73,28 @@ export function LiveOrderStatus({ slug, orderId, initialOrder }: { slug: string;
       )}
 
       <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
-        <div className="px-4 py-3 border-b border-stone-100 font-bold text-stone-900">تفاصيل الطلب</div>
+        <div className="px-4 py-3 border-b border-stone-100 font-bold text-stone-900">{t.orderDetailsTitle}</div>
         <div className="divide-y divide-stone-50">
           {initialOrder.items.map((item, i) => {
             const snap = item.productSnapshot as { name?: string } | null;
             return (
               <div key={i} className="px-4 py-3 flex justify-between text-sm">
-                <span className="text-stone-800 font-medium">{snap?.name ?? 'منتج'} × {item.quantity}</span>
+                <span className="text-stone-800 font-medium">{snap?.name ?? t.unknownProduct} × {item.quantity}</span>
                 <span className="text-stone-600">{Number(item.total).toLocaleString()} SDG</span>
               </div>
             );
           })}
         </div>
         <div className="px-4 py-3 bg-stone-50 border-t border-stone-100 flex justify-between font-bold">
-          <span>الإجمالي</span>
+          <span>{t.total}</span>
           <span className="text-red-700">{Number(initialOrder.total).toLocaleString()} SDG</span>
         </div>
       </div>
 
       <div className="text-center space-y-3">
-        <p className="text-sm text-stone-500">شكراً لطلبك! سنتواصل معك على رقم الهاتف المسجّل</p>
+        <p className="text-sm text-stone-500">{t.thankYouNote}</p>
         <Link href={`/store/${slug}`} className="inline-block px-6 py-3 rounded-xl text-white font-bold bg-red-700">
-          طلب جديد
+          {t.newOrder}
         </Link>
       </div>
     </div>

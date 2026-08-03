@@ -111,6 +111,63 @@ export async function adjustStock(
   });
 }
 
+/**
+ * Adjust stock for several products in a single transaction (one DB round-trip
+ * instead of one transaction per line item — see orders.service.ts callers).
+ * Products with no InventoryItem row, or with trackInventory=false, are
+ * silently skipped: inventory tracking is opt-in per product, and an order
+ * for an untracked product isn't an error.
+ */
+export async function batchAdjustStock(
+  merchantId: string,
+  adjustments: { productId: string; delta: number }[],
+  type: StockMovementType,
+  reason: string,
+  reference?: string,
+): Promise<InventoryItem[]> {
+  if (adjustments.length === 0) return [];
+
+  return prisma.$transaction(async (tx) => {
+    const items = await tx.inventoryItem.findMany({
+      where: {
+        merchantId,
+        trackInventory: true,
+        productId: { in: adjustments.map((a) => a.productId) },
+      },
+    });
+    const itemByProduct = new Map(items.map((i) => [i.productId, i]));
+
+    const updated: InventoryItem[] = [];
+    for (const { productId, delta } of adjustments) {
+      const item = itemByProduct.get(productId);
+      if (!item) continue;
+
+      const previousQuantity = item.quantity;
+      const newQuantity = previousQuantity + delta;
+
+      const result = await tx.inventoryItem.update({
+        where: { id: item.id },
+        data: { quantity: newQuantity },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          inventoryItemId: item.id,
+          type,
+          quantity: delta,
+          previousQuantity,
+          newQuantity,
+          reason,
+          reference,
+        },
+      });
+
+      updated.push(result);
+    }
+    return updated;
+  });
+}
+
 /** Update low-stock threshold for a product */
 export async function updateThreshold(merchantId: string, productId: string, threshold: number) {
   return prisma.inventoryItem.updateMany({

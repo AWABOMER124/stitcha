@@ -277,17 +277,18 @@ model Distributor {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users             DistributorUser[]
-  merchants         Merchant[]
-  commissionPlans   CommissionPlan[]
-  transactions      FinancialTransaction[]
-  settlements       Settlement[]
-  deliveryZones     DeliveryZone[]
-  drivers           Driver[]
-  deliveryCompanies DeliveryCompany[]
-  notificationLogs  DistributorNotificationLog[]
-  apiKeys           ApiKey[]
-  storeDrafts       StoreDraft[]
+  users              DistributorUser[]
+  merchants          Merchant[]
+  commissionPlans    CommissionPlan[]
+  transactions       FinancialTransaction[]
+  settlements        Settlement[]
+  deliveryZones      DeliveryZone[]
+  drivers            Driver[]
+  deliveryCompanies  DeliveryCompany[]
+  notificationLogs   DistributorNotificationLog[]
+  apiKeys            ApiKey[]
+  storeDrafts        StoreDraft[]
+  featuredPlacements FeaturedPlacement[]
 
   @@index([slug])
   @@index([status])
@@ -465,6 +466,7 @@ model Merchant {
   conversations            Conversation[]
   whatsappConfig           WhatsAppConfig?
   storeDrafts              StoreDraft[]
+  featuredPlacements       FeaturedPlacement[]
 
   @@index([slug])
   @@index([status])
@@ -790,9 +792,41 @@ model CustomerAccount {
   updatedAt DateTime @updatedAt
 
   // Relations
-  customers Customer[]
+  customers     Customer[]
+  subscriptions CustomerSubscription[]
 
   @@map("customer_accounts")
+}
+
+enum CustomerSubscriptionStatus {
+  ACTIVE
+  CANCELLED
+}
+
+/// Platform-wide delivery-perk subscription for a Flutter-app CustomerAccount
+/// (spans every merchant, unlike the per-merchant Customer/LoyaltyAccount
+/// records) — e.g. a paid "delivery pass". No payment gateway is integrated
+/// yet, so grants are manual (platform admin), not self-serve billing;
+/// `grantedById` is a loose reference to the granting User, same pattern as
+/// other audit fields in this schema (createdById, changedById, ...).
+model CustomerSubscription {
+  id                String                     @id @default(cuid())
+  customerAccountId String
+  plan              String                     @default("FREE_DELIVERY")
+  status            CustomerSubscriptionStatus @default(ACTIVE)
+  startsAt          DateTime
+  endsAt            DateTime
+  grantedById       String?
+  notes             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customerAccount CustomerAccount @relation(fields: [customerAccountId], references: [id], onDelete: Cascade)
+
+  @@index([customerAccountId])
+  @@index([startsAt, endsAt])
+  @@map("customer_subscriptions")
 }
 
 /// Saved delivery address for a customer
@@ -1104,6 +1138,7 @@ enum TransactionType {
   ADJUSTMENT
   REFUND
   SETTLEMENT_PAYOUT
+  FEATURED_PLACEMENT_FEE
 }
 
 enum TransactionDirection {
@@ -1219,6 +1254,32 @@ model DeliveryZone {
 
   @@index([distributorId])
   @@map("delivery_zones")
+}
+
+/// Paid boosted placement for a merchant in the customer-app discovery feed
+/// (see storefront.repository.ts listActiveMerchants / GET /api/stores/featured).
+/// Sold by the distributor to a merchant in their own portfolio for a fixed
+/// window — not a subscription, each placement is its own paid slot so a
+/// merchant can run several non-contiguous campaigns over time.
+model FeaturedPlacement {
+  id            String   @id @default(cuid())
+  merchantId    String
+  distributorId String
+  startsAt      DateTime
+  endsAt        DateTime
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("SDG")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  merchant    Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@index([distributorId])
+  @@index([startsAt, endsAt])
+  @@map("featured_placements")
 }
 
 // ============================================================================
@@ -1434,6 +1495,11 @@ model Conversation {
   customerPhone String?
   status        ConvStatus     @default(OPEN)
   assignedToId  String?
+  /// Numbered-menu WhatsApp ordering-bot state for this thread (see
+  /// whatsapp-ordering module) — null means no bot flow is in progress,
+  /// in which case the conversation behaves exactly like a normal support
+  /// thread. Never touched by non-WhatsApp channels.
+  orderContext  Json?
   messages      InboxMessage[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt

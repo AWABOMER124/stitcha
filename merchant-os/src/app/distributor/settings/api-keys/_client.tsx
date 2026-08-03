@@ -5,6 +5,11 @@ import { createApiKeyAction, revokeApiKeyAction, listApiKeysAction } from '@/mod
 import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/shared/empty-state';
 
 export interface ApiKeyListItem {
   id: string;
@@ -110,44 +115,35 @@ export function ApiKeysClient({ initialKeys }: { initialKeys: ApiKeyListItem[] }
             <code className="flex-1 overflow-x-auto whitespace-nowrap text-sm text-[var(--foreground)]" dir="ltr">
               {revealedKey}
             </code>
-            <button
-              onClick={copyKey}
-              className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
-            >
+            <Button variant="outline" size="sm" onClick={copyKey} className="shrink-0">
               {copied ? t.copied : t.copy}
-            </button>
+            </Button>
           </div>
-          <button
-            onClick={() => setRevealedKey(null)}
-            className="mt-3 rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors"
-          >
+          <Button className="mt-3" onClick={() => setRevealedKey(null)}>
             {t.close}
-          </button>
+          </Button>
         </div>
       )}
 
-      <button
-        onClick={() => (showForm ? resetForm() : setShowForm(true))}
-        className="rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors"
-      >
+      <Button onClick={() => (showForm ? resetForm() : setShowForm(true))}>
         {showForm ? t.cancel : t.newKeyButton}
-      </button>
+      </Button>
 
       {showForm && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
           {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">{t.formName}</label>
-              <input
+              <Label>{t.formName}</Label>
+              <Input
                 type="text" required
                 value={name} onChange={(e) => setName(e.target.value)}
                 placeholder={t.formNamePlaceholder}
-                className="w-full max-w-sm rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                className="max-w-sm"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--foreground)] mb-2">{t.formScopes}</label>
+              <Label className="mb-2">{t.formScopes}</Label>
               <div className="flex flex-col gap-2">
                 {ALL_SCOPES.map((scope) => (
                   <label key={scope} className="flex items-center gap-2 text-sm text-[var(--foreground)]">
@@ -157,21 +153,15 @@ export function ApiKeysClient({ initialKeys }: { initialKeys: ApiKeyListItem[] }
                 ))}
               </div>
             </div>
-            <button
-              type="submit" disabled={isPending || scopes.length === 0}
-              className="rounded-lg bg-[var(--primary)] px-6 py-2.5 text-sm font-bold text-white hover:bg-[var(--primary)]/90 disabled:opacity-50 transition-colors"
-            >
+            <Button type="submit" disabled={isPending || scopes.length === 0}>
               {isPending ? t.creating : t.create}
-            </button>
+            </Button>
           </form>
         </div>
       )}
 
       {keys.length === 0 && !showForm ? (
-        <div className="rounded-xl border-2 border-dashed border-[var(--border)] p-16 text-center">
-          <p className="text-4xl mb-3">🔑</p>
-          <p className="font-semibold text-[var(--foreground)]">{t.empty}</p>
-        </div>
+        <EmptyState icon="🔑" title={t.empty} />
       ) : keys.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--card)]">
           <table className="w-full text-sm">
@@ -197,9 +187,7 @@ export function ApiKeysClient({ initialKeys }: { initialKeys: ApiKeyListItem[] }
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {key.scopes.map((s) => (
-                          <span key={s} className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs text-[var(--foreground)]">
-                            {scopeLabels[s as (typeof ALL_SCOPES)[number]] ?? s}
-                          </span>
+                          <Badge key={s}>{scopeLabels[s as (typeof ALL_SCOPES)[number]] ?? s}</Badge>
                         ))}
                       </div>
                     </td>
@@ -210,23 +198,20 @@ export function ApiKeysClient({ initialKeys }: { initialKeys: ApiKeyListItem[] }
                       {new Date(key.createdAt).toLocaleDateString(locale)}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          revoked ? 'bg-stone-100 text-stone-600' : 'bg-emerald-100 text-emerald-700'
-                        }`}
-                      >
+                      <Badge variant={revoked ? 'muted' : 'success'}>
                         {revoked ? t.statusRevoked : t.statusActive}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-end">
                       {!revoked && (
-                        <button
+                        <Button
+                          variant="outline" size="sm"
                           onClick={() => handleRevoke(key)}
                           disabled={isPending}
-                          className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          className="text-red-600 hover:bg-red-50"
                         >
                           {t.revoke}
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>
