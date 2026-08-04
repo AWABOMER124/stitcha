@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/config';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import * as ordersService from './services/orders.service';
+import { createShipmentForOrder } from '@/modules/delivery-integrations/services/delivery-integrations.service';
 import { createOrderSchema, updateOrderStatusSchema, orderFilterSchema } from './schemas/orders.schemas';
 import type { ActionResult, PaginatedResult } from '@/lib/types';
 import type { Order, OrderStatus } from '@prisma/client';
@@ -119,6 +120,18 @@ export async function assignOrderDeliveryCompanyAction(
   try {
     const distributorId = await getDistributorId();
     const data = await ordersService.assignOrderDeliveryCompany(distributorId, orderId, deliveryCompanyId);
+
+    // Best-effort — only meaningful once the company has a real provider
+    // integration configured (the common case today is a manual/phone
+    // company, which this simply no-ops for). Kept out of ordersService to
+    // avoid a circular import with delivery-integrations, which itself
+    // calls back into ordersService for inbound webhook status updates.
+    if (deliveryCompanyId) {
+      createShipmentForOrder(deliveryCompanyId, orderId).catch((err) =>
+        console.error('[orders] Failed to create external shipment for order', orderId, err)
+      );
+    }
+
     return { success: true, data };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to assign delivery company' };
