@@ -1,15 +1,15 @@
 'use client';
 import { useState } from 'react';
 import { useLocale } from '@/lib/i18n/context';
-
-type AiResult = { name: string; description: string; slogan: string; primaryColor: string; welcomeText: string; categories: { name: string; products: { name: string; price: number; description: string }[] }[] };
+import { generateStoreContentAction, applyAiStoreContentAction } from '@/modules/storefront/actions';
+import type { StoreContentResult } from '@/services/ai/types';
 
 export function AiGeneratorClient() {
   const { dict } = useLocale();
   const t = dict.storefrontAiPage;
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AiResult | null>(null);
+  const [result, setResult] = useState<StoreContentResult | null>(null);
   const [error, setError] = useState('');
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
@@ -18,14 +18,9 @@ export function AiGeneratorClient() {
     if (!prompt.trim()) return;
     setLoading(true); setError(''); setResult(null); setApplied(false);
     try {
-      const res = await fetch('/api/ai/generate-store', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
-      const data = await res.json();
-      if (data.success) setResult(data.data);
-      else setError(data.error ?? t.genericError);
+      const res = await generateStoreContentAction(prompt);
+      if (res.success) setResult(res.data);
+      else setError(res.error || t.genericError);
     } catch { setError(t.connectionError); }
     setLoading(false);
   }
@@ -33,12 +28,10 @@ export function AiGeneratorClient() {
   async function applyToStore() {
     if (!result) return;
     setApplying(true);
-    await fetch('/api/ai/apply-store', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result),
-    }).catch(() => {});
-    setApplying(false); setApplied(true);
+    const res = await applyAiStoreContentAction(result).catch(() => null);
+    setApplying(false);
+    if (res?.success) setApplied(true);
+    else setError((res && !res.success ? res.error : null) || t.genericError);
   }
 
   return (

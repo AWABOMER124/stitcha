@@ -8,6 +8,10 @@ import type { Prisma } from '@prisma/client';
 import { placeOrderSchema } from './schemas/storefront.schemas';
 import * as storefrontService from './services/storefront.service';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
+import { generateStoreContent } from '@/services/ai/ai-store-content.service';
+import type { StoreContentResult } from '@/services/ai/types';
+import * as categoriesService from '@/modules/categories/services/categories.service';
+import * as productsService from '@/modules/products/services/products.service';
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -58,6 +62,79 @@ export async function saveStorefrontSettingsAction(data: {
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'حدث خطأ' };
+  }
+}
+
+/** Generate a draft store (name/content/catalog) from a prompt — preview only, writes nothing. */
+export async function generateStoreContentAction(prompt: string): Promise<ActionResult<StoreContentResult>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
+    enforceRateLimit(`ai-generate:${session.user.merchantId}`, 20, 60 * 60_000);
+    const result = await generateStoreContent(prompt);
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'فشل التوليد' };
+  }
+}
+
+/**
+ * Persists a previously generated draft (see generateStoreContentAction) into
+ * the current session's own store — theme/welcome text plus real
+ * Category/Product rows. Best-effort per item: one bad category/product
+ * doesn't abort the rest, since this only ever adds to an existing store the
+ * merchant can freely edit afterward, never overwrites anything.
+ */
+export async function applyAiStoreContentAction(
+  content: StoreContentResult
+): Promise<ActionResult<{ categoriesCreated: number; productsCreated: number }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
+    const merchantId = session.user.merchantId;
+
+    await saveStorefrontSettingsAction({
+      theme: { primaryColor: content.primaryColor } as Prisma.InputJsonValue,
+      welcomeText: content.welcomeText,
+    });
+
+    let categoriesCreated = 0;
+    let productsCreated = 0;
+    for (const category of content.categories) {
+      try {
+        const createdCategory = await categoriesService.createCategory(merchantId, {
+          name: category.name,
+          sortOrder: 0,
+          isActive: true,
+        });
+        categoriesCreated++;
+        for (const product of category.products) {
+          try {
+            await productsService.createProduct(merchantId, {
+              name: product.name,
+              categoryId: createdCategory.id,
+              price: Math.max(Number(product.price) || 0, 1),
+              description: product.description,
+              images: [],
+              isActive: true,
+              isFeatured: false,
+              sortOrder: 0,
+            });
+            productsCreated++;
+          } catch (err) {
+            console.error('[storefront] AI-apply: failed to create product', product.name, err);
+          }
+        }
+      } catch (err) {
+        console.error('[storefront] AI-apply: failed to create category', category.name, err);
+      }
+    }
+
+    revalidatePath('/dashboard/storefront');
+    revalidatePath('/dashboard/products');
+    return { success: true, data: { categoriesCreated, productsCreated } };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'فشل التطبيق' };
   }
 }
 

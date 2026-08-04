@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
-import prisma from '@/lib/db/prisma';
 import { auth } from '@/lib/auth/config';
-import { WhatsAppProvider } from '@/services/notifications/providers/whatsapp.provider';
-import { uniqueSlug } from '@/lib/slug';
-
-const REGISTRATION_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const whatsAppProvider = new WhatsAppProvider();
+import { createPendingMerchantWithInvite } from '@/modules/merchants/services/merchant-invite.service';
 
 /**
  * Distributor "Add Merchant" — invite-by-link flow. Only collects the
@@ -33,38 +27,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Store name, phone, and location are required' }, { status: 400 });
   }
 
-  const slug = uniqueSlug(name);
-
-  const registrationToken = crypto.randomBytes(24).toString('hex');
-
-  const merchant = await prisma.merchant.create({
-    data: {
-      name,
-      slug,
-      phone,
-      address,
-      businessType: 'OTHER',
-      storeType: 'ONLINE_STORE',
-      status: 'PENDING',
-      distributorId,
-      registrationToken,
-      registrationTokenExpiresAt: new Date(Date.now() + REGISTRATION_LINK_TTL_MS),
-    },
-  });
-
-  const registrationUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/complete-registration/${registrationToken}`;
-
-  try {
-    await whatsAppProvider.send({
-      type: 'SYSTEM',
-      channel: 'WHATSAPP',
-      recipient: phone,
-      title: 'أكمل تسجيل متجرك في وصلك',
-      body: `مرحبًا، تمت إضافة متجر "${name}" على منصة وصلك. أكمل بياناتك من الرابط التالي (صالح لمدة 7 أيام):\n${registrationUrl}`,
-    });
-  } catch (err) {
-    console.error('[distributor/merchants] Failed to send registration link:', err);
-  }
+  const merchant = await createPendingMerchantWithInvite({ name, phone, address, distributorId });
 
   return NextResponse.json({ id: merchant.id, slug: merchant.slug }, { status: 201 });
 }

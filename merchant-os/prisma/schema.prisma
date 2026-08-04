@@ -286,76 +286,11 @@ model Distributor {
   drivers            Driver[]
   deliveryCompanies  DeliveryCompany[]
   notificationLogs   DistributorNotificationLog[]
-  apiKeys            ApiKey[]
-  storeDrafts        StoreDraft[]
   featuredPlacements FeaturedPlacement[]
 
   @@index([slug])
   @@index([status])
   @@map("distributors")
-}
-
-/// Credential issued to a third-party integration (e.g. an AI agent that
-/// generates store drafts on a distributor's behalf). The raw key is shown
-/// to the distributor exactly once at creation time — only its SHA-256 hash
-/// is persisted, and `keyPrefix` (first 12 chars) is kept for display/lookup
-/// in the dashboard without needing to re-hash on every render.
-model ApiKey {
-  id            String    @id @default(cuid())
-  distributorId String
-  name          String
-  keyHash       String    @unique
-  keyPrefix     String
-  scopes        String[]
-  lastUsedAt    DateTime?
-  revokedAt     DateTime?
-  createdAt     DateTime  @default(now())
-
-  distributor Distributor  @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  storeDrafts StoreDraft[]
-
-  @@index([distributorId])
-  @@map("api_keys")
-}
-
-enum StoreDraftStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-/// AI-agent-submitted store proposal, queued for human review. Approval
-/// creates the real Merchant (+ Category/Product rows) via the same
-/// invite-by-link mechanism as the distributor's manual "Add Merchant" flow
-/// (see /api/distributor/merchants) — the agent never writes Merchant rows
-/// directly.
-model StoreDraft {
-  id              String           @id @default(cuid())
-  distributorId   String
-  apiKeyId        String?
-  prompt          String
-  name            String
-  description     String?
-  slogan          String?
-  primaryColor    String?
-  welcomeText     String?
-  categories      Json             @default("[]") // [{ name, products: [{ name, price, description? }] }]
-  status          StoreDraftStatus @default(PENDING)
-  rejectionReason String?
-  merchantId      String?
-  reviewedById    String?
-  reviewedAt      DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  apiKey      ApiKey?     @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
-  merchant    Merchant?   @relation(fields: [merchantId], references: [id], onDelete: SetNull)
-
-  @@index([distributorId, status])
-  @@index([apiKeyId])
-  @@map("store_drafts")
 }
 
 /// External delivery company a distributor can hand off orders to
@@ -492,7 +427,6 @@ model Merchant {
   loyaltyConfig            LoyaltyConfig?
   conversations            Conversation[]
   whatsappConfig           WhatsAppConfig?
-  storeDrafts              StoreDraft[]
   featuredPlacements       FeaturedPlacement[]
 
   @@index([slug])

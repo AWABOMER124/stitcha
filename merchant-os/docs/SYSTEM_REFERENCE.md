@@ -1,13 +1,13 @@
 # دليل النظام التقني الشامل — Waslak Merchant OS
 
 مرجع تقني كامل لمنصة وصلك: البنية، الأدوار، دورة حياة العمل، نموذج البيانات الكامل،
-كل موديول وقدراته، وخريطة سطح الـ API الخارجي بالكامل (تطبيق الفلاتر، السائق، الوكيل
-الذكي، والويب هوك). موجّه لأي مطوّر أو وكيل ذكاء اصطناعي يحتاج فهم النظام ككل قبل
-التكامل معه — وليس فقط جزء الوكيل الخارجي (لهذا راجع
-[`AGENT_INTEGRATION.md`](./AGENT_INTEGRATION.md)).
+كل موديول وقدراته، وخريطة سطح الـ API الخارجي بالكامل (تطبيق الفلاتر، السائق،
+والويب هوك). موجّه لأي مطوّر يحتاج فهم النظام ككل قبل التكامل معه — وليس فقط جزء
+توليد المتجر بالذكاء الاصطناعي (لهذا راجع
+[`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md)).
 
 > **ملاحظة:** هذا الملف يوثّق الكود كما هو فعلياً في المستودع وقت الكتابة
-> (2026-08-02)، وليس تصميماً مثالياً مفترضاً — بما في ذلك الفجوات والنواقص (قسم 9).
+> (2026-08-04)، وليس تصميماً مثالياً مفترضاً — بما في ذلك الفجوات والنواقص (قسم 9).
 
 ---
 
@@ -110,11 +110,14 @@ Platform (PLATFORM_OWNER)
 **ب) تسجيل مباشر (بدون موزّع):** `POST /api/auth/register` — تاجر جديد ينشئ
 حسابه ومتجره مباشرة، حالة `ACTIVE` فوراً، بدون مراجعة.
 
-**ج) عبر وكيل ذكاء اصطناعي (الأحدث):** الوكيل يرسل مسودة محتوى متجر كاملة
-(`POST /api/agent/v1/stores/drafts`) → تُحفظ `StoreDraft` بحالة `PENDING` → موظف
-الموزّع يراجعها ويوافق (يضيف الهاتف/العنوان الحقيقيين) من
-`/distributor/store-drafts` → عندها فقط يتحول لـ `Merchant` حقيقي + فئات/منتجات
-حقيقية. تفاصيل كاملة في [`AGENT_INTEGRATION.md`](./AGENT_INTEGRATION.md).
+**ج) بمساعدة الذكاء الاصطناعي (الأحدث):** الموزّع يكتب وصفاً نصياً في
+`/distributor/merchants/new` (وضع "بالذكاء الاصطناعي")، واصلك نفسها تنادي Claude
+(`ANTHROPIC_API_KEY` في السيرفر — لا مفاتيح خارجية، لا وكيل طرف ثالث) لتوليد
+اسم/وصف/فئات/منتجات، ثم الموزّع يضيف الهاتف/العنوان الحقيقيين (الذكاء الاصطناعي
+ما يقدر يخترعهم) ويؤكد — عندها **مباشرة**، بدون خطوة مراجعة/موافقة منفصلة، يتحول
+لـ `Merchant` بحالة `PENDING` + فئات/منتجات حقيقية، بنفس آلية الدعوة والتفعيل عبر
+OTP الموجودة في المسار (أ). تفاصيل كاملة في
+[`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md).
 
 ### 3.2 إعداد المتجر
 التاجر (أو الوكيل عبر المسار ج) يضيف `Category` → `Product` (مع `Branch` و
@@ -175,11 +178,6 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 - **`Distributor`** — `slug` فريد، `status`, `commissionRate: Decimal(5,2)`.
 - **`DistributorUser`** — جدول ربط الموظف بالموزّع (`@@unique([userId, distributorId])`).
 - **`DeliveryCompany`** — شركة توصيل خارجية يتعامل معها الموزّع.
-- **`ApiKey`** — مفتاح تكامل خارجي (الوكيل الذكي). **يُخزَّن hash فقط**
-  (`keyHash`)، `keyPrefix` للعرض، `scopes: String[]`, `revokedAt` (إلغاء ناعم لا حذف).
-- **`StoreDraft`** (+`StoreDraftStatus`: `PENDING/APPROVED/REJECTED`) — مسودة متجر
-  من وكيل ذكاء اصطناعي بانتظار المراجعة. `categories: Json` غير منظّمة في جداول
-  حقيقية إلا بعد الموافقة.
 
 ### 4.3 التاجر / نواة الـ tenant
 - **`Merchant`** — حدود الـ tenant الأساسية. `slug` فريد، `businessType`,
@@ -238,18 +236,16 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 
 ### أنماط متكررة عبر النموذج كله
 - **soft-state لا حذف صلب:** أعلام `isActive` منتشرة في كل مكان (منتج، فئة، فرع،
-  شركة توصيل، خطة عمولة، منطقة توصيل، كود خصم...)؛ `ApiKey.revokedAt` وحالات
-  `Merchant`/`Distributor` تتبع نفس الفلسفة — تقريباً لا شيء يُحذف صلباً إلا عبر
-  `onDelete: Cascade` من أصل.
+  شركة توصيل، خطة عمولة، منطقة توصيل، كود خصم...)؛ حالات `Merchant`/`Distributor`
+  تتبع نفس الفلسفة — تقريباً لا شيء يُحذف صلباً إلا عبر `onDelete: Cascade` من أصل.
 - **hash فقط للأسرار العابرة:** `PasswordResetToken.tokenHash`,
-  `PhoneVerification.codeHash`, `ApiKey.keyHash` — نمط واحد متكرر بتعليقات
-  متبادلة بينهم في الكود نفسه.
+  `PhoneVerification.codeHash` — نمط واحد متكرر بتعليقات متبادلة بينهم في الكود نفسه.
 - **حقول لقطة للدقة التاريخية:** `Order.customerName/Phone/Address` و
   `OrderItem.productSnapshot` عمداً غير مطبَّعة (denormalized) وقت الكتابة.
 - **مراجع فضفاضة (بدون FK) متكررة:** `createdById`, `changedById`, `assignedToId`،
   وعدة حقول `orderId` في نماذج المالية/الولاء/أرباح السائق — أعمدة نصية عادية،
   على الأغلب لتفادي سلاسل حذف تلقائي عبر جداول السجل/التدقيق.
-- **حقول `Json` كمخرج للبيانات متغيّرة الشكل** بدل جداول جديدة: `StoreDraft.categories`,
+- **حقول `Json` كمخرج للبيانات متغيّرة الشكل** بدل جداول جديدة:
   `Product.images`, `OrderItem.productSnapshot`, `Payment.metadata`,
   `StorefrontSettings.theme`.
 
@@ -281,13 +277,13 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 | `notifications` | لوحة التاجر | جرس إشعارات داخل التطبيق | القنوات الأخرى (SMS/Email/Push/WhatsApp) موجودة بالـ enum بس مش مفعّلة هنا |
 | `distributor-notifications` / `platform-notifications` | بوابة الموزّع / منصة | نفس نمط `notifications`، جداول منفصلة | تُطلَق كأثر جانبي من موديولات تانية (مثلاً تسجيل تاجر يُشعر موزّعه) |
 | `payments` | لوحة التاجر | تسجيل دفعة، تعليم كمدفوعة، استرداد | |
-| `settings` | لوحة التاجر | ملف التاجر + إعدادات المتجر العام (`StorefrontSettings`) | نفس شكل بيانات مسودة الوكيل |
+| `settings` | لوحة التاجر | ملف التاجر + إعدادات المتجر العام (`StorefrontSettings`) | |
 | `distributor-settings` | بوابة الموزّع | ملف الموزّع | |
 | `roles` | لوحة التاجر (مالك) | RBAC مخصص فوق الـ enum المسطّح | |
 | `users` | لوحة التاجر + بوابة الموزّع | دعوة/تعديل/تعطيل موظفين (نسختين متوازيتين) | |
 | `whatsapp-channel` | لوحة التاجر + **ويب هوك خارجي** | إعداد WhatsApp Business API لكل تاجر | يشغّل `/api/webhooks/whatsapp` (HMAC) و`/api/inbox/*` |
 | `reports` | لوحة التاجر | تقارير | ⚠️ **بدون `actions.ts`** — الوحيد المخالف للنمط الموحّد، غالباً يُستدعى مباشرة من صفحات Server Component |
-| `agent-integration` | **الوكيل الذكي الخارجي + بوابة الموزّع** | مسودات متاجر، مفاتيح API، قراءات محفظة/طلبات | راجع [`AGENT_INTEGRATION.md`](./AGENT_INTEGRATION.md) |
+| `ai-store-generator` | **بوابة الموزّع** | توليد متجر (اسم/فئات/منتجات) من وصف نصي عبر Claude، وإنشاء `Merchant` حقيقي مباشرة | راجع [`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md) |
 | `customer-auth` | **تطبيق الفلاتر** | تسجيل/دخول `CustomerAccount` (JWT) | راجع قسم 6 |
 | `storefront` | المتجر العام + تطبيق الفلاتر | تصفح متجر/منتجات، دفع طلب، حالة طلب | يخدم البوابتين معاً |
 | `finance` | بوابة الموزّع | خطط عمولة، تسويات، مناطق توصيل | مبني 2026-06-27، انظر ملاحظة الذاكرة |
@@ -317,21 +313,25 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 `POST /api/webhooks/whatsapp` — Meta WhatsApp Cloud API، توقيع HMAC عبر
 `WHATSAPP_APP_SECRET`، `GET` منفصل للمصافحة الأولية عبر `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
 
-### 6.4 الوكيل الذكي الخارجي (API key)
-`POST/GET /api/agent/v1/stores/drafts`, `GET .../drafts/{id}`,
-`GET /api/agent/v1/merchants`, `GET /api/agent/v1/merchants/{id}/orders` —
-التفاصيل الكاملة (المصادقة، الأمثلة، دورة حياة المراجعة) في
-**[`AGENT_INTEGRATION.md`](./AGENT_INTEGRATION.md)**.
+### 6.4 توليد المتجر بالذكاء الاصطناعي (جلسة NextAuth فقط — لا مفاتيح خارجية)
+واصلك نفسها تنادي Claude مباشرة (`ANTHROPIC_API_KEY` في السيرفر، `fetch` خام
+بدون SDK) عبر `src/services/ai/` — لا وكيل طرف ثالث، لا `ApiKey` تُصدَر لأحد.
+نقطتان تستهلكان نفس `generateStoreContent()`:
+- **لوحة التاجر** (`generateStoreContentAction` / `applyAiStoreContentAction` في
+  `src/modules/storefront/actions.ts`) — التاجر يطلب اقتراح محتوى لمتجره
+  **الموجود بالفعل**، ثم يطبّقه فيُنشئ `Category`/`Product` حقيقية ويحدّث
+  `StorefrontSettings.theme`/`welcomeText`. لا بوابة ثقة جديدة — جلسة موثّقة أصلاً.
+- **بوابة الموزّع** (`src/modules/ai-store-generator/`، وضع "بالذكاء الاصطناعي" في
+  `/distributor/merchants/new`) — الموزّع يولّد محتوى متجر **جديد** كلياً، يضيف
+  الهاتف/العنوان الحقيقيين، ويؤكد — عندها **مباشرة** (بدون خطوة مراجعة/موافقة
+  منفصلة) يتحول لـ `Merchant` بحالة `PENDING`، بنفس مسار الدعوة عبر واتساب
+  وتفعيل OTP الموجود أصلاً (قسم 3.1أ). تفاصيل كاملة في
+  [`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md).
 
-### 6.5 نقطتا الذكاء الاصطناعي الداخليتان (جلسة NextAuth، ليس للوكيل الخارجي)
-هاتان موجودتان فعلاً في النظام ومستقلتان عن تكامل الوكيل الخارجي — تستخدمان
-`ANTHROPIC_API_KEY` مباشرة عبر `fetch` خام (بدون SDK):
-- `POST /api/ai/generate-store` — التاجر يطلب اقتراح محتوى متجر (اسم، فئات،
-  منتجات) من وصف نصي؛ **يرجّع اقتراح فقط، لا يحفظ شيء** — التاجر يراجع ويحفظ يدوياً.
-- `POST /api/inbox/{convId}/suggest-reply` — يقترح رداً على آخر رسالة عميل في
-  صندوق الوارد؛ نفس النمط، اقتراح فقط بدون حفظ/إرسال تلقائي.
+`POST /api/inbox/{convId}/suggest-reply` — نقطة ذكاء اصطناعي ثالثة مستقلة، تقترح
+رداً على آخر رسالة عميل في صندوق الوارد؛ اقتراح فقط بدون حفظ/إرسال تلقائي.
 
-كلاهما يفشل بأمان (`503`) لو `ANTHROPIC_API_KEY` غير مضبوط.
+الثلاثة تفشل بأمان لو `ANTHROPIC_API_KEY` غير مضبوط.
 
 ---
 
@@ -386,8 +386,8 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 - **`ProofOfDelivery` بدون علاقات معرّفة** في المخطط (قسم 4.6) — غير متسق مع
   باقي النماذج.
 - **لا اختبارات آلية** — `scripts/check-raw-prisma-returns.sh` حارس heuristic
-  بسيط، مش بديل عن تغطية اختبارات حقيقية (باستثناء الموديولات المبنية هذه الجلسة:
-  `agent-integration`, `customer-auth`, `storefront.mapOrderStatusForApp`,
+  بسيط، مش بديل عن تغطية اختبارات حقيقية (باستثناء الموديولات المبنية حديثاً:
+  `ai-store-generator`, `customer-auth`, `storefront.mapOrderStatusForApp`,
   `rate-limit` — هذي عندها اختبارات vitest فعلية).
 - **قسم "Scope" في `README.md` قديم/غير دقيق** — بينص إن "تطبيق موبايل للعميل"
   و"تطبيق موبايل للسائق" خارج نطاق المعمارية الحالية عمداً، بينما فعلياً:
@@ -401,7 +401,7 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 
 ## 10. مراجع ذات صلة
 
-- **[`AGENT_INTEGRATION.md`](./AGENT_INTEGRATION.md)** — المرجع الكامل لتكامل
-  الوكيل الذكي الخارجي (المصادقة، كل endpoint بأمثلة، دورة حياة المراجعة).
+- **[`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md)** — المرجع الكامل لتوليد
+  المتجر بالذكاء الاصطناعي (كيف يعمل، نقطتا الاستهلاك، بوابة الثقة عبر OTP).
 - **`../README.md`** — دليل المطوّر الداخلي (إعداد بيئة التطوير، قواعد الـ tenancy
   والـ serialization بالتفصيل، قائمة الفحص اليدوي قبل الشحن).
