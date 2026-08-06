@@ -306,10 +306,10 @@ model DeliveryCompany {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  distributor Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  deliveries  Delivery[]
-  drivers     Driver[]
-  merchants   Merchant[]  @relation("MerchantPreferredDeliveryCompany")
+  distributor    Distributor             @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  deliveries     Delivery[]
+  drivers        Driver[]
+  merchants      Merchant[]              @relation("MerchantPreferredDeliveryCompany")
   providerConfig DeliveryProviderConfig?
 
   @@index([distributorId])
@@ -851,13 +851,14 @@ model Order {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant      Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  customer      Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  branch        Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  items         OrderItem[]
-  statusHistory OrderStatusHistory[]
-  delivery      Delivery?
-  payment       Payment?
+  merchant        Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer        Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch          Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  delivery        Delivery?
+  payment         Payment?
+  proofOfDelivery ProofOfDelivery?
 
   @@unique([merchantId, orderNumber])
   @@index([merchantId])
@@ -1287,14 +1288,21 @@ model Driver {
   currentLng        Float?
   lastSeenAt        DateTime?
   notes             String?
+  // Bearer credential for POST /api/driver/location — the driver-side
+  // app/device authenticates with this instead of a raw, guessable driverId.
+  // Not hashed (same trust model as Merchant.registrationToken /
+  // DeliveryProviderConfig.webhookToken): needs to stay legible so a
+  // distributor can re-share it if a driver's device is reconfigured.
+  locationToken     String       @unique @default(cuid())
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  distributor     Distributor         @relation(fields: [distributorId], references: [id], onDelete: Cascade)
-  deliveryCompany DeliveryCompany?    @relation(fields: [deliveryCompanyId], references: [id], onDelete: SetNull)
-  assignments     DriverAssignment[]
-  locationLogs    DriverLocationLog[]
-  earnings        DriverEarning[]
+  distributor      Distributor         @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  deliveryCompany  DeliveryCompany?    @relation(fields: [deliveryCompanyId], references: [id], onDelete: SetNull)
+  assignments      DriverAssignment[]
+  locationLogs     DriverLocationLog[]
+  earnings         DriverEarning[]
+  proofsOfDelivery ProofOfDelivery[]
 
   @@unique([distributorId, phone])
   @@index([distributorId])
@@ -1362,6 +1370,10 @@ model ProofOfDelivery {
   lat           Float?
   lng           Float?
 
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
   @@map("proof_of_deliveries")
 }
 

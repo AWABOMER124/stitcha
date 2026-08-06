@@ -34,6 +34,15 @@ export const updateLocationSchema = z.object({
   accuracy: z.number().optional(),
 });
 
+/** Body shape for POST /api/driver/location — driverId is derived from the Bearer token, never trusted from the client. */
+export const driverLocationPingSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  speed: z.number().optional(),
+  bearing: z.number().optional(),
+  accuracy: z.number().optional(),
+});
+
 export type CreateDriverInput = z.infer<typeof createDriverSchema>;
 export type UpdateDriverInput = z.infer<typeof updateDriverSchema>;
 export type AssignDriverInput = z.infer<typeof assignDriverSchema>;

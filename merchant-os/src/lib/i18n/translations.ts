@@ -1270,6 +1270,10 @@ export interface Dictionary {
     delivered: string;
     inProgress: string;
     recentEarningsTitle: string;
+    locationTokenTitle: string;
+    locationTokenDesc: string;
+    locationTokenCopy: string;
+    locationTokenCopied: string;
   };
   driverEarningsPage: {
     breadcrumb: string;
@@ -2926,6 +2930,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       delivered: 'Delivered',
       inProgress: 'In progress',
       recentEarningsTitle: 'Recent earnings',
+      locationTokenTitle: 'Location tracking token',
+      locationTokenDesc: "Set this in the driver's tracking app/device so it can authenticate — treat it like a password, do not share it publicly.",
+      locationTokenCopy: 'Copy token',
+      locationTokenCopied: '✓ Copied',
     },
     driverEarningsPage: {
       breadcrumb: 'Earnings & dues',
@@ -4580,6 +4588,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       delivered: 'تم التوصيل',
       inProgress: 'جاري',
       recentEarningsTitle: 'الأرباح الأخيرة',
+      locationTokenTitle: 'رمز تتبع الموقع',
+      locationTokenDesc: 'ضع هذا الرمز في تطبيق/جهاز تتبع السائق عشان يقدر يوثّق نفسه — تعامل معه زي كلمة السر، لا تشاركه علناً.',
+      locationTokenCopy: 'نسخ الرمز',
+      locationTokenCopied: '✓ تم النسخ',
     },
     driverEarningsPage: {
       breadcrumb: 'الأرباح والمستحقات',

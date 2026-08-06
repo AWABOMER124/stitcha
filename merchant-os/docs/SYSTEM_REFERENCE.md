@@ -208,11 +208,12 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 - **`OrderStatusHistory`** — سجل تدقيق دائم لكل تغيير حالة.
 - **`Delivery`** (1:1 مع الطلب) / **`Payment`** (1:1 مع الطلب، `metadata: Json`
   لبيانات بوابة الدفع).
-- **`Driver`** (مقيّد بموزّع لا تاجر) / **`DriverAssignment`** / **`DriverLocationLog`**
-  (سجل GPS عالي التردد) / **`DriverEarning`**.
-- **`ProofOfDelivery`** — ⚠️ **لاحظ:** لا يملك أي علاقة معرّفة فعلياً (`orderId`/`driverId`
-  أعمدة نصية بدون `@relation` أو فهرسة) — غير متسق مع باقي النماذج، على الأرجح ثغرة
-  تصميم لم تُستكمل، يستحق الانتباه لو حد هيبني عليه.
+- **`Driver`** (مقيّد بموزّع لا تاجر) — `locationToken` فريد (`@default(cuid())`)
+  يُشترَط كـ Bearer على `POST /api/driver/location` بدل الثقة بـ `driverId` خام؛
+  مُستبعَد عمداً من استعلام قائمة السائقين (`omit`) ولا يظهر إلا في صفحة تفاصيل
+  السائق. / **`DriverAssignment`** / **`DriverLocationLog`** (سجل GPS عالي
+  التردد) / **`DriverEarning`** / **`ProofOfDelivery`** (علاقات `Order`/`Driver`
+  معرّفة بالكامل، `onDelete: Cascade`).
 
 ### 4.7 المالية
 **`CommissionPlan`** (`PERCENTAGE/FLAT_FEE/HYBRID/SUBSCRIPTION`) / **`FinancialTransaction`**
@@ -306,8 +307,10 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 | `GET /api/orders/history` | طلبات العميل الحالي |
 | `GET /api/tracking/{orderId}` | **Server-Sent Events** حي لحالة الطلب (ليس WebSocket) |
 
-### 6.2 السائق (بلا مصادقة حقيقية)
-`POST /api/driver/location` — يتطلب `driverId` صالح بس مفيش أي توكن/تحقق هوية.
+### 6.2 السائق
+`POST /api/driver/location` — مصادقة `Authorization: Bearer <Driver.locationToken>`
+(توكن فريد لكل سائق، يظهر في صفحة تفاصيل السائق ببوابة الموزّع). `driverId` يُشتَق
+من التوكن نفسه، لا يُقبَل أبداً من جسم الطلب.
 
 ### 6.3 الويب هوك (خارجي، موقّع)
 `POST /api/webhooks/whatsapp` — Meta WhatsApp Cloud API، توقيع HMAC عبر
@@ -379,12 +382,6 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
   (BullMQ إلخ). غير مذكور في قائمة "Known Limitations" الأصلية في README.
 - **تخزين الملفات محلي افتراضياً** — غير دائم على استضافة متعددة النسخ/ephemeral
   بدون S3.
-- **مفتاحا واتساب/التشفير غير موثّقين في `.env.example`** رغم إنهما مطلوبان فعلياً
-  (قسم 8) — سبب محتمل لأعطال إنتاج صامتة أول مرة تُستخدم ميزة واتساب/تشفير.
-- **مصادقة `POST /api/driver/location` ضعيفة** — `driverId` خام فقط بدون توكن،
-  قابل للانتحال لو حد عرف/خمّن معرّف سائق صالح.
-- **`ProofOfDelivery` بدون علاقات معرّفة** في المخطط (قسم 4.6) — غير متسق مع
-  باقي النماذج.
 - **لا اختبارات آلية** — `scripts/check-raw-prisma-returns.sh` حارس heuristic
   بسيط، مش بديل عن تغطية اختبارات حقيقية (باستثناء الموديولات المبنية حديثاً:
   `ai-store-generator`, `customer-auth`, `storefront.mapOrderStatusForApp`,

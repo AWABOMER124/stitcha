@@ -14,6 +14,7 @@ interface DriverDetail extends DriverProfile {
   vehicleType: string;
   vehiclePlate: string | null;
   nationalId: string | null;
+  locationToken: string;
   _count?: { assignments: number };
 }
 

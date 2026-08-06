@@ -1,45 +1,37 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
+import { driverLocationPingSchema } from '@/modules/drivers/schemas/drivers.schemas';
+import * as driversService from '@/modules/drivers/services/drivers.service';
 
+/**
+ * Driver-side location ping. Authenticated by `Authorization: Bearer
+ * <Driver.locationToken>` — a long-lived per-driver credential (see the
+ * driver detail page in the distributor dashboard), never by a raw driverId
+ * in the body. A raw driverId would let anyone who saw/guessed one spoof
+ * that driver's location or mark them ONLINE.
+ */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { driverId, lat, lng, speed, bearing, accuracy } = body as {
-      driverId?: string;
-      lat?: number;
-      lng?: number;
-      speed?: number;
-      bearing?: number;
-      accuracy?: number;
-    };
-
-    if (!driverId || lat == null || lng == null) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+    if (!token) {
+      return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 });
     }
 
     const driver = await prisma.driver.findFirst({
-      where: { id: driverId, isActive: true },
+      where: { locationToken: token, isActive: true },
+      select: { id: true },
     });
     if (!driver) {
-      return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    await prisma.$transaction([
-      prisma.driver.update({
-        where: { id: driverId },
-        data: { currentLat: lat, currentLng: lng, lastSeenAt: new Date(), status: 'ONLINE' },
-      }),
-      prisma.driverLocationLog.create({
-        data: {
-          driverId,
-          lat,
-          lng,
-          speed: speed ?? null,
-          bearing: bearing ?? null,
-          accuracy: accuracy ?? null,
-        },
-      }),
-    ]);
+    const parsed = driverLocationPingSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid location data' }, { status: 400 });
+    }
+
+    await driversService.updateLocation({ driverId: driver.id, ...parsed.data });
 
     return NextResponse.json({ success: true });
   } catch {

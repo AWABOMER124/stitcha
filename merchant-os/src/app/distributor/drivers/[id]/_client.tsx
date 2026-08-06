@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { updateDriverAction } from '@/modules/drivers/actions';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
@@ -26,6 +26,7 @@ export interface DriverProfile {
   id: string;
   isVerified: boolean;
   isActive: boolean;
+  locationToken: string;
   assignments?: Assignment[];
   earnings?: Earning[];
 }
@@ -56,6 +57,8 @@ export function DriverProfileClient({ driver }: { driver: DriverProfile }) {
 
   return (
     <div className="space-y-5">
+      <LocationTokenCard token={driver.locationToken} t={t} />
+
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
         <h3 className="font-bold text-[var(--foreground)] mb-4">{t.quickActionsTitle}</h3>
         <div className="flex flex-wrap gap-3">
@@ -145,6 +148,42 @@ export function DriverProfileClient({ driver }: { driver: DriverProfile }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function LocationTokenCard({ token, t }: { token: string; t: ReturnType<typeof useLocale>['dict']['driverProfilePage'] }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API unavailable — the token is still visible in the input for manual copy.
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+      <h3 className="font-bold text-[var(--foreground)] mb-1">{t.locationTokenTitle}</h3>
+      <p className="text-xs text-[var(--muted-foreground)] mb-3">{t.locationTokenDesc}</p>
+      <div className="flex items-center gap-2">
+        <input
+          readOnly
+          value={token}
+          onFocus={(e) => e.target.select()}
+          className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-xs font-mono text-[var(--foreground)] outline-none"
+          dir="ltr"
+        />
+        <button
+          onClick={handleCopy}
+          className="whitespace-nowrap rounded-lg bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white hover:bg-[var(--primary)]/90 transition-colors"
+        >
+          {copied ? t.locationTokenCopied : t.locationTokenCopy}
+        </button>
+      </div>
     </div>
   );
 }

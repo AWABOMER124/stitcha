@@ -5,6 +5,9 @@ import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization
 export async function findAllDrivers(distributorId: string) {
   const drivers = await prisma.driver.findMany({
     where: { distributorId },
+    // The list view never needs the location-ping credential — only the
+    // single-driver detail page does (where it's shown for copying).
+    omit: { locationToken: true },
     include: {
       _count: { select: { assignments: true } },
       assignments: {
