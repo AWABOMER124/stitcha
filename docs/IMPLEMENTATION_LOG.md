@@ -20,8 +20,9 @@
 - Local unit suite: 203/203 tests passed.
 - Next.js production build passed and ESLint completed with zero errors and the
   same seven image-optimization warnings.
-- The database test is intentionally delegated to GitHub Actions because no
-  local Docker daemon was available; its result is a required CI job step.
+- GitHub Actions created PostgreSQL 16, applied the full migration chain, and
+  passed the database-backed lifecycle test. No local Docker daemon was
+  available, so the disposable CI database is the recorded verification.
 
 ## 2026-08-25 — P0 hardening batch 5
 
