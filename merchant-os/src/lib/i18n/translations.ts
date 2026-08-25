@@ -19,6 +19,7 @@ export interface Dictionary {
     somethingWrong: string;
     loading: string;
     tryAgain: string;
+    skipToContent: string;
   };
   login: {
     welcomeBack: string;
@@ -1691,6 +1692,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       somethingWrong: 'Something went wrong. Please try again.',
       loading: 'Loading...',
       tryAgain: 'Try again',
+      skipToContent: 'Skip to main content',
     },
     login: {
       welcomeBack: 'Welcome back',
@@ -3349,6 +3351,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       somethingWrong: 'حدث خطأ ما. حاول مرة أخرى.',
       loading: 'جاري التحميل...',
       tryAgain: 'حاول مرة أخرى',
+      skipToContent: 'انتقل إلى المحتوى الرئيسي',
     },
     login: {
       welcomeBack: 'أهلاً بعودتك',

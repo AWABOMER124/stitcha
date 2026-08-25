@@ -6,6 +6,7 @@ import 'package:wassalk_app/core/localization/app_localizations.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
 import 'package:wassalk_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:wassalk_app/features/common/presentation/widgets/async_error_state.dart';
 import 'package:wassalk_app/features/orders/domain/order_model.dart';
 import 'package:wassalk_app/features/orders/presentation/providers/order_providers.dart';
 
@@ -22,12 +23,12 @@ class OrdersHistoryScreen extends ConsumerWidget {
           user == null ? _GuestView(loc: loc) : _OrdersView(loc: loc),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (_, __) => Scaffold(
-        body: Center(
-          child: ElevatedButton(
-            onPressed: () => ref.invalidate(authProvider),
-            child: const Text('إعادة المحاولة'),
-          ),
+      error: (error, _) => Scaffold(
+        body: AsyncErrorState(
+          error: error,
+          onRetry: () => ref.invalidate(authProvider),
+          titleAr: 'تعذر التحقق من الحساب',
+          titleEn: 'Unable to verify your account',
         ),
       ),
     );
@@ -60,8 +61,12 @@ class _OrdersView extends ConsumerWidget {
         body: history.when(
           loading: () => const Center(
               child: CircularProgressIndicator(color: AppColors.primary)),
-          error: (_, __) =>
-              _ErrorState(onRetry: () => ref.invalidate(orderHistoryProvider)),
+          error: (error, _) => AsyncErrorState(
+            error: error,
+            onRetry: () => ref.invalidate(orderHistoryProvider),
+            titleAr: 'تعذر تحميل الطلبات',
+            titleEn: 'Unable to load orders',
+          ),
           data: (orders) {
             final active = orders
                 .where((order) =>
@@ -232,30 +237,6 @@ class _OrderCard extends StatelessWidget {
         icon: Icons.hourglass_empty_rounded,
         color: AppColors.accent
       );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _ErrorState({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.cloud_off_rounded,
-              size: 64, color: AppColors.greyMedium),
-          const SizedBox(height: 16),
-          const Text('تعذر تحميل الطلبات'),
-          const SizedBox(height: 16),
-          ElevatedButton(
-              onPressed: onRetry, child: const Text('إعادة المحاولة')),
-        ],
-      ),
-    );
   }
 }
 

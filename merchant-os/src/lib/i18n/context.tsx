@@ -39,7 +39,8 @@ export function LocaleProvider({
 
   useEffect(() => {
     document.documentElement.dir = dir;
-  }, [dir]);
+    document.documentElement.lang = locale;
+  }, [dir, locale]);
 
   const value = useMemo<LocaleContextValue>(
     () => ({ locale, setLocale, dict: dictionaries[locale], dir }),

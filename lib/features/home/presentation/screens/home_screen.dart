@@ -6,6 +6,7 @@ import 'package:wassalk_app/core/localization/app_localizations.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
 import 'package:wassalk_app/features/home/domain/store_model.dart';
+import 'package:wassalk_app/features/common/presentation/widgets/async_error_state.dart';
 import '../providers/home_providers.dart';
 
 // Maps category index → keywords matched against store.name + store.category
@@ -110,7 +111,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: storesAsync.when(
         data: (stores) => _buildBody(stores, loc),
         loading: () => _buildSkeletonLoader(),
-        error: (err, _) => _buildErrorState(),
+        error: (err, _) => AsyncErrorState(
+          error: err,
+          onRetry: () => ref.invalidate(featuredStoresProvider),
+          titleAr: 'تعذر تحميل المتاجر',
+          titleEn: 'Unable to load stores',
+        ),
       ),
     );
   }
@@ -532,28 +538,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.cloud_off_rounded,
-              size: 80, color: AppColors.greyMedium),
-          const SizedBox(height: 24),
-          const Text('تعذر تحميل البيانات', style: AppTextStyles.titleLarge),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => ref.invalidate(featuredStoresProvider),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white),
-            child: const Text('إعادة المحاولة'),
-          ),
-        ],
-      ),
     );
   }
 }

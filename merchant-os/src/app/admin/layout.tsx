@@ -7,6 +7,7 @@ import { AdminSidebar } from '@/components/admin/sidebar';
 import { AdminTopbar } from '@/components/admin/topbar';
 import { AppProviders } from '@/components/ui/app-providers';
 import { MobileNavProvider } from '@/components/ui/mobile-nav-context';
+import { SkipLink } from '@/components/ui/skip-link';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -20,11 +21,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <LocaleProvider initialLocale={initialLocale}>
       <AppProviders>
         <MobileNavProvider>
+          <SkipLink />
           <div className="flex h-screen overflow-hidden bg-[var(--background)]">
             <AdminSidebar />
             <div className="flex flex-1 flex-col overflow-hidden">
               <AdminTopbar />
-              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+              <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-6 focus:outline-none">{children}</main>
             </div>
           </div>
         </MobileNavProvider>

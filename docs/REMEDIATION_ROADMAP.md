@@ -41,6 +41,10 @@ verified in CI and in staging.
       primary navigation as semantic, touch-feedback controls.
 - [x] Add semantic labels and 44px targets to mobile catalogue, cart, and
       category actions; keep checkout failures free of internal error details.
+- [x] Add typed offline/timeout/auth failure handling and bilingual retry states
+      across the mobile authentication, catalogue, account, order, and tracking flows.
+- [x] Add skip links, modal focus trapping/restoration, live `html[lang]` updates,
+      and operating-system reduced-motion support to the web application.
 
 ### Remaining P0
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wassalk_app/core/localization/app_localizations.dart';
+import 'package:wassalk_app/core/network/user_facing_error.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
 import '../providers/auth_providers.dart';
@@ -59,9 +60,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         if (user != null) context.go('/');
       });
       next.whenOrNull(
-        error: (err, st) => ScaffoldMessenger.of(context).showSnackBar(
+        error: (err, _) => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(err.toString()),
+            content: Text(classifyUserFacingError(err)
+                .messageFor(Localizations.localeOf(context).languageCode)),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(

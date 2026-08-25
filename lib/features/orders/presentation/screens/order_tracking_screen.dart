@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
 import 'package:wassalk_app/features/orders/domain/order_tracking_update.dart';
+import 'package:wassalk_app/features/common/presentation/widgets/async_error_state.dart';
 import '../providers/order_providers.dart';
 
 class OrderTrackingScreen extends ConsumerWidget {
@@ -20,8 +21,12 @@ class OrderTrackingScreen extends ConsumerWidget {
       body: tracking.when(
         loading: () => const Center(
             child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (_, __) => _TrackingError(
-            onRetry: () => ref.invalidate(orderTrackingProvider(orderId))),
+        error: (error, _) => AsyncErrorState(
+          error: error,
+          onRetry: () => ref.invalidate(orderTrackingProvider(orderId)),
+          titleAr: 'تعذر الاتصال بتتبع الطلب',
+          titleEn: 'Unable to connect to order tracking',
+        ),
         data: (update) => _TrackingContent(orderId: orderId, update: update),
       ),
     );
@@ -264,33 +269,6 @@ class _StatusTimeline extends StatelessWidget {
           ],
         );
       }),
-    );
-  }
-}
-
-class _TrackingError extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _TrackingError({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.wifi_off_rounded,
-                size: 64, color: AppColors.greyMedium),
-            const SizedBox(height: 16),
-            const Text('تعذر الاتصال بتتبع الطلب'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-                onPressed: onRetry, child: const Text('إعادة المحاولة')),
-          ],
-        ),
-      ),
     );
   }
 }

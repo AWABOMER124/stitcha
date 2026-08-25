@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:wassalk_app/core/localization/app_localizations.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
+import 'package:wassalk_app/features/common/presentation/widgets/async_error_state.dart';
 // ✅ FIXED: Import from presentation layer, never from data directly.
 import 'package:wassalk_app/features/cart/presentation/providers/store_providers.dart';
 import 'package:wassalk_app/features/cart/presentation/providers/cart_providers.dart';
@@ -78,36 +79,12 @@ class StoreDetailsScreen extends ConsumerWidget {
       loading: () => const SliverFillRemaining(
           child: Center(
               child: CircularProgressIndicator(color: AppColors.primary))),
-      error: (_, __) => SliverFillRemaining(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off_rounded,
-                    size: 56, color: AppColors.textHint),
-                const SizedBox(height: 16),
-                const Text(
-                  'تعذر تحميل المنتجات',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'تحقق من اتصالك ثم حاول مرة أخرى.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      ref.invalidate(storeProductsProvider(storeId)),
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('إعادة المحاولة'),
-                ),
-              ],
-            ),
-          ),
+      error: (error, _) => SliverFillRemaining(
+        child: AsyncErrorState(
+          error: error,
+          onRetry: () => ref.invalidate(storeProductsProvider(storeId)),
+          titleAr: 'تعذر تحميل المنتجات',
+          titleEn: 'Unable to load products',
         ),
       ),
     );

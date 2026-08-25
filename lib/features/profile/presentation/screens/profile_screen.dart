@@ -6,6 +6,7 @@ import 'package:wassalk_app/core/localization/locale_provider.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
 import 'package:wassalk_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:wassalk_app/features/common/presentation/widgets/async_error_state.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -23,7 +24,12 @@ class ProfileScreen extends ConsumerWidget {
             : _buildPremiumAuthProfile(context, ref, user, loc),
         loading: () => const Center(
             child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (_, __) => _buildErrorState(ref),
+        error: (error, _) => AsyncErrorState(
+          error: error,
+          onRetry: () => ref.invalidate(authProvider),
+          titleAr: 'تعذر تحميل بيانات الحساب',
+          titleEn: 'Unable to load your account',
+        ),
       ),
     );
   }
@@ -182,38 +188,6 @@ class ProfileScreen extends ConsumerWidget {
   String _userInitial(String? name) {
     final normalized = name?.trim() ?? '';
     return normalized.isEmpty ? 'و' : normalized.characters.first;
-  }
-
-  Widget _buildErrorState(WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 56, color: AppColors.textHint),
-            const SizedBox(height: 16),
-            const Text(
-              'تعذر تحميل بيانات الحساب',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'تحقق من اتصالك ثم حاول مرة أخرى.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => ref.invalidate(authProvider),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('إعادة المحاولة'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildModernMenu(List<Widget> items) {

@@ -1,5 +1,37 @@
 # Implementation log
 
+## 2026-08-25 — P1 recovery and accessibility batch 3
+
+### Mobile offline and failure states
+
+- Added one user-facing error classifier for offline connections, transport
+  timeouts, expired/invalid sessions, safe client validation responses, and
+  unexpected failures.
+- Login and registration no longer render exception objects; short intended
+  4xx validation messages remain actionable while server-side 5xx details are
+  always replaced with a safe fallback.
+- Home, catalogue, account, order history, and live tracking now share a
+  bilingual error state with failure-specific messaging and retry actions.
+- Added four focused tests covering offline, timeout, safe validation, and
+  server-detail redaction behavior.
+
+### Web keyboard and motion accessibility
+
+- Added bilingual skip links to merchant, distributor, platform-admin, and
+  public-store layouts, with programmatically focusable main content targets.
+- Modal dialogs now trap keyboard focus, close with Escape, prevent background
+  scrolling, restore the invoking control's focus, and use labelled dialog
+  semantics. Confirmation dialogs use the safe cancel action as initial focus.
+- Client-side locale changes now update both `html[dir]` and `html[lang]`.
+- Added a global reduced-motion mode that suppresses non-essential animation
+  and transitions when requested by the operating system.
+
+### Verification
+
+- Flutter analysis completed with no issues; all 11 Flutter tests passed.
+- Merchant OS ESLint completed with zero errors and zero warnings.
+- All 197 Merchant OS unit tests and the Next.js production build passed.
+
 ## 2026-08-25 — P1 mobile UX integrity batch 2
 
 ### Honest, actionable interfaces

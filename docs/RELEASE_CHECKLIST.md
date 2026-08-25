@@ -26,6 +26,8 @@
 - [ ] Health checks, structured logs, alerts, backups, and rollback are verified.
 - [ ] The production image CDN host is allow-listed and image optimization is
       verified without permitting arbitrary remote proxying.
+- [ ] Keyboard-only smoke tests verify skip links, modal focus containment,
+      Escape close, and focus restoration in each authenticated shell.
 
 ## Flutter
 
@@ -36,6 +38,8 @@
 - [ ] No demo order, price, fee, ETA, rating, vehicle, or location appears as real data.
 - [ ] No wallet, payment, promotion, favourite, notification, or recovery control
       is exposed unless its end-to-end capability is configured and verified.
+- [ ] Offline, timeout, authentication, validation, and server failures show
+      actionable messages without exposing exception or infrastructure details.
 - [ ] Store review accounts and privacy disclosures are ready.
 
 ## Product and operations
