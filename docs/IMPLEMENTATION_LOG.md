@@ -1,5 +1,32 @@
 # Implementation log
 
+## 2026-08-25 — P1 mobile UX integrity batch 2
+
+### Honest, actionable interfaces
+
+- Removed the unsupported wallet route, navigation item, fabricated balance,
+  membership tier, transactions, and transfer/withdrawal controls. The feature
+  stays out of the product until a real ledger and payment provider exist.
+- Removed promotional claims, a fixed delivery location, notifications,
+  favourites, password recovery, and profile options that had no implemented
+  action or backend capability.
+- Replaced the store screen's fabricated merchant name, rating, opening state,
+  delivery estimate, fee, and stock photography with a neutral product view
+  backed by the requested store's real catalogue.
+- Replaced the unrelated stock profile photograph with a deterministic user
+  initial, so the interface no longer implies a user-uploaded avatar.
+- Added user-friendly account and catalogue failure states with explicit retry
+  actions, without exposing internal exception strings.
+- Changed the primary mobile navigation interactions to accessible semantic
+  buttons with visible touch feedback and selected-state announcements.
+
+### Verification
+
+- Flutter analysis completed with no issues.
+- All seven Flutter tests passed.
+- A repository search confirms no remaining empty button callbacks in the
+  Flutter application.
+
 ## 2026-08-25 — P1 order reliability batch 1
 
 ### Atomic stock and order state
@@ -24,8 +51,8 @@
 - ESLint completed with zero errors and zero warnings.
 - Next.js production build passed.
 - The PostgreSQL lifecycle now covers mobile checkout, cancellation restoration,
-  competing oversized orders, and competing status updates; CI records the
-  database result.
+  competing oversized orders, and competing status updates; the hosted CI run
+  passed the complete database-backed suite.
 
 ## 2026-08-25 — P1 UX/performance batch 1
 

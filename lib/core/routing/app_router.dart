@@ -12,7 +12,6 @@ import '../../features/cart/presentation/screens/cart_screen.dart';
 import '../../features/orders/presentation/screens/checkout_screen.dart';
 import '../../features/orders/presentation/screens/order_tracking_screen.dart';
 import '../../features/orders/presentation/screens/orders_history_screen.dart';
-import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 
 /// Routes that require the user to be authenticated.
@@ -22,7 +21,6 @@ const _protectedRoutes = [
   '/checkout',
   '/cart',
   '/orders',
-  '/wallet',
   '/tracking',
 ];
 
@@ -105,10 +103,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/orders',
             builder: (context, state) => const OrdersHistoryScreen(),
-          ),
-          GoRoute(
-            path: '/wallet',
-            builder: (context, state) => const WalletScreen(),
           ),
           GoRoute(
             path: '/profile',

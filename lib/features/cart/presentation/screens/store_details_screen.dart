@@ -26,8 +26,7 @@ class StoreDetailsScreen extends ConsumerWidget {
         children: [
           CustomScrollView(
             slivers: [
-              _buildSliverAppBar(context, loc),
-              _buildStoreHeaderInfo(loc),
+              _buildSliverAppBar(context),
               _buildStoreMenu(productsAsync, ref, loc),
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
             ],
@@ -39,137 +38,21 @@ class StoreDetailsScreen extends ConsumerWidget {
     );
   }
 
-  SliverAppBar _buildSliverAppBar(BuildContext context, AppLocalizations loc) {
+  SliverAppBar _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 240,
       pinned: true,
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.surface,
+      foregroundColor: AppColors.textPrimary,
       elevation: 0,
-      leading: Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: _buildHeaderAction(
-            Icons.arrow_back_ios_new_rounded, () => context.pop()),
+      leading: IconButton(
+        tooltip: 'رجوع',
+        onPressed: () => context.pop(),
+        icon: const Icon(Icons.arrow_back_ios_new_rounded),
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: _buildHeaderAction(Icons.favorite_border_rounded, () {}),
-        ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: true,
-        title: Text('القـائـمـة الـمـمـيـزة',
-            style: AppTextStyles.titleMedium.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 16)),
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            CachedNetworkImage(
-              imageUrl:
-                  'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800',
-              fit: BoxFit.cover,
-              placeholder: (context, url) =>
-                  Container(color: AppColors.primary),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primaryDark.withValues(alpha: 0.8),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.4)
-                  ],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                ),
-              ),
-            ),
-          ],
-        ),
+      title: const Text(
+        'المنتجات',
+        style: TextStyle(fontWeight: FontWeight.w900),
       ),
-    );
-  }
-
-  Widget _buildHeaderAction(IconData icon, VoidCallback onTap) {
-    return Center(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: AppShadows.subtle),
-          child: Icon(icon, color: AppColors.primary, size: 20),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStoreHeaderInfo(AppLocalizations loc) {
-    return SliverToBoxAdapter(
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius:
-              BorderRadius.vertical(bottom: Radius.circular(AppRadius.xxl)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('بايت أند مور (Byte & More)',
-                    style: AppTextStyles.displayMedium.copyWith(fontSize: 22)),
-                _buildStatusBadge(),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildInfoTag(
-                    Icons.star_rounded, '4.9 (500+)', AppColors.accent),
-                const SizedBox(width: 12),
-                _buildInfoTag(Icons.access_time_filled_rounded, '25-35 دقيقة',
-                    AppColors.info),
-                const SizedBox(width: 12),
-                _buildInfoTag(Icons.delivery_dining_rounded, '1,500 ج.س',
-                    AppColors.success),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.pill)),
-      child: const Text('مفتوح',
-          style: TextStyle(
-              color: AppColors.success,
-              fontWeight: FontWeight.w900,
-              fontSize: 11)),
-    );
-  }
-
-  Widget _buildInfoTag(IconData icon, String label, Color color) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 16),
-        const SizedBox(width: 4),
-        Text(label,
-            style: AppTextStyles.caption.copyWith(
-                fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-      ],
     );
   }
 
@@ -195,8 +78,38 @@ class StoreDetailsScreen extends ConsumerWidget {
       loading: () => const SliverFillRemaining(
           child: Center(
               child: CircularProgressIndicator(color: AppColors.primary))),
-      error: (err, _) =>
-          SliverFillRemaining(child: Center(child: Text('خطأ: $err'))),
+      error: (_, __) => SliverFillRemaining(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_rounded,
+                    size: 56, color: AppColors.textHint),
+                const SizedBox(height: 16),
+                const Text(
+                  'تعذر تحميل المنتجات',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'تحقق من اتصالك ثم حاول مرة أخرى.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(storeProductsProvider(storeId)),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

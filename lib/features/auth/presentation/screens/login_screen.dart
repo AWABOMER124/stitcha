@@ -191,24 +191,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   () => _showPassword = !_showPassword),
                             ),
 
-                            // Forgot password
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton(
-                                onPressed: () {},
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.textSecondary,
-                                ),
-                                child: Text(
-                                  loc.forgotPassword,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
-
                             const SizedBox(height: 16),
 
                             // Login Button

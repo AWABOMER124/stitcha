@@ -35,32 +35,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final PageController _bannerController = PageController();
   final TextEditingController _searchController = TextEditingController();
-  int _currentBannerIndex = 0;
   int? _selectedCategoryIndex;
   String _searchQuery = '';
-
-  final List<Map<String, String>> _banners = [
-    {
-      'url':
-          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800&h=350',
-      'title': 'اطلب أشهى المأكولات',
-      'sub': 'خصم 20% على أول طلب 🎉',
-    },
-    {
-      'url':
-          'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=800&h=350',
-      'title': 'بقالة طازجة يومياً',
-      'sub': 'توصيل خلال ٣٠ دقيقة 🛒',
-    },
-    {
-      'url':
-          'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&q=80&w=800&h=350',
-      'title': 'أسرع توصيل للمنزل',
-      'sub': 'متاح ٢٤/٧ كل أيام الأسبوع ⚡',
-    },
-  ];
 
   final List<Map<String, dynamic>> _categories = [
     {
@@ -100,7 +77,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
-    _bannerController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -145,7 +121,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       slivers: [
         _buildSliverAppBar(loc),
         SliverToBoxAdapter(child: _buildSearchBar(loc)),
-        SliverToBoxAdapter(child: _buildBanners()),
         SliverToBoxAdapter(child: _buildCategories(loc)),
         if (filtered.isEmpty)
           SliverFillRemaining(child: _buildEmptyFilterState())
@@ -190,38 +165,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               color: AppColors.primary, size: 24),
         ),
       ),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(loc.deliveryTo,
-              style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
-          Row(
-            children: [
-              Text('الخرطوم، البلد',
-                  style: AppTextStyles.bodySm.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textPrimary)),
-              const Icon(Icons.keyboard_arrow_down_rounded,
-                  color: AppColors.primary, size: 18),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(left: 16),
-          child: IconButton(
-            icon: const Icon(Icons.notifications_none_rounded,
-                color: AppColors.textPrimary),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.greyLight.withValues(alpha: 0.5),
-              padding: const EdgeInsets.all(12),
-            ),
-            onPressed: () {},
-          ),
+      title: Text(
+        loc.appName,
+        style: AppTextStyles.titleLarge.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w900,
         ),
-      ],
+      ),
     );
   }
 
@@ -268,109 +218,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: const Icon(Icons.close_rounded,
                     color: AppColors.textHint, size: 20),
               )
-            else ...[
-              Container(height: 24, width: 1, color: AppColors.divider),
-              const SizedBox(width: 12),
-              const Icon(Icons.tune_rounded,
-                  color: AppColors.textSecondary, size: 20),
-            ],
+            else
+              const SizedBox.shrink(),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildBanners() {
-    return Column(
-      children: [
-        SizedBox(
-          height: 180,
-          child: PageView.builder(
-            controller: _bannerController,
-            onPageChanged: (i) => setState(() => _currentBannerIndex = i),
-            itemCount: _banners.length,
-            itemBuilder: (context, i) {
-              final banner = _banners[i];
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.xxl),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    )
-                  ],
-                  image: DecorationImage(
-                    image: CachedNetworkImageProvider(banner['url']!),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadius.xxl),
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.secondary.withValues(alpha: 0.8),
-                        Colors.transparent
-                      ],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                    ),
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(banner['title']!,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 18)),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                        ),
-                        child: Text(banner['sub']!,
-                            style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800)),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            _banners.length,
-            (i) => AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: _currentBannerIndex == i ? 24 : 8,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _currentBannerIndex == i
-                    ? AppColors.primary
-                    : AppColors.greyMedium,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
     );
   }
 
@@ -388,7 +240,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildSectionHeader(loc.categoriesTitle, showMore: false),
+          child: _buildSectionHeader(loc.categoriesTitle),
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -457,30 +309,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {bool showMore = true}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title,
-            style: AppTextStyles.titleLarge.copyWith(letterSpacing: -0.5)),
-        if (showMore)
-          TextButton(
-            onPressed: () {},
-            child: const Row(
-              children: [
-                Text('مشاهدة الكل',
-                    style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13)),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_back_ios_rounded,
-                    size: 10, color: AppColors.primary),
-              ],
-            ),
-          ),
-      ],
-    );
+  Widget _buildSectionHeader(String title) {
+    return Text(title,
+        style: AppTextStyles.titleLarge.copyWith(letterSpacing: -0.5));
   }
 
   Widget _buildPremiumStoreCard(BuildContext context, StoreModel store) {
@@ -530,21 +361,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               child: const Icon(Icons.storefront_rounded,
                                   color: AppColors.greyMedium)),
                         ),
-                ),
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: const IconButton(
-                      icon: Icon(Icons.favorite_border_rounded,
-                          color: AppColors.primary, size: 20),
-                      onPressed: null,
-                    ),
-                  ),
                 ),
                 if (store.rating != null)
                   Positioned(

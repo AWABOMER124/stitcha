@@ -35,6 +35,10 @@ verified in CI and in staging.
       and ownership-scoped live tracking.
 - [x] Run the core order lifecycle against a migrated disposable PostgreSQL
       database in CI, including inventory and the status audit trail.
+- [x] Remove unsupported wallet/payment surfaces, empty controls, fabricated
+      promotions, and invented store operational data from the mobile UI.
+- [x] Replace raw account/catalogue errors with clear retry states and expose
+      primary navigation as semantic, touch-feedback controls.
 
 ### Remaining P0
 

@@ -34,6 +34,8 @@
 - [ ] Release build uses an HTTPS `API_BASE_URL`.
 - [ ] Firebase, FCM, maps, notification permissions, and background flows are tested.
 - [ ] No demo order, price, fee, ETA, rating, vehicle, or location appears as real data.
+- [ ] No wallet, payment, promotion, favourite, notification, or recovery control
+      is exposed unless its end-to-end capability is configured and verified.
 - [ ] Store review accounts and privacy disclosures are ready.
 
 ## Product and operations
