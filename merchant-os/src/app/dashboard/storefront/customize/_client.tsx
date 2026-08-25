@@ -2,6 +2,7 @@
 import { useState, useTransition } from 'react';
 import { saveStorefrontSettingsAction } from '@/modules/storefront/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { ExternalImage } from '@/components/external-image';
 
 export type Settings = { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null;
 
@@ -86,7 +87,15 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
       {/* Live Preview */}
       <div className="rounded-2xl overflow-hidden border border-[var(--border)] h-24 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
         <div className="text-center text-white">
-          {logoUrl ? <img src={logoUrl} alt="" className="h-8 mx-auto rounded-lg object-contain mb-1" /> : <div className="w-10 h-10 rounded-xl bg-white/20 mx-auto flex items-center justify-center text-2xl mb-1">🏪</div>}
+          {logoUrl ? (
+            <ExternalImage
+              src={logoUrl}
+              alt={t.previewLabel}
+              width={32}
+              height={32}
+              className="h-8 w-8 mx-auto rounded-lg object-contain mb-1"
+            />
+          ) : <div className="w-10 h-10 rounded-xl bg-white/20 mx-auto flex items-center justify-center text-2xl mb-1">🏪</div>}
           <p className="font-bold text-sm">{t.previewLabel}</p>
         </div>
       </div>

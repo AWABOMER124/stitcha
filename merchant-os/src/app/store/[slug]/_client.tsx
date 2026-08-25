@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
 import { LanguageToggle } from '@/lib/i18n/language-toggle';
+import { ExternalImage } from '@/components/external-image';
 
 type Modifier = { id: string; name: string; required: boolean; minSelections: number; maxSelections: number; options: { name: string; price: number }[] };
 export type Product = { id: string; name: string; slug: string; description: string | null; images: string[]; price: number; compareAtPrice?: number | null; isFeatured: boolean; categoryId: string; category: { id: string; name: string; slug: string }; modifiers: Modifier[] };
@@ -132,7 +133,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       <header className="sticky top-0 z-40 bg-white border-b border-stone-200 shadow-sm">
         <div className="mx-auto max-w-4xl flex items-center gap-3 px-4 h-14">
           {merchant.logo
-            ? <img src={merchant.logo} alt="" className="h-8 w-8 rounded-lg object-cover" />
+            ? <ExternalImage src={merchant.logo} alt={merchant.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
             : <div className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: primary }}>{merchant.name[0]}</div>}
           <span className="font-bold text-stone-900 flex-1">{merchant.name}</span>
           <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${isOpen ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
@@ -154,7 +155,16 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       {/* Hero */}
       {(settings?.welcomeText || settings?.bannerImage) && (
         <div className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${primary}ee, ${primary}99)` }}>
-          {settings.bannerImage && <img src={settings.bannerImage} alt="" className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-30" />}
+          {settings.bannerImage && (
+            <ExternalImage
+              src={settings.bannerImage}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover mix-blend-overlay opacity-30"
+            />
+          )}
           <div className="relative px-4 py-8 text-white text-center max-w-4xl mx-auto">
             <p className="text-lg font-medium">{settings.welcomeText}</p>
             {!settings.deliveryEnabled && settings.pickupEnabled && <p className="mt-1 text-sm text-white/70">{t.pickupOnlyNote}</p>}
@@ -189,9 +199,9 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {cat.products.map(p => (
                 <button key={p.id} onClick={() => openProduct(p)} className="bg-white rounded-2xl border border-stone-100 overflow-hidden text-right shadow-sm hover:shadow-md transition-all active:scale-95 group">
-                  <div className="aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
+                  <div className="relative aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
                     {p.images?.[0]
-                      ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      ? <ExternalImage src={p.images[0]} alt={p.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
                       : <span className="text-4xl opacity-40">{p.category.name.includes('مشروب') ? '🥤' : p.category.name.includes('حلو') ? '🍰' : '🍽️'}</span>}
                   </div>
                   <div className="p-3">
@@ -230,7 +240,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
           <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             {selectedProduct.images?.[0]
-              ? <img src={selectedProduct.images[0]} alt={selectedProduct.name} className="w-full h-48 object-cover rounded-t-3xl sm:rounded-t-3xl" />
+              ? <div className="relative h-48 w-full"><ExternalImage src={selectedProduct.images[0]} alt={selectedProduct.name} fill sizes="(max-width: 640px) 100vw, 512px" className="object-cover rounded-t-3xl" /></div>
               : <div className="w-full h-32 rounded-t-3xl flex items-center justify-center text-6xl" style={{ background: `${primary}15` }}>🍽️</div>}
             <button onClick={() => setSelectedProduct(null)} className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-stone-600 shadow">✕</button>
             <div className="p-5">

@@ -1,5 +1,26 @@
 # Implementation log
 
+## 2026-08-25 — P1 UX/performance batch 1
+
+### Layout-safe storefront images
+
+- Replaced seven raw image elements across the public storefront, category
+  listing, order details, and storefront preview with a shared Next.js image
+  component.
+- Added explicit dimensions or responsive `fill`/`sizes` hints to prevent
+  layout shifts and enable browser-native lazy loading and decoding behavior.
+- External merchant URLs bypass the server-side image optimizer until a final
+  CDN host can be allow-listed; this avoids exposing an unrestricted remote
+  image proxy.
+- Added meaningful alternative text for product and merchant images while
+  keeping decorative banner text empty.
+
+### Verification
+
+- ESLint completed with zero errors and zero warnings.
+- Merchant OS unit suite remained green at 203/203 tests.
+- Next.js production build passed.
+
 ## 2026-08-25 — P0 hardening batch 6
 
 ### Database-backed order lifecycle

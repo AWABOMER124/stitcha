@@ -9,6 +9,7 @@ import {
 import type { ActiveOrder, OrderStatus } from '@/modules/fulfillment/types';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
+import { ExternalImage } from '@/components/external-image';
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700',
@@ -152,7 +153,13 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--muted)] text-sm">
                       {snapshot(item).image ? (
-                        <img src={snapshot(item).image} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                        <ExternalImage
+                          src={snapshot(item).image!}
+                          alt={snapshot(item).name ?? t.unknownProduct}
+                          width={36}
+                          height={36}
+                          className="h-9 w-9 rounded-lg object-cover"
+                        />
                       ) : '🍽'}
                     </div>
                     <div className="min-w-0">

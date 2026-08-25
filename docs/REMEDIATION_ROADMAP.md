@@ -59,7 +59,9 @@ verified in CI and in staging.
 - [ ] Add complete loading, empty, offline, retry, and partial-failure states.
 - [ ] Complete accessibility: 44px targets, autocomplete, correct `html[lang]`,
       keyboard navigation, contrast, and reduced-motion support.
-- [ ] Optimize storefront images and Core Web Vitals.
+- [x] Give storefront images stable responsive dimensions and lazy loading,
+      removing all raw-image lint warnings without opening an unsafe proxy.
+- [ ] Configure an allow-listed production image CDN and verify Core Web Vitals.
 
 ### P1 release gates
 
