@@ -187,15 +187,16 @@ class CartScreen extends ConsumerWidget {
   }
 
   Widget _buildQtyBtn(IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, color: color, size: 20),
+    final isAdd = icon == Icons.add_rounded;
+    return IconButton(
+      tooltip: isAdd ? 'زيادة الكمية' : 'تقليل الكمية',
+      onPressed: onTap,
+      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+      style: IconButton.styleFrom(
+        backgroundColor: color.withValues(alpha: 0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
+      icon: Icon(icon, color: color, size: 20),
     );
   }
 

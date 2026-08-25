@@ -171,18 +171,18 @@ class StoreDetailsScreen extends ConsumerWidget {
                         style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             color: AppColors.primary)),
-                    GestureDetector(
-                      onTap: () {
+                    IconButton.filled(
+                      tooltip: 'إضافة ${product.name} إلى السلة',
+                      onPressed: () {
                         ref.read(cartProvider.notifier).addProduct(product);
                         _showAddFeedback(context, product.name);
                       },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                            color: AppColors.primary, shape: BoxShape.circle),
-                        child: const Icon(Icons.add_rounded,
-                            color: Colors.white, size: 20),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(44, 44),
                       ),
+                      icon: const Icon(Icons.add_rounded, size: 20),
                     ),
                   ],
                 ),

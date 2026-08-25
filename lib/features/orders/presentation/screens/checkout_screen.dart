@@ -33,9 +33,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         if (order != null) context.go('/tracking/${order.id}');
       });
       next.whenOrNull(
-        error: (err, st) => ScaffoldMessenger.of(context).showSnackBar(
+        error: (_, __) => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ: $err'),
+            content: const Text(
+              'تعذر إرسال الطلب. تحقق من البيانات والاتصال ثم حاول مرة أخرى.',
+            ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(

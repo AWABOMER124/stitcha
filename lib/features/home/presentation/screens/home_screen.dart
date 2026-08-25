@@ -213,9 +213,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             if (_searchQuery.isNotEmpty)
-              GestureDetector(
-                onTap: () => _searchController.clear(),
-                child: const Icon(Icons.close_rounded,
+              IconButton(
+                tooltip: 'مسح البحث',
+                onPressed: () => _searchController.clear(),
+                icon: const Icon(Icons.close_rounded,
                     color: AppColors.textHint, size: 20),
               )
             else
@@ -253,51 +254,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final cat = _categories[i];
               final color = cat['color'] as Color;
               final isSelected = _selectedCategoryIndex == i;
-              return GestureDetector(
-                onTap: () => setState(() {
-                  _selectedCategoryIndex = isSelected ? null : i;
-                }),
-                child: Container(
-                  margin: const EdgeInsets.only(left: 16),
-                  child: Column(
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? color.withValues(alpha: 0.12)
-                              : AppColors.surface,
-                          borderRadius: BorderRadius.circular(AppRadius.xxl),
-                          boxShadow: [
-                            BoxShadow(
-                              color: color.withValues(
-                                  alpha: isSelected ? 0.2 : 0.1),
-                              blurRadius: 15,
-                              offset: const Offset(0, 8),
-                            )
-                          ],
-                          border: Border.all(
+              return Semantics(
+                button: true,
+                selected: isSelected,
+                label: categoryLabels[i] ?? cat['title'] as String,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
+                  onTap: () => setState(() {
+                    _selectedCategoryIndex = isSelected ? null : i;
+                  }),
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 16),
+                    child: Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
                             color: isSelected
-                                ? color
-                                : color.withValues(alpha: 0.1),
-                            width: isSelected ? 2 : 1.5,
+                                ? color.withValues(alpha: 0.12)
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(AppRadius.xxl),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withValues(
+                                    alpha: isSelected ? 0.2 : 0.1),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              )
+                            ],
+                            border: Border.all(
+                              color: isSelected
+                                  ? color
+                                  : color.withValues(alpha: 0.1),
+                              width: isSelected ? 2 : 1.5,
+                            ),
+                          ),
+                          child: Icon(cat['icon'] as IconData,
+                              color: color, size: 30),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          categoryLabels[i] ?? cat['title'] as String,
+                          style: AppTextStyles.caption.copyWith(
+                            fontWeight:
+                                isSelected ? FontWeight.w900 : FontWeight.bold,
+                            color: isSelected ? color : AppColors.textPrimary,
                           ),
                         ),
-                        child: Icon(cat['icon'] as IconData,
-                            color: color, size: 30),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        categoryLabels[i] ?? cat['title'] as String,
-                        style: AppTextStyles.caption.copyWith(
-                          fontWeight:
-                              isSelected ? FontWeight.w900 : FontWeight.bold,
-                          color: isSelected ? color : AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -315,129 +322,134 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildPremiumStoreCard(BuildContext context, StoreModel store) {
-    return GestureDetector(
-      onTap: () => context.push('/store/${store.id}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 30,
-              offset: const Offset(0, 12),
-            )
-          ],
-        ),
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.xxl)),
-                  child: store.imageUrl == null || store.imageUrl!.isEmpty
-                      ? Container(
-                          height: 180,
-                          width: double.infinity,
-                          color: AppColors.greyLight,
-                          child: const Icon(Icons.storefront_rounded,
-                              color: AppColors.greyMedium, size: 48),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: store.imageUrl!,
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                              color: AppColors.greyLight,
-                              child: const Center(
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2))),
-                          errorWidget: (context, url, error) => Container(
-                              height: 180,
-                              color: AppColors.greyLight,
-                              child: const Icon(Icons.storefront_rounded,
-                                  color: AppColors.greyMedium)),
-                        ),
-                ),
-                if (store.rating != null)
-                  Positioned(
-                    bottom: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                        boxShadow: AppShadows.subtle,
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.star_rounded,
-                              color: AppColors.accent, size: 16),
-                          const SizedBox(width: 4),
-                          Text(store.rating!.toStringAsFixed(1),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w900, fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Semantics(
+      button: true,
+      label: 'فتح متجر ${store.name}',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        onTap: () => context.push('/store/${store.id}'),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 24),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 30,
+                offset: const Offset(0, 12),
+              )
+            ],
+          ),
+          child: Column(
+            children: [
+              Stack(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(store.name,
-                          style:
-                              AppTextStyles.titleMedium.copyWith(fontSize: 18)),
-                      const Icon(Icons.verified_rounded,
-                          color: AppColors.info, size: 18),
-                    ],
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(AppRadius.xxl)),
+                    child: store.imageUrl == null || store.imageUrl!.isEmpty
+                        ? Container(
+                            height: 180,
+                            width: double.infinity,
+                            color: AppColors.greyLight,
+                            child: const Icon(Icons.storefront_rounded,
+                                color: AppColors.greyMedium, size: 48),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: store.imageUrl!,
+                            height: 180,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                                color: AppColors.greyLight,
+                                child: const Center(
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))),
+                            errorWidget: (context, url, error) => Container(
+                                height: 180,
+                                color: AppColors.greyLight,
+                                child: const Icon(Icons.storefront_rounded,
+                                    color: AppColors.greyMedium)),
+                          ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(store.category,
-                      style: AppTextStyles.bodySm
-                          .copyWith(color: AppColors.textSecondary)),
-                  const SizedBox(height: 16),
-                  if (store.deliveryFee != null || store.deliveryTime != null)
-                    Row(
-                      children: [
-                        if (store.deliveryFee != null)
-                          _buildPremiumInfoChip(
-                              Icons.delivery_dining_rounded,
-                              '${store.deliveryFee!.toStringAsFixed(0)} ج.س',
-                              AppColors.success),
-                        if (store.deliveryFee != null &&
-                            store.deliveryTime != null)
-                          const SizedBox(width: 12),
-                        if (store.deliveryTime != null)
-                          _buildPremiumInfoChip(
-                              Icons.access_time_filled_rounded,
-                              store.deliveryTime!,
-                              AppColors.info),
-                      ],
-                    )
-                  else
-                    Text(
-                      'رسوم ووقت التوصيل يُحددان عند تأكيد الطلب',
-                      style: AppTextStyles.bodySm.copyWith(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
+                  if (store.rating != null)
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          boxShadow: AppShadows.subtle,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.star_rounded,
+                                color: AppColors.accent, size: 16),
+                            const SizedBox(width: 4),
+                            Text(store.rating!.toStringAsFixed(1),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w900, fontSize: 13)),
+                          ],
+                        ),
                       ),
                     ),
                 ],
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(store.name,
+                            style: AppTextStyles.titleMedium
+                                .copyWith(fontSize: 18)),
+                        const Icon(Icons.verified_rounded,
+                            color: AppColors.info, size: 18),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(store.category,
+                        style: AppTextStyles.bodySm
+                            .copyWith(color: AppColors.textSecondary)),
+                    const SizedBox(height: 16),
+                    if (store.deliveryFee != null || store.deliveryTime != null)
+                      Row(
+                        children: [
+                          if (store.deliveryFee != null)
+                            _buildPremiumInfoChip(
+                                Icons.delivery_dining_rounded,
+                                '${store.deliveryFee!.toStringAsFixed(0)} ج.س',
+                                AppColors.success),
+                          if (store.deliveryFee != null &&
+                              store.deliveryTime != null)
+                            const SizedBox(width: 12),
+                          if (store.deliveryTime != null)
+                            _buildPremiumInfoChip(
+                                Icons.access_time_filled_rounded,
+                                store.deliveryTime!,
+                                AppColors.info),
+                        ],
+                      )
+                    else
+                      Text(
+                        'رسوم ووقت التوصيل يُحددان عند تأكيد الطلب',
+                        style: AppTextStyles.bodySm.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

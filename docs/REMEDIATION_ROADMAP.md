@@ -39,6 +39,8 @@ verified in CI and in staging.
       promotions, and invented store operational data from the mobile UI.
 - [x] Replace raw account/catalogue errors with clear retry states and expose
       primary navigation as semantic, touch-feedback controls.
+- [x] Add semantic labels and 44px targets to mobile catalogue, cart, and
+      category actions; keep checkout failures free of internal error details.
 
 ### Remaining P0
 

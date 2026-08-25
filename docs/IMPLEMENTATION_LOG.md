@@ -17,8 +17,12 @@
   initial, so the interface no longer implies a user-uploaded avatar.
 - Added user-friendly account and catalogue failure states with explicit retry
   actions, without exposing internal exception strings.
+- Checkout failures now show a safe recovery message instead of serializing
+  transport or server exceptions into the customer interface.
 - Changed the primary mobile navigation interactions to accessible semantic
   buttons with visible touch feedback and selected-state announcements.
+- Store cards and category filters now expose semantic labels and selection
+  state; add-to-cart and quantity controls provide tooltips and 44px targets.
 
 ### Verification
 
