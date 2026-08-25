@@ -753,10 +753,32 @@ model CustomerAccount {
   updatedAt DateTime @updatedAt
 
   // Relations
-  customers     Customer[]
-  subscriptions CustomerSubscription[]
+  customers       Customer[]
+  subscriptions   CustomerSubscription[]
+  refreshSessions CustomerRefreshSession[]
 
   @@map("customer_accounts")
+}
+
+/// Revocable mobile-app session. Only a SHA-256 hash of the opaque refresh
+/// token is persisted. Rotated tokens share a family so reuse can revoke the
+/// whole compromised session chain.
+model CustomerRefreshSession {
+  id        String @id @default(cuid())
+  accountId String
+  familyId  String
+  tokenHash String @unique
+
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  account CustomerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("customer_refresh_sessions")
 }
 
 enum CustomerSubscriptionStatus {

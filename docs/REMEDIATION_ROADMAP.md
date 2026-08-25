@@ -25,13 +25,13 @@ verified in CI and in staging.
 - [x] Remove fabricated delivery fees, ETAs, driver details, and unsupported
       Bankak checkout UI.
 - [x] Run web build/lint/tests and Flutter analysis/tests in GitHub Actions.
+- [x] Replace the 90-day bearer token with 15-minute access tokens, rotating
+      refresh tokens, reuse detection, and server-side revocation.
 
 ### Remaining P0
 
 - [ ] Configure final Android/iOS identifiers, release signing, and store metadata.
 - [ ] Restrict and rotate the exposed Google Maps key.
-- [ ] Replace the 90-day bearer token with short access tokens, refresh rotation,
-      and server-side revocation.
 - [ ] Add API integration and end-to-end tests for the core order lifecycle.
 - [ ] Deploy and verify a signed staging build over HTTPS.
 

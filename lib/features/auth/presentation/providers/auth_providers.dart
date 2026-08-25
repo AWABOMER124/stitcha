@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wassalk_app/core/storage/storage_service.dart';
 import 'package:wassalk_app/features/auth/domain/user_model.dart';
@@ -8,19 +10,29 @@ import 'package:wassalk_app/features/auth/data/auth_repository.dart';
 class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
   final AuthRepository _repository;
   final StorageService _storage;
+  late final StreamSubscription<void> _authClearedSubscription;
 
-  AuthNotifier(this._repository, this._storage)
-      : super(const AsyncLoading()) {
+  AuthNotifier(this._repository, this._storage) : super(const AsyncLoading()) {
+    _authClearedSubscription = _storage.authCleared.listen((_) {
+      state = const AsyncData(null);
+    });
     _restoreSession();
   }
 
+  @override
+  void dispose() {
+    _authClearedSubscription.cancel();
+    super.dispose();
+  }
+
   /// On app start: attempt to restore the user session from secure storage.
-  /// If a token exists, consider the user authenticated.
-  /// TODO: In Phase 2, validate token against /auth/verify endpoint.
+  /// A stored access/refresh pair is restored. The network interceptor rotates
+  /// an expired access token before retrying the first protected request.
   Future<void> _restoreSession() async {
     try {
       final token = await _storage.getToken();
-      if (token != null) {
+      final refreshToken = await _storage.getRefreshToken();
+      if (token != null && refreshToken != null) {
         // Token exists — user was previously logged in.
         final savedName = await _storage.getValue('user_name') ?? 'مستخدم';
         final savedPhone = await _storage.getValue('user_phone') ?? '';
@@ -30,10 +42,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
             id: savedId,
             name: savedName,
             phone: savedPhone,
-            token: token, // token is non-null here — safe
+            token: token,
+            refreshToken: refreshToken,
           ),
         );
       } else {
+        if (token != null || refreshToken != null) {
+          await _storage.clearAuthData();
+        }
         state = const AsyncData(null);
       }
     } catch (e, st) {
@@ -46,13 +62,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
     try {
       final user = await _repository.login(phone, password);
 
-      // ✅ FIXED: Save token AND user info to secure storage.
-      if (user.token != null) {
-        await _storage.saveToken(user.token!);
-      }
-      await _storage.saveValue('user_id', user.id);
-      await _storage.saveValue('user_name', user.name);
-      await _storage.saveValue('user_phone', user.phone);
+      await _persistUser(user);
 
       state = AsyncData(user);
     } catch (e, st) {
@@ -65,13 +75,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
     try {
       final user = await _repository.signup(name, phone, password);
 
-      // ✅ Save credentials after signup just like login
-      if (user.token != null) {
-        await _storage.saveToken(user.token!);
-      }
-      await _storage.saveValue('user_id', user.id);
-      await _storage.saveValue('user_name', user.name);
-      await _storage.saveValue('user_phone', user.phone);
+      await _persistUser(user);
 
       state = AsyncData(user);
     } catch (e, st) {
@@ -80,10 +84,23 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserModel?>> {
   }
 
   Future<void> logout() async {
-    // ✅ FIXED: Clear all stored auth data on logout.
-    // Previously this was a TODO — tokens were never cleared!
-    await _storage.clearAuthData();
-    state = const AsyncData(null);
+    try {
+      await _repository.logout();
+    } finally {
+      await _storage.clearAuthData();
+      state = const AsyncData(null);
+    }
+  }
+
+  Future<void> _persistUser(UserModel user) async {
+    if (user.token == null || user.refreshToken == null) {
+      throw StateError('Authentication response did not include both tokens');
+    }
+    await _storage.saveToken(user.token!);
+    await _storage.saveRefreshToken(user.refreshToken!);
+    await _storage.saveValue('user_id', user.id);
+    await _storage.saveValue('user_name', user.name);
+    await _storage.saveValue('user_phone', user.phone);
   }
 }
 

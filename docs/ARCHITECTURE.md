@@ -51,12 +51,16 @@ ratings, images, fees, locations, or ETAs.
 ## Authentication boundaries
 
 - Staff portals use Auth.js credential sessions and role/tenant context.
-- Flutter customers use a customer bearer token.
+- Flutter customers use 15-minute access tokens backed by revocable server-side
+  sessions. Opaque 30-day refresh tokens rotate on every use; only their
+  SHA-256 hashes are stored, and reuse revokes the complete token family.
 - Drivers use a distinct per-driver location token.
 - Public storefront browsing is anonymous, while sensitive order/customer data
   requires either ownership authentication or a scoped, short-lived token.
 
-The current long-lived customer bearer token is a documented pre-release gap.
+Flutter serializes concurrent refresh attempts, retries a failed protected
+request once, and clears local credentials when rotation fails. Logout revokes
+the server-side session before clearing secure device storage.
 
 ## Deployment
 

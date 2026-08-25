@@ -3,6 +3,8 @@ class ApiEndpoints {
   // existing staff-facing /auth/login and /auth/register routes.
   static const String login = '/customer/auth/login';
   static const String register = '/customer/auth/register';
+  static const String refresh = '/customer/auth/refresh';
+  static const String logout = '/customer/auth/logout';
   static const String featuredStores = '/stores/featured';
   static const String storeDetails = '/stores/';
   static const String placeOrder = '/orders';

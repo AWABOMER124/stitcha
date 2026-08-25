@@ -42,6 +42,10 @@ Before running Prisma commands, configure `DATABASE_URL`. For deployments
 behind the repository's controlled Nginx/Dokploy proxy, also set
 `AUTH_TRUST_HOST=true`.
 
+Mobile authentication uses revocable access/refresh sessions. Deploy migration
+`20260825040000_add_customer_refresh_sessions` before releasing a mobile build
+from this branch. Existing legacy customer tokens require a one-time login.
+
 Verification:
 
 ```bash

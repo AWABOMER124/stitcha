@@ -3,7 +3,8 @@ import 'package:wassalk_app/core/network/api_endpoints.dart';
 import 'package:wassalk_app/core/network/dio_client.dart';
 import 'package:wassalk_app/features/auth/domain/user_model.dart';
 
-final authRepositoryProvider = Provider((ref) => AuthRepository(ref.watch(dioClientProvider)));
+final authRepositoryProvider =
+    Provider((ref) => AuthRepository(ref.watch(dioClientProvider)));
 
 class AuthRepository {
   final DioClient _client;
@@ -23,5 +24,9 @@ class AuthRepository {
       data: {'name': name, 'phone': phone, 'password': password},
     );
     return UserModel.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> logout() async {
+    await _client.dio.post(ApiEndpoints.logout);
   }
 }

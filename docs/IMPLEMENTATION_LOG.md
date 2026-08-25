@@ -1,5 +1,41 @@
 # Implementation log
 
+## 2026-08-25 — P0 hardening batch 3
+
+### Revocable customer sessions
+
+- Replaced the 90-day customer JWT with a 15-minute access token tied to a
+  server-side session and a rotating 30-day opaque refresh token.
+- Added a Prisma migration for hashed refresh sessions; raw refresh tokens are
+  never persisted.
+- Added single-use rotation, token-family reuse detection, immediate session
+  revocation, and authenticated logout.
+- Added rate-limited refresh and logout API routes.
+
+### Flutter session lifecycle
+
+- Login and registration persist both tokens in platform secure storage.
+- Dio serializes concurrent refresh attempts, rotates on a 401, retries the
+  original request once, and clears invalid credentials.
+- Logout revokes the server session before deleting local credentials.
+- User model string output no longer includes access or refresh tokens.
+- Clearing credentials now publishes an authentication event so the app leaves
+  authenticated UI immediately when server-side refresh fails.
+- Structured server logs redact `accessToken` and `refreshToken` fields.
+
+### Deployment note
+
+Existing 90-day tokens do not contain a session identifier and intentionally
+stop working after this release. Apply the migration first and communicate a
+one-time forced login to existing mobile users.
+
+### Verification
+
+- Prisma schema validation passed.
+- Merchant OS lint passed with seven existing image warnings, all 195 tests
+  passed, and the Next.js production build passed.
+- Flutter analysis reported no issues and all seven tests passed.
+
 ## 2026-08-25 — CI and repository hygiene
 
 - Added GitHub Actions gates for Merchant OS install, Prisma generation, lint,

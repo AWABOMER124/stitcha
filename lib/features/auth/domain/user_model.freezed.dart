@@ -24,6 +24,8 @@ mixin _$UserModel {
   String get name => throw _privateConstructorUsedError;
   String get phone => throw _privateConstructorUsedError;
   String? get token => throw _privateConstructorUsedError;
+  String? get refreshToken => throw _privateConstructorUsedError;
+  int? get expiresIn => throw _privateConstructorUsedError;
 
   /// Serializes this UserModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -40,7 +42,13 @@ abstract class $UserModelCopyWith<$Res> {
   factory $UserModelCopyWith(UserModel value, $Res Function(UserModel) then) =
       _$UserModelCopyWithImpl<$Res, UserModel>;
   @useResult
-  $Res call({String id, String name, String phone, String? token});
+  $Res call(
+      {String id,
+      String name,
+      String phone,
+      String? token,
+      String? refreshToken,
+      int? expiresIn});
 }
 
 /// @nodoc
@@ -62,6 +70,8 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
     Object? name = null,
     Object? phone = null,
     Object? token = freezed,
+    Object? refreshToken = freezed,
+    Object? expiresIn = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -80,6 +90,14 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
           ? _value.token
           : token // ignore: cast_nullable_to_non_nullable
               as String?,
+      refreshToken: freezed == refreshToken
+          ? _value.refreshToken
+          : refreshToken // ignore: cast_nullable_to_non_nullable
+              as String?,
+      expiresIn: freezed == expiresIn
+          ? _value.expiresIn
+          : expiresIn // ignore: cast_nullable_to_non_nullable
+              as int?,
     ) as $Val);
   }
 }
@@ -92,7 +110,13 @@ abstract class _$$UserModelImplCopyWith<$Res>
       __$$UserModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String name, String phone, String? token});
+  $Res call(
+      {String id,
+      String name,
+      String phone,
+      String? token,
+      String? refreshToken,
+      int? expiresIn});
 }
 
 /// @nodoc
@@ -112,6 +136,8 @@ class __$$UserModelImplCopyWithImpl<$Res>
     Object? name = null,
     Object? phone = null,
     Object? token = freezed,
+    Object? refreshToken = freezed,
+    Object? expiresIn = freezed,
   }) {
     return _then(_$UserModelImpl(
       id: null == id
@@ -130,6 +156,14 @@ class __$$UserModelImplCopyWithImpl<$Res>
           ? _value.token
           : token // ignore: cast_nullable_to_non_nullable
               as String?,
+      refreshToken: freezed == refreshToken
+          ? _value.refreshToken
+          : refreshToken // ignore: cast_nullable_to_non_nullable
+              as String?,
+      expiresIn: freezed == expiresIn
+          ? _value.expiresIn
+          : expiresIn // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -138,7 +172,12 @@ class __$$UserModelImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$UserModelImpl implements _UserModel {
   const _$UserModelImpl(
-      {required this.id, required this.name, required this.phone, this.token});
+      {required this.id,
+      required this.name,
+      required this.phone,
+      this.token,
+      this.refreshToken,
+      this.expiresIn});
 
   factory _$UserModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$UserModelImplFromJson(json);
@@ -151,11 +190,10 @@ class _$UserModelImpl implements _UserModel {
   final String phone;
   @override
   final String? token;
-
   @override
-  String toString() {
-    return 'UserModel(id: $id, name: $name, phone: $phone, token: $token)';
-  }
+  final String? refreshToken;
+  @override
+  final int? expiresIn;
 
   @override
   bool operator ==(Object other) {
@@ -165,12 +203,17 @@ class _$UserModelImpl implements _UserModel {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.phone, phone) || other.phone == phone) &&
-            (identical(other.token, token) || other.token == token));
+            (identical(other.token, token) || other.token == token) &&
+            (identical(other.refreshToken, refreshToken) ||
+                other.refreshToken == refreshToken) &&
+            (identical(other.expiresIn, expiresIn) ||
+                other.expiresIn == expiresIn));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, name, phone, token);
+  int get hashCode =>
+      Object.hash(runtimeType, id, name, phone, token, refreshToken, expiresIn);
 
   /// Create a copy of UserModel
   /// with the given fields replaced by the non-null parameter values.
@@ -193,7 +236,9 @@ abstract class _UserModel implements UserModel {
       {required final String id,
       required final String name,
       required final String phone,
-      final String? token}) = _$UserModelImpl;
+      final String? token,
+      final String? refreshToken,
+      final int? expiresIn}) = _$UserModelImpl;
 
   factory _UserModel.fromJson(Map<String, dynamic> json) =
       _$UserModelImpl.fromJson;
@@ -206,6 +251,10 @@ abstract class _UserModel implements UserModel {
   String get phone;
   @override
   String? get token;
+  @override
+  String? get refreshToken;
+  @override
+  int? get expiresIn;
 
   /// Create a copy of UserModel
   /// with the given fields replaced by the non-null parameter values.

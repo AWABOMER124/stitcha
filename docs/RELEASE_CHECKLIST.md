@@ -5,6 +5,8 @@
 - [ ] No production secrets or signing files are tracked.
 - [ ] Google/Firebase client keys are restricted to the final applications.
 - [ ] Authentication, tenant isolation, ownership, and rate limits are tested.
+- [ ] Refresh-token rotation, reuse revocation, logout, and forced re-login were
+      verified on the staging mobile build.
 - [ ] Tracking links cannot expose another customer's order or driver PII.
 - [ ] Privacy policy, terms, retention, deletion, and support contacts are live.
 
@@ -12,6 +14,8 @@
 
 - [ ] `npm ci`, lint, tests, and production build pass in CI.
 - [ ] Prisma migrations were tested against a staging backup/restore cycle.
+- [ ] `20260825040000_add_customer_refresh_sessions` was deployed before the
+      updated mobile authentication flow was released.
 - [ ] `AUTH_SECRET`, `AUTH_TRUST_HOST`, URLs, database, encryption, and storage
       variables are configured in the deployment platform.
 - [ ] Durable notification/job providers are configured; no required channel is mock.
