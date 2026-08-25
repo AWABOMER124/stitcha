@@ -592,17 +592,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       style: AppTextStyles.bodySm
                           .copyWith(color: AppColors.textSecondary)),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _buildPremiumInfoChip(
-                          Icons.delivery_dining_rounded,
-                          '${store.deliveryFee.toStringAsFixed(0)} ج.س',
-                          AppColors.success),
-                      const SizedBox(width: 12),
-                      _buildPremiumInfoChip(Icons.access_time_filled_rounded,
-                          store.deliveryTime, AppColors.info),
-                    ],
-                  ),
+                  if (store.deliveryFee != null || store.deliveryTime != null)
+                    Row(
+                      children: [
+                        if (store.deliveryFee != null)
+                          _buildPremiumInfoChip(
+                              Icons.delivery_dining_rounded,
+                              '${store.deliveryFee!.toStringAsFixed(0)} ج.س',
+                              AppColors.success),
+                        if (store.deliveryFee != null &&
+                            store.deliveryTime != null)
+                          const SizedBox(width: 12),
+                        if (store.deliveryTime != null)
+                          _buildPremiumInfoChip(
+                              Icons.access_time_filled_rounded,
+                              store.deliveryTime!,
+                              AppColors.info),
+                      ],
+                    )
+                  else
+                    Text(
+                      'رسوم ووقت التوصيل يُحددان عند تأكيد الطلب',
+                      style: AppTextStyles.bodySm.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                 ],
               ),
             ),

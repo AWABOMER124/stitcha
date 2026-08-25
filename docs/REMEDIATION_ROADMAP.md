@@ -24,18 +24,22 @@ verified in CI and in staging.
 - [x] Replace fabricated order history with the authenticated history API.
 - [x] Remove fabricated delivery fees, ETAs, driver details, and unsupported
       Bankak checkout UI.
+- [x] Remove the remaining hard-coded store-card delivery fee and time estimate;
+      render unknown delivery details transparently until real quoting exists.
 - [x] Run web build/lint/tests and Flutter analysis/tests in GitHub Actions.
 - [x] Replace the 90-day bearer token with 15-minute access tokens, rotating
       refresh tokens, reuse detection, and server-side revocation.
 - [x] Remove the hard-coded Google Maps key and reject new hard-coded Maps keys
       in CI.
+- [x] Add authenticated API contract tests for order creation, customer history,
+      and ownership-scoped live tracking.
 
 ### Remaining P0
 
 - [ ] Configure final Android/iOS identifiers, release signing, and store metadata.
 - [ ] Rotate the previously exposed Maps key in Google Cloud, then restrict
       separate Android/iOS keys to final application identifiers and Maps SDKs.
-- [ ] Add API integration and end-to-end tests for the core order lifecycle.
+- [ ] Add database-backed end-to-end tests for the complete order lifecycle.
 - [ ] Deploy and verify a signed staging build over HTTPS.
 
 ### P0 release gates

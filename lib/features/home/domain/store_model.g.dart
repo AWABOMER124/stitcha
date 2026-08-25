@@ -13,8 +13,8 @@ _$StoreModelImpl _$$StoreModelImplFromJson(Map<String, dynamic> json) =>
       category: json['category'] as String,
       imageUrl: json['imageUrl'] as String?,
       rating: (json['rating'] as num?)?.toDouble(),
-      deliveryTime: json['deliveryTime'] as String,
-      deliveryFee: (json['deliveryFee'] as num).toDouble(),
+      deliveryTime: json['deliveryTime'] as String?,
+      deliveryFee: (json['deliveryFee'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$$StoreModelImplToJson(_$StoreModelImpl instance) =>

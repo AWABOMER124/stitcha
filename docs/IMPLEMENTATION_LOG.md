@@ -1,5 +1,30 @@
 # Implementation log
 
+## 2026-08-25 — P0 hardening batch 5
+
+### Honest delivery information
+
+- Removed the hard-coded `15 SDG` fee and `30-45 minute` estimate from the
+  mobile storefront API.
+- Made delivery fee and timing nullable in the Flutter store contract.
+- Store cards now show confirmed values when available and otherwise explain
+  that the fee and timing are determined when the order is confirmed.
+- Added server and Flutter contract coverage to prevent fabricated delivery
+  values from returning unnoticed.
+- Added API route integration coverage for authenticated order creation and
+  account-scoped history, including wire-format translation and auth failures.
+- Order creation now rejects zero, negative, fractional, or missing quantities
+  before reaching the service layer.
+
+### Verification
+
+- Merchant OS: 203/203 tests passed.
+- Next.js production build passed.
+- ESLint completed with zero errors and seven existing image-optimization
+  warnings.
+- Flutter code generation completed successfully.
+- Flutter analysis completed with no issues and all 7 tests passed.
+
 ## 2026-08-25 — P0 hardening batch 4
 
 ### Google Maps key handling

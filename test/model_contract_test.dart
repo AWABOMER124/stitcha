@@ -23,19 +23,21 @@ void main() {
       expect(user.toString(), isNot(contains('opaque-refresh-token')));
     });
 
-    test('accepts a store without an image or rating', () {
+    test('accepts a store without fabricated catalogue or delivery data', () {
       final store = StoreModel.fromJson({
         'id': 'store-1',
         'name': 'Demo store',
         'category': 'Restaurant',
         'imageUrl': null,
         'rating': null,
-        'deliveryTime': '30-45 minutes',
-        'deliveryFee': 15.0,
+        'deliveryTime': null,
+        'deliveryFee': null,
       });
 
       expect(store.imageUrl, isNull);
       expect(store.rating, isNull);
+      expect(store.deliveryTime, isNull);
+      expect(store.deliveryFee, isNull);
     });
 
     test('accepts a product with optional catalogue fields missing', () {

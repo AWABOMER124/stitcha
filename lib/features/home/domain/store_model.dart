@@ -11,8 +11,8 @@ class StoreModel with _$StoreModel {
     required String category,
     String? imageUrl,
     double? rating,
-    required String deliveryTime,
-    required double deliveryFee,
+    String? deliveryTime,
+    double? deliveryFee,
   }) = _StoreModel;
 
   factory StoreModel.fromJson(Map<String, dynamic> json) =>

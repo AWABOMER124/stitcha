@@ -187,10 +187,8 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
   OTHER: 'أخرى',
 };
 
-// No ratings system and no per-location delivery-fee resolution exist yet
-// (see plan: these are deliberately deferred, not silently faked as real data).
-const DEFAULT_DELIVERY_TIME = '30-45 دقيقة';
-const DEFAULT_DELIVERY_FEE = 15;
+// No ratings system or per-location delivery quote exists yet. Keep these
+// values absent so the app never presents an estimate as confirmed pricing.
 
 type MerchantForApp = {
   id: string;
@@ -208,8 +206,8 @@ function mapMerchantForApp(merchant: MerchantForApp) {
     category: BUSINESS_TYPE_LABELS[merchant.businessType] ?? merchant.businessType,
     imageUrl: merchant.logo ?? merchant.coverImage ?? null,
     rating: null as number | null,
-    deliveryTime: DEFAULT_DELIVERY_TIME,
-    deliveryFee: DEFAULT_DELIVERY_FEE,
+    deliveryTime: null,
+    deliveryFee: null,
     isFeatured: merchant.isFeatured ?? false,
   };
 }
