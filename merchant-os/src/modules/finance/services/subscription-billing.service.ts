@@ -64,9 +64,20 @@ export async function runSubscriptionBilling(now = new Date()): Promise<Subscrip
       });
       result.billed.push(merchant.id);
     } catch (err) {
+      // A second scheduler may pass the read check before the first one
+      // commits. The database unique key is the final idempotency boundary.
+      if (isAlreadyBilledError(err)) {
+        result.skippedAlreadyBilled.push(merchant.id);
+        continue;
+      }
       result.failed.push({ merchantId: merchant.id, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
   return result;
+}
+
+function isAlreadyBilledError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  return error.code === 'P2002' || error.code === 'CONFLICT';
 }

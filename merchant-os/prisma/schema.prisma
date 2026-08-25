@@ -1222,6 +1222,7 @@ model Settlement {
   @@index([distributorId])
   @@index([merchantId])
   @@index([status])
+  @@unique([merchantId, periodFrom, periodTo])
   @@map("settlements")
 }
 

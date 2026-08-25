@@ -45,6 +45,8 @@ verified in CI and in staging.
       across the mobile authentication, catalogue, account, order, and tracking flows.
 - [x] Add skip links, modal focus trapping/restoration, live `html[lang]` updates,
       and operating-system reduced-motion support to the web application.
+- [x] Enforce one settlement per merchant and exact billing period in the
+      database, including idempotent handling of concurrent billing runs.
 
 ### Remaining P0
 

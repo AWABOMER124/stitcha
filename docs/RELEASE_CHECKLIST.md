@@ -18,6 +18,8 @@
 - [ ] The database-backed order lifecycle passes after all migrations are
       applied to a fresh PostgreSQL database.
 - [ ] Prisma migrations were tested against a staging backup/restore cycle.
+- [ ] Existing settlements were audited for duplicate merchant/period groups
+      before applying `20260825050000_unique_settlement_period`.
 - [ ] `20260825040000_add_customer_refresh_sessions` was deployed before the
       updated mobile authentication flow was released.
 - [ ] `AUTH_SECRET`, `AUTH_TRUST_HOST`, URLs, database, encryption, and storage

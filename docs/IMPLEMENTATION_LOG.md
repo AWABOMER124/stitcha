@@ -1,5 +1,24 @@
 # Implementation log
 
+## 2026-08-25 — P1 billing reliability batch 1
+
+- Added a database unique key for merchant plus exact settlement period, so
+  concurrent billing invocations cannot create duplicate financial records.
+- Subscription billing treats the losing side of a concurrency race as an
+  idempotent skip while preserving genuine per-merchant failures for review.
+- Manual duplicate settlement attempts now return an intentional conflict
+  message instead of exposing the underlying Prisma error.
+- Added coverage for both direct database unique conflicts and the normalized
+  service conflict returned through the production call path.
+- The PostgreSQL integration suite asserts that the unique settlement-period
+  index exists after the complete migration chain is applied.
+
+### Deployment note
+
+Before applying `20260825050000_unique_settlement_period` to an existing
+database, audit duplicate merchant/period groups. The migration intentionally
+fails instead of deleting or merging financial records automatically.
+
 ## 2026-08-25 — P1 recovery and accessibility batch 3
 
 ### Mobile offline and failure states

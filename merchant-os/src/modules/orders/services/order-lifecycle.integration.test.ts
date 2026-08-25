@@ -87,6 +87,20 @@ describe('database-backed order lifecycle', () => {
     await prisma.$disconnect();
   });
 
+  it('applies the settlement-period uniqueness migration', async () => {
+    const indexes = await prisma.$queryRaw<Array<{ indexname: string }>>`
+      SELECT indexname
+      FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND tablename = 'settlements'
+        AND indexname = 'settlements_merchantId_periodFrom_periodTo_key'
+    `;
+
+    expect(indexes).toEqual([
+      { indexname: 'settlements_merchantId_periodFrom_periodTo_key' },
+    ]);
+  });
+
   it('creates, fulfills, audits, and archives a real order', async () => {
     const created = await createOrder(merchantId, {
       customerId,
