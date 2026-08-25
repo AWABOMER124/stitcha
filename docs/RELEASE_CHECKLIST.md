@@ -15,6 +15,8 @@
 ## Merchant OS
 
 - [ ] `npm ci`, lint, tests, and production build pass in CI.
+- [ ] The database-backed order lifecycle passes after all migrations are
+      applied to a fresh PostgreSQL database.
 - [ ] Prisma migrations were tested against a staging backup/restore cycle.
 - [ ] `20260825040000_add_customer_refresh_sessions` was deployed before the
       updated mobile authentication flow was released.

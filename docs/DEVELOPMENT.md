@@ -58,6 +58,24 @@ Dependabot checks npm and Flutter packages weekly and GitHub Actions monthly.
 Dependency pull requests must pass the same CI gates and should be merged in
 small groups so regressions remain easy to identify.
 
+## Database integration tests
+
+The normal `npm test` suite never requires a database. Database-backed tests
+use `vitest.integration.config.ts` and run separately so failures cannot be
+hidden by mocks.
+
+To run them locally, start an empty PostgreSQL database, set `DATABASE_URL` to
+that disposable database, then run from `merchant-os`:
+
+```bash
+npx prisma migrate deploy
+npm run test:integration
+```
+
+Never point this command at production or shared staging data. GitHub Actions
+creates a fresh PostgreSQL service, applies every committed migration, runs the
+integration lifecycle, and discards the database with the job.
+
 ## Local Google Maps configuration
 
 Never add a Maps key to a manifest, Swift source, tracked Gradle file, or Dart

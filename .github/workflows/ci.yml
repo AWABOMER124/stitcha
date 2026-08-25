@@ -18,6 +18,20 @@ jobs:
   merchant-os:
     name: Merchant OS
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: stitcha_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stitcha_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: merchant-os
@@ -39,10 +53,14 @@ jobs:
         run: npm ci
       - name: Generate Prisma client
         run: npx prisma generate
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
       - name: Lint
         run: npm run lint
       - name: Test
         run: npm test
+      - name: Test database-backed order lifecycle
+        run: npm run test:integration
       - name: Build
         run: npm run build
 

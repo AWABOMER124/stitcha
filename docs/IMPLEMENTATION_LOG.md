@@ -1,5 +1,28 @@
 # Implementation log
 
+## 2026-08-25 — P0 hardening batch 6
+
+### Database-backed order lifecycle
+
+- Added an isolated PostgreSQL 16 service to the Merchant OS CI job.
+- CI now applies the complete Prisma migration chain before integration tests.
+- Added a dedicated Vitest integration configuration, separate from fast unit
+  tests and mocks.
+- The lifecycle test creates real merchant, account, customer, catalogue, and
+  inventory records; creates an order; verifies stock, delivery, payment, and
+  customer history; fulfills the order to `DELIVERED`; checks the immutable
+  status trail; and rejects a transition out of the terminal state.
+- Test records use unique identifiers and are removed after the run; the CI
+  database itself is disposable.
+
+### Verification
+
+- Local unit suite: 203/203 tests passed.
+- Next.js production build passed and ESLint completed with zero errors and the
+  same seven image-optimization warnings.
+- The database test is intentionally delegated to GitHub Actions because no
+  local Docker daemon was available; its result is a required CI job step.
+
 ## 2026-08-25 — P0 hardening batch 5
 
 ### Honest delivery information

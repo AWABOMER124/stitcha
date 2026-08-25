@@ -33,13 +33,14 @@ verified in CI and in staging.
       in CI.
 - [x] Add authenticated API contract tests for order creation, customer history,
       and ownership-scoped live tracking.
+- [x] Run the core order lifecycle against a migrated disposable PostgreSQL
+      database in CI, including inventory and the status audit trail.
 
 ### Remaining P0
 
 - [ ] Configure final Android/iOS identifiers, release signing, and store metadata.
 - [ ] Rotate the previously exposed Maps key in Google Cloud, then restrict
       separate Android/iOS keys to final application identifiers and Maps SDKs.
-- [ ] Add database-backed end-to-end tests for the complete order lifecycle.
 - [ ] Deploy and verify a signed staging build over HTTPS.
 
 ### P0 release gates
