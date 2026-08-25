@@ -1,5 +1,32 @@
 # Implementation log
 
+## 2026-08-25 — P1 order reliability batch 1
+
+### Atomic stock and order state
+
+- Order creation, tracked-stock deduction, stock-movement audit, delivery and
+  payment records, and customer statistics now commit in one transaction.
+- A conditional inventory update prevents concurrent checkouts from pushing
+  tracked stock below zero; insufficient stock rolls the whole order back.
+- Cancellation and rejection restore tracked inventory in the same transaction
+  as the status change and audit entry.
+- Status updates use the previously read status as an optimistic concurrency
+  condition, preventing two operators from advancing the same order at once.
+- The mobile checkout now uses the same order repository as merchant-created
+  orders, so it no longer bypasses inventory, payment, or delivery records.
+- Removed the obsolete best-effort inventory APIs to prevent future callers
+  from reintroducing non-atomic order stock changes.
+
+### Verification
+
+- Merchant OS unit suite: 197/197 tests passed after moving stock guarantees
+  from mocked service tests into the database integration suite.
+- ESLint completed with zero errors and zero warnings.
+- Next.js production build passed.
+- The PostgreSQL lifecycle now covers mobile checkout, cancellation restoration,
+  competing oversized orders, and competing status updates; CI records the
+  database result.
+
 ## 2026-08-25 — P1 UX/performance batch 1
 
 ### Layout-safe storefront images

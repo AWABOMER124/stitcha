@@ -40,6 +40,8 @@
 
 - [ ] One complete order was verified in staging and a production canary.
 - [ ] Cancellation, refund, stock race, payment failure, and delivery failure were tested.
+- [ ] Concurrent checkout verification confirms tracked stock cannot become
+      negative and only one conflicting order succeeds.
 - [ ] Merchant/distributor support ownership and escalation paths are documented.
 - [ ] Metrics dashboards cover activation, fulfilled orders, cancellations, latency,
       errors, retention, and gross margin.

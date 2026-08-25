@@ -2,6 +2,7 @@ import prisma from '@/lib/db/prisma';
 import type { OrderStatus, Prisma, DeliveryMethod, PaymentMethod } from '@prisma/client';
 import type { OrderFilterInput } from '../schemas/orders.schemas';
 import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
+import { BusinessRuleError, ValidationError } from '@/lib/errors';
 
 // ============================================================================
 // Orders Repository — Data access layer
@@ -14,6 +15,7 @@ const orderIncludes = {
   delivery: true,
   payment: true,
   branch: true,
+  merchant: { select: { name: true } },
 };
 
 /** Find an order by ID with all relations */
@@ -108,55 +110,109 @@ export async function create(
     }[];
   }
 ) {
-  const order = await prisma.order.create({
-    data: {
-      merchantId,
-      orderNumber: data.orderNumber,
-      customerId: data.customerId,
-      branchId: data.branchId,
-      subtotal: data.subtotal,
-      deliveryFee: data.deliveryFee,
-      discount: 0,
-      tax: 0,
-      total: data.total,
-      deliveryMethod: data.deliveryMethod as Prisma.EnumDeliveryMethodFieldUpdateOperationsInput['set'],
-      paymentMethod: data.paymentMethod as Prisma.EnumPaymentMethodFieldUpdateOperationsInput['set'],
-      notes: data.notes,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      customerAddress: data.customerAddress,
-      items: {
-        create: data.items.map((item) => ({
-          productId: item.productId,
-          productSnapshot: item.productSnapshot as Prisma.InputJsonValue,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          total: item.total,
-          modifiers: item.modifiers as Prisma.InputJsonValue ?? undefined,
-          notes: item.notes,
-        })),
+  const order = await prisma.$transaction(async (tx) => {
+    const customer = await tx.customer.findFirst({
+      where: { id: data.customerId, merchantId },
+      select: { id: true },
+    });
+    if (!customer) throw new ValidationError('Customer does not belong to this merchant');
+
+    const trackedInventory = await tx.inventoryItem.findMany({
+      where: {
+        merchantId,
+        trackInventory: true,
+        productId: { in: data.items.map((item) => item.productId) },
       },
-      statusHistory: {
-        create: {
-          status: 'NEW',
-          note: 'Order created',
+      select: { id: true, productId: true },
+    });
+    const inventoryByProduct = new Map(trackedInventory.map((item) => [item.productId, item]));
+
+    for (const item of data.items) {
+      const inventory = inventoryByProduct.get(item.productId);
+      if (!inventory) continue;
+
+      const result = await tx.inventoryItem.updateMany({
+        where: { id: inventory.id, quantity: { gte: item.quantity } },
+        data: { quantity: { decrement: item.quantity } },
+      });
+      if (result.count !== 1) {
+        const snapshot = item.productSnapshot as { name?: string };
+        throw new BusinessRuleError(`Insufficient stock for ${snapshot.name ?? item.productId}`);
+      }
+
+      const updatedInventory = await tx.inventoryItem.findUniqueOrThrow({
+        where: { id: inventory.id },
+        select: { quantity: true },
+      });
+      await tx.stockMovement.create({
+        data: {
+          inventoryItemId: inventory.id,
+          type: 'SALE',
+          quantity: -item.quantity,
+          previousQuantity: updatedInventory.quantity + item.quantity,
+          newQuantity: updatedInventory.quantity,
+          reason: 'Order placed',
+          reference: data.orderNumber,
+        },
+      });
+    }
+
+    const createdOrder = await tx.order.create({
+      data: {
+        merchantId,
+        orderNumber: data.orderNumber,
+        customerId: data.customerId,
+        branchId: data.branchId,
+        subtotal: data.subtotal,
+        deliveryFee: data.deliveryFee,
+        discount: 0,
+        tax: 0,
+        total: data.total,
+        deliveryMethod: data.deliveryMethod as Prisma.EnumDeliveryMethodFieldUpdateOperationsInput['set'],
+        paymentMethod: data.paymentMethod as Prisma.EnumPaymentMethodFieldUpdateOperationsInput['set'],
+        notes: data.notes,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        customerAddress: data.customerAddress,
+        items: {
+          create: data.items.map((item) => ({
+            productId: item.productId,
+            productSnapshot: item.productSnapshot as Prisma.InputJsonValue,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+            modifiers: item.modifiers as Prisma.InputJsonValue ?? undefined,
+            notes: item.notes,
+          })),
+        },
+        statusHistory: { create: { status: 'NEW', note: 'Order created' } },
+        delivery: {
+          create: {
+            type: data.deliveryMethod as DeliveryMethod,
+            address: data.customerAddress,
+            fee: data.deliveryFee,
+          },
+        },
+        payment: {
+          create: {
+            method: data.paymentMethod as PaymentMethod,
+            amount: data.total,
+          },
         },
       },
-      delivery: {
-        create: {
-          type: data.deliveryMethod as DeliveryMethod,
-          address: data.customerAddress,
-          fee: data.deliveryFee,
-        },
+      include: orderIncludes,
+    });
+
+    await tx.customer.update({
+      where: { id: data.customerId },
+      data: {
+        totalOrders: { increment: 1 },
+        totalSpent: { increment: data.subtotal },
+        lastOrderAt: new Date(),
       },
-      payment: {
-        create: {
-          method: data.paymentMethod as PaymentMethod,
-          amount: data.total,
-        },
-      },
-    },
-    include: orderIncludes,
+    });
+
+    return createdOrder;
   });
   return serializePrismaObject(order);
 }
@@ -167,16 +223,20 @@ export async function updateStatus(
   id: string,
   status: OrderStatus,
   note?: string,
-  changedById?: string
+  changedById?: string,
+  expectedStatus?: OrderStatus,
 ) {
   return prisma.$transaction(async (tx) => {
-    const order = await tx.order.update({
-      where: { id, merchantId },
+    const result = await tx.order.updateMany({
+      where: { id, merchantId, ...(expectedStatus && { status: expectedStatus }) },
       data: {
         status,
         ...(status === 'DELIVERED' && { completedAt: new Date() }),
       },
     });
+    if (result.count !== 1) {
+      throw new BusinessRuleError('Order status changed concurrently; reload and try again');
+    }
 
     await tx.orderStatusHistory.create({
       data: {
@@ -187,6 +247,42 @@ export async function updateStatus(
       },
     });
 
+    if (status === 'CANCELLED' || status === 'REJECTED') {
+      const orderItems = await tx.orderItem.findMany({
+        where: { orderId: id, productId: { not: null } },
+        select: { productId: true, quantity: true },
+      });
+      const productIds = orderItems.flatMap((item) => item.productId ? [item.productId] : []);
+      const trackedInventory = await tx.inventoryItem.findMany({
+        where: { merchantId, trackInventory: true, productId: { in: productIds } },
+        select: { id: true, productId: true },
+      });
+      const inventoryByProduct = new Map(trackedInventory.map((item) => [item.productId, item]));
+
+      for (const item of orderItems) {
+        if (!item.productId) continue;
+        const inventory = inventoryByProduct.get(item.productId);
+        if (!inventory) continue;
+        const updated = await tx.inventoryItem.update({
+          where: { id: inventory.id },
+          data: { quantity: { increment: item.quantity } },
+          select: { quantity: true },
+        });
+        await tx.stockMovement.create({
+          data: {
+            inventoryItemId: inventory.id,
+            type: 'RETURN',
+            quantity: item.quantity,
+            previousQuantity: updated.quantity - item.quantity,
+            newQuantity: updated.quantity,
+            reason: 'Order cancelled',
+            reference: id,
+          },
+        });
+      }
+    }
+
+    const order = await tx.order.findUniqueOrThrow({ where: { id } });
     return serializePrismaObject(order);
   });
 }

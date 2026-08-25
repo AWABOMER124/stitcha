@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import { serializePrismaObject } from '@/lib/serialization';
 import type { CustomerAccount, OrderStatus, Prisma } from '@prisma/client';
 import * as notificationsService from '@/modules/notifications/services/notifications.service';
+import * as ordersRepo from '@/modules/orders/repositories/orders.repository';
 
 /**
  * Storefront service — public-facing operations.
@@ -370,31 +371,19 @@ export async function placeOrderForAccount(account: CustomerAccount, data: Mobil
     throw new ValidationError(`الحد الأدنى للطلب هو ${merchant.storefrontSettings.minimumOrderAmount} SDG`);
   }
 
-  const orderNumber = `ORD-${nanoid(8).toUpperCase()}`;
-  const order = await prisma.order.create({
-    data: {
-      merchantId,
-      orderNumber,
-      customerId: customer.id,
-      status: 'NEW',
-      subtotal,
-      deliveryFee: 0,
-      total: subtotal,
-      deliveryMethod: 'MERCHANT_DELIVERY',
-      paymentMethod: 'CASH',
-      notes: data.notes,
-      customerName: account.name,
-      customerPhone: account.phone,
-      customerAddress: data.address,
-      items: { create: orderItems },
-      statusHistory: { create: { status: 'NEW', note: 'Order placed from mobile app' } },
-    },
-    include: { merchant: { select: { name: true } } },
-  });
-
-  await prisma.customer.update({
-    where: { id: customer.id },
-    data: { totalOrders: { increment: 1 }, totalSpent: { increment: subtotal } },
+  const order = await ordersRepo.create(merchantId, {
+    orderNumber: `ORD-${nanoid(8).toUpperCase()}`,
+    customerId: customer.id,
+    subtotal,
+    deliveryFee: 0,
+    total: subtotal,
+    deliveryMethod: 'MERCHANT_DELIVERY',
+    paymentMethod: 'CASH',
+    notes: data.notes,
+    customerName: account.name,
+    customerPhone: account.phone,
+    customerAddress: data.address,
+    items: orderItems,
   });
 
   await notifyMerchantNewOrder(merchantId, order.orderNumber, account.name, subtotal);

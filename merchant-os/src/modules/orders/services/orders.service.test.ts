@@ -14,11 +14,6 @@ const ordersRepoMock = {
   updateStatus: vi.fn(),
 };
 
-const inventoryServiceMock = {
-  deductForOrder: vi.fn(),
-  restoreForCancellation: vi.fn(),
-};
-
 const customerSubscriptionsServiceMock = {
   hasActiveDeliveryPerk: vi.fn(),
 };
@@ -29,7 +24,6 @@ const driversServiceMock = {
 
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
 vi.mock('../repositories/orders.repository', () => ordersRepoMock);
-vi.mock('@/modules/inventory/services/inventory.service', () => inventoryServiceMock);
 vi.mock('@/modules/customer-subscriptions/services/customer-subscriptions.service', () => customerSubscriptionsServiceMock);
 vi.mock('@/modules/drivers/services/drivers.service', () => driversServiceMock);
 
@@ -46,8 +40,6 @@ function resetMocks() {
   ordersRepoMock.create.mockReset();
   ordersRepoMock.findById.mockReset();
   ordersRepoMock.updateStatus.mockReset();
-  inventoryServiceMock.deductForOrder.mockReset().mockResolvedValue([]);
-  inventoryServiceMock.restoreForCancellation.mockReset().mockResolvedValue([]);
   driversServiceMock.autoAssignNearestDriver.mockReset().mockResolvedValue(null);
 }
 
@@ -211,27 +203,6 @@ describe('orders.service', () => {
       expect(customerSubscriptionsServiceMock.hasActiveDeliveryPerk).not.toHaveBeenCalled();
     });
 
-    it('deducts inventory for the ordered items after the order is created', async () => {
-      prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust_1' });
-      prismaMock.product.findMany.mockResolvedValue([{ id: 'prod_1', name: 'Burger', price: 100, images: [], sku: null }]);
-      ordersRepoMock.create.mockResolvedValue({ orderNumber: 'ORD-TEST7', id: 'order_7' });
-
-      await createOrder('merchant_1', baseInput);
-
-      expect(inventoryServiceMock.deductForOrder).toHaveBeenCalledWith('merchant_1', [
-        { productId: 'prod_1', quantity: 2 },
-      ]);
-    });
-
-    it('does not fail order creation if inventory deduction throws (best-effort side effect)', async () => {
-      prismaMock.customer.findFirst.mockResolvedValue({ id: 'cust_1' });
-      prismaMock.product.findMany.mockResolvedValue([{ id: 'prod_1', name: 'Burger', price: 100, images: [], sku: null }]);
-      ordersRepoMock.create.mockResolvedValue({ orderNumber: 'ORD-TEST8', id: 'order_8' });
-      inventoryServiceMock.deductForOrder.mockRejectedValue(new Error('db down'));
-
-      const result = await createOrder('merchant_1', baseInput);
-      expect(result.orderNumber).toBe('ORD-TEST8');
-    });
   });
 
   describe('updateOrderStatus — state machine', () => {
@@ -257,7 +228,14 @@ describe('orders.service', () => {
       ordersRepoMock.updateStatus.mockResolvedValue({ ...orderWithItems(from), status: to });
 
       await expect(updateOrderStatus('merchant_1', 'order_1', to as never)).resolves.toBeTruthy();
-      expect(ordersRepoMock.updateStatus).toHaveBeenCalledWith('merchant_1', 'order_1', to, undefined, undefined);
+      expect(ordersRepoMock.updateStatus).toHaveBeenCalledWith(
+        'merchant_1',
+        'order_1',
+        to,
+        undefined,
+        undefined,
+        from,
+      );
     });
 
     it.each([
@@ -281,42 +259,6 @@ describe('orders.service', () => {
       await expect(updateOrderStatus('merchant_1', 'nope', 'ACCEPTED' as never)).rejects.toThrow(NotFoundError);
     });
 
-    it('restores inventory when an order transitions to CANCELLED', async () => {
-      ordersRepoMock.findById.mockResolvedValue(orderWithItems('NEW'));
-      ordersRepoMock.updateStatus.mockResolvedValue(orderWithItems('CANCELLED'));
-
-      await updateOrderStatus('merchant_1', 'order_1', 'CANCELLED' as never);
-
-      expect(inventoryServiceMock.restoreForCancellation).toHaveBeenCalledWith('merchant_1', [
-        { productId: 'prod_1', quantity: 3 },
-      ]);
-    });
-
-    it('restores inventory when an order transitions to REJECTED', async () => {
-      ordersRepoMock.findById.mockResolvedValue(orderWithItems('NEW'));
-      ordersRepoMock.updateStatus.mockResolvedValue(orderWithItems('REJECTED'));
-
-      await updateOrderStatus('merchant_1', 'order_1', 'REJECTED' as never);
-
-      expect(inventoryServiceMock.restoreForCancellation).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not touch inventory for a non-terminal transition like ACCEPTED', async () => {
-      ordersRepoMock.findById.mockResolvedValue(orderWithItems('NEW'));
-      ordersRepoMock.updateStatus.mockResolvedValue(orderWithItems('ACCEPTED'));
-
-      await updateOrderStatus('merchant_1', 'order_1', 'ACCEPTED' as never);
-
-      expect(inventoryServiceMock.restoreForCancellation).not.toHaveBeenCalled();
-    });
-
-    it('does not fail the status update if inventory restoration throws (best-effort side effect)', async () => {
-      ordersRepoMock.findById.mockResolvedValue(orderWithItems('NEW'));
-      ordersRepoMock.updateStatus.mockResolvedValue(orderWithItems('CANCELLED'));
-      inventoryServiceMock.restoreForCancellation.mockRejectedValue(new Error('db down'));
-
-      await expect(updateOrderStatus('merchant_1', 'order_1', 'CANCELLED' as never)).resolves.toBeTruthy();
-    });
   });
 
   describe('updateOrderStatus — hybrid driver auto-assignment on READY', () => {

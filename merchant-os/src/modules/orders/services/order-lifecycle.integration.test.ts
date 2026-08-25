@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import prisma from '@/lib/db/prisma';
 import { BusinessRuleError } from '@/lib/errors';
 import { createOrder, updateOrderStatus } from './orders.service';
-import { getOrderHistoryForAccount } from '@/modules/storefront/services/storefront.service';
+import { getOrderHistoryForAccount, placeOrderForAccount } from '@/modules/storefront/services/storefront.service';
 
 describe('database-backed order lifecycle', () => {
   const suffix = randomUUID();
@@ -149,5 +149,67 @@ describe('database-backed order lifecycle', () => {
 
     await expect(updateOrderStatus(merchantId, created.id, 'CANCELLED'))
       .rejects.toBeInstanceOf(BusinessRuleError);
+
+    const account = await prisma.customerAccount.findUniqueOrThrow({ where: { id: accountId } });
+    const mobileOrder = await placeOrderForAccount(account, {
+      items: [{ productId, quantity: 3 }],
+      address: 'Mobile E2E address',
+      paymentMethod: 'cash',
+    });
+    expect(mobileOrder).toMatchObject({ status: 'pending', totalAmount: 375 });
+
+    const persistedMobileOrder = await prisma.order.findUniqueOrThrow({
+      where: { id: mobileOrder.id },
+      include: { delivery: true, payment: true },
+    });
+    expect(persistedMobileOrder.delivery).toMatchObject({
+      type: 'MERCHANT_DELIVERY',
+      address: 'Mobile E2E address',
+    });
+    expect(persistedMobileOrder.payment).toMatchObject({ method: 'CASH', amount: 375 });
+    await expect(prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } }))
+      .resolves.toMatchObject({ quantity: 5 });
+
+    await updateOrderStatus(merchantId, mobileOrder.id, 'CANCELLED', 'Customer cancelled');
+    await expect(prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } }))
+      .resolves.toMatchObject({ quantity: 8 });
+
+    const concurrentOrders = await Promise.allSettled([
+      createOrder(merchantId, {
+        customerId,
+        items: [{ productId, quantity: 6 }],
+        deliveryMethod: 'PICKUP',
+        paymentMethod: 'CASH',
+      }),
+      createOrder(merchantId, {
+        customerId,
+        items: [{ productId, quantity: 6 }],
+        deliveryMethod: 'PICKUP',
+        paymentMethod: 'CASH',
+      }),
+    ]);
+    expect(concurrentOrders.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(concurrentOrders.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    const rejectedOrder = concurrentOrders.find((result) => result.status === 'rejected');
+    expect(rejectedOrder?.reason).toBeInstanceOf(BusinessRuleError);
+    await expect(prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } }))
+      .resolves.toMatchObject({ quantity: 2 });
+
+    const raceOrder = await createOrder(merchantId, {
+      customerId,
+      items: [{ productId, quantity: 1 }],
+      deliveryMethod: 'PICKUP',
+      paymentMethod: 'CASH',
+    });
+    const statusRace = await Promise.allSettled([
+      updateOrderStatus(merchantId, raceOrder.id, 'ACCEPTED'),
+      updateOrderStatus(merchantId, raceOrder.id, 'ACCEPTED'),
+    ]);
+    expect(statusRace.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(statusRace.filter((result) => result.status === 'rejected')).toHaveLength(1);
+
+    await updateOrderStatus(merchantId, raceOrder.id, 'CANCELLED');
+    await expect(prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } }))
+      .resolves.toMatchObject({ quantity: 2 });
   });
 });
