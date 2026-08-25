@@ -15,6 +15,8 @@
   account-scoped history, including wire-format translation and auth failures.
 - Order creation now rejects zero, negative, fractional, or missing quantities
   before reaching the service layer.
+- Updated the official checkout and Node setup actions to their Node 24-based
+  major versions after GitHub flagged the previous Node 20 runtimes as deprecated.
 
 ### Verification
 
