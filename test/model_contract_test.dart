@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wassalk_app/features/cart/domain/product_model.dart';
 import 'package:wassalk_app/features/home/domain/store_model.dart';
 import 'package:wassalk_app/features/orders/domain/order_model.dart';
+import 'package:wassalk_app/features/orders/domain/order_tracking_update.dart';
 
 void main() {
   group('mobile API model contracts', () {
@@ -47,6 +48,20 @@ void main() {
       });
 
       expect(order.address, isNull);
+    });
+
+    test('combines an order status with a real driver location', () {
+      const initial = OrderTrackingUpdate(status: 'preparing');
+      final update = initial.copyWith(
+        status: 'delivering',
+        driverLat: 15.5007,
+        driverLng: 32.5599,
+        driverName: 'Demo driver',
+      );
+
+      expect(update.status, 'delivering');
+      expect(update.hasDriverLocation, isTrue);
+      expect(update.driverName, 'Demo driver');
     });
   });
 }

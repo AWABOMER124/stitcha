@@ -1,5 +1,24 @@
 # Implementation log
 
+## 2026-08-25 — P0 hardening batch 2
+
+### Honest mobile order experience
+
+- Order history now loads authenticated orders from the backend and separates
+  active and completed/cancelled orders using real statuses.
+- The tracking screen consumes live driver coordinates from the SSE stream and
+  only renders a map after a real location is received.
+- Simulated map positions, ETA, driver rating, vehicle details, placeholder
+  orders, fixed delivery fees, and the unsupported Bankak option were removed.
+- Checkout now starts with an empty address and clearly states that the server
+  confirms any applicable delivery fees.
+
+### Verification
+
+- Dart analysis completed with zero errors and zero warnings (five advisory
+  info messages remain outside this batch).
+- Flutter model contracts include live tracking-update coverage.
+
 ## 2026-08-25 — P0 hardening batch 1
 
 ### Security

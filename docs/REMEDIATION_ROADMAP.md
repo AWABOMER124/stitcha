@@ -20,11 +20,13 @@ verified in CI and in staging.
 - [x] Align nullable mobile catalogue/order fields with backend responses.
 - [x] Replace the obsolete Flutter counter test with API contract tests.
 - [x] Save merchant-owner phone and establish a session after registration.
+- [x] Consume real driver-location frames and remove simulated map positions.
+- [x] Replace fabricated order history with the authenticated history API.
+- [x] Remove fabricated delivery fees, ETAs, driver details, and unsupported
+      Bankak checkout UI.
 
 ### Remaining P0
 
-- [ ] Consume real driver-location frames and remove simulated map positions.
-- [ ] Remove fabricated ratings, vehicles, order history, delivery fees, and ETAs.
 - [ ] Configure final Android/iOS identifiers, release signing, and store metadata.
 - [ ] Restrict and rotate the exposed Google Maps key.
 - [ ] Replace the 90-day bearer token with short access tokens, refresh rotation,
@@ -45,8 +47,6 @@ verified in CI and in staging.
 - [ ] Move billing schedules out of the web process into one durable scheduler.
 - [ ] Add checkout price reconciliation, delivery-zone pricing, stock
       concurrency, cancellation/refund rules, and payment state transitions.
-- [ ] Build real Flutter order history.
-- [ ] Remove unsupported Bankak UI until a payment integration is production-ready.
 - [ ] Add complete loading, empty, offline, retry, and partial-failure states.
 - [ ] Complete accessibility: 44px targets, autocomplete, correct `html[lang]`,
       keyboard navigation, contrast, and reduced-motion support.

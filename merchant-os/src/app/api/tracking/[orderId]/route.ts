@@ -59,7 +59,7 @@ export async function GET(
                 where: { orderId },
                 include: {
                   driver: {
-                    select: { currentLat: true, currentLng: true, name: true, phone: true },
+                    select: { currentLat: true, currentLng: true, name: true },
                   },
                 },
               }),
@@ -73,7 +73,10 @@ export async function GET(
 
             send({ type: 'ORDER_STATUS', status: updatedOrder.status });
 
-            if (assignment?.driver?.currentLat && assignment.driver.currentLng) {
+            if (
+              assignment?.driver?.currentLat != null &&
+              assignment.driver.currentLng != null
+            ) {
               send({
                 type: 'DRIVER_LOCATION',
                 lat: assignment.driver.currentLat,
