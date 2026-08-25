@@ -4,6 +4,8 @@
 
 - [ ] No production secrets or signing files are tracked.
 - [ ] Google/Firebase client keys are restricted to the final applications.
+- [ ] The previously committed Maps key was disabled, separate Android/iOS keys
+      were created, and API/application restrictions were verified.
 - [ ] Authentication, tenant isolation, ownership, and rate limits are tested.
 - [ ] Refresh-token rotation, reuse revocation, logout, and forced re-login were
       verified on the staging mobile build.

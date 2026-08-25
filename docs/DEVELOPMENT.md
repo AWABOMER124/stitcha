@@ -57,3 +57,17 @@ change when plugin dependencies change.
 Dependabot checks npm and Flutter packages weekly and GitHub Actions monthly.
 Dependency pull requests must pass the same CI gates and should be merged in
 small groups so regressions remain easy to identify.
+
+## Local Google Maps configuration
+
+Never add a Maps key to a manifest, Swift source, tracked Gradle file, or Dart
+source. Use separate restricted keys for each platform:
+
+- Android: set `MAPS_API_KEY` in the shell/CI secret store, or add
+  `MAPS_API_KEY=...` to the user-level `~/.gradle/gradle.properties` file.
+- iOS: copy `ios/Flutter/Maps.xcconfig.example` to the ignored
+  `ios/Flutter/Maps.xcconfig` file and replace the placeholder.
+
+The Android key must be restricted to the final package name and signing SHA-1;
+the iOS key must be restricted to the final bundle identifier. Enable only the
+Maps SDK required by that platform.

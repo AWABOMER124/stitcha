@@ -1,5 +1,33 @@
 # Implementation log
 
+## 2026-08-25 — P0 hardening batch 4
+
+### Google Maps key handling
+
+- Removed the shared Google Maps key from Android and iOS source files.
+- Android reads `MAPS_API_KEY` from a Gradle property or environment variable
+  and rejects release tasks when it is missing.
+- iOS reads the key from an ignored `Maps.xcconfig` file and refuses to start a
+  release build without a resolved value.
+- Added a CI guard that rejects Google Maps key patterns in Android source and
+  the iOS application delegate.
+
+### Required external action
+
+The exposed key remains recoverable from Git history and must be disabled in
+Google Cloud. Create separate Android/iOS keys restricted to the final package
+and bundle identifiers, signing certificate, and only the required Maps SDKs.
+
+### Verification
+
+- The repository key-pattern guard passes for Android native source and the iOS
+  application delegate.
+- The updated iOS property list parses successfully and resolves the Maps key
+  through the `MAPS_API_KEY` build setting.
+- An Android debug build reached Gradle dependency resolution, but could not
+  finish because Maven artifact downloads failed with TLS/time-out network
+  errors. GitHub Actions remains the clean-environment analysis and test gate.
+
 ## 2026-08-25 — P0 hardening batch 3
 
 ### Revocable customer sessions

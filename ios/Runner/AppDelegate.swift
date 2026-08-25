@@ -8,7 +8,16 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GMSServices.provideAPIKey("AIzaSyBFyjYfNA2mvePTsmbIDn5rkCyw8xv0hU0")
+    let mapsAPIKey = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String
+    if let mapsAPIKey, !mapsAPIKey.isEmpty, !mapsAPIKey.contains("$(") {
+      GMSServices.provideAPIKey(mapsAPIKey)
+    } else {
+      #if DEBUG
+      NSLog("MAPS_API_KEY is not configured; Google Maps will be unavailable.")
+      #else
+      fatalError("MAPS_API_KEY is required for release builds.")
+      #endif
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

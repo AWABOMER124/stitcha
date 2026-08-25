@@ -75,6 +75,12 @@ flutter build apk --release \
 The application intentionally fails fast if a release build starts without
 `API_BASE_URL`.
 
+Google Maps keys are never committed. For Android, provide `MAPS_API_KEY` as
+an environment variable or `-PMAPS_API_KEY=...`. For iOS, copy
+`ios/Flutter/Maps.xcconfig.example` to `ios/Flutter/Maps.xcconfig` and insert the
+rotated iOS-restricted key. Release configuration rejects a missing key; debug
+mode keeps the map unavailable without fabricating one.
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)

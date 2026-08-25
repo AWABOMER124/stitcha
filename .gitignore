@@ -7,6 +7,7 @@ Thumbs.db
 .env.local
 .env.production
 .env.*.local
+ios/Flutter/Maps.xcconfig
 
 # SSL certs
 nginx/ssl/*.pem

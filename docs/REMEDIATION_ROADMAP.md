@@ -27,11 +27,14 @@ verified in CI and in staging.
 - [x] Run web build/lint/tests and Flutter analysis/tests in GitHub Actions.
 - [x] Replace the 90-day bearer token with 15-minute access tokens, rotating
       refresh tokens, reuse detection, and server-side revocation.
+- [x] Remove the hard-coded Google Maps key and reject new hard-coded Maps keys
+      in CI.
 
 ### Remaining P0
 
 - [ ] Configure final Android/iOS identifiers, release signing, and store metadata.
-- [ ] Restrict and rotate the exposed Google Maps key.
+- [ ] Rotate the previously exposed Maps key in Google Cloud, then restrict
+      separate Android/iOS keys to final application identifiers and Maps SDKs.
 - [ ] Add API integration and end-to-end tests for the core order lifecycle.
 - [ ] Deploy and verify a signed staging build over HTTPS.
 
