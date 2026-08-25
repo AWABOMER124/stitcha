@@ -13,12 +13,10 @@ const prismaMock = {
   $transaction: vi.fn(async (fn: (tx: typeof txMock) => Promise<unknown>) => fn(txMock)),
 };
 
-const whatsAppSendMock = vi.fn();
+const enqueueExternalNotificationMock = vi.fn();
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
-vi.mock('@/services/notifications/providers/whatsapp.provider', () => ({
-  WhatsAppProvider: class {
-    send = whatsAppSendMock;
-  },
+vi.mock('@/services/jobs/notification.jobs', () => ({
+  enqueueExternalNotification: enqueueExternalNotificationMock,
 }));
 
 const { createPendingMerchantWithInvite } = await import('./merchant-invite.service');
@@ -26,7 +24,7 @@ const { createPendingMerchantWithInvite } = await import('./merchant-invite.serv
 function resetMocks() {
   Object.values(txMock).forEach((model) => Object.values(model).forEach((fn) => fn.mockReset()));
   prismaMock.$transaction.mockClear();
-  whatsAppSendMock.mockReset().mockResolvedValue(undefined);
+  enqueueExternalNotificationMock.mockReset().mockResolvedValue(undefined);
   txMock.merchant.create.mockResolvedValue({ id: 'merchant_1', slug: 'test-merchant-abc' });
   txMock.category.create.mockResolvedValue({ id: 'category_1' });
   txMock.product.create.mockResolvedValue({ id: 'product_1' });
@@ -102,12 +100,15 @@ describe('createPendingMerchantWithInvite', () => {
     expect(txMock.product.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ price: 1 }) }));
   });
 
-  it('sends a WhatsApp registration link best-effort and does not throw if it fails', async () => {
-    whatsAppSendMock.mockRejectedValue(new Error('whatsapp down'));
+  it('queues a WhatsApp registration link best-effort and does not throw if queuing fails', async () => {
+    enqueueExternalNotificationMock.mockRejectedValue(new Error('outbox down'));
     await expect(
       createPendingMerchantWithInvite({ name: 'متجر', phone: '0911111111', address: 'الخرطوم', distributorId: 'dist_1' })
     ).resolves.toEqual({ id: 'merchant_1', slug: 'test-merchant-abc' });
-    expect(whatsAppSendMock).toHaveBeenCalledWith(expect.objectContaining({ recipient: '0911111111' }));
+    expect(enqueueExternalNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: '0911111111', channel: 'WHATSAPP' }),
+      expect.stringMatching(/^merchant-invite:merchant_1:/),
+    );
   });
 
   it('creates no categories/products when none are seeded', async () => {

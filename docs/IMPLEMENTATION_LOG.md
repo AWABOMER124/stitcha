@@ -1,5 +1,38 @@
 # Implementation log
 
+## 2026-08-25 — P1 durable jobs and delivery batch 2
+
+- Added a PostgreSQL outbox with idempotency keys, atomic claim using
+  `FOR UPDATE SKIP LOCKED`, stale-lock recovery, bounded exponential retries,
+  and terminal `FAILED` records for dead-letter inspection.
+- Added a secret-protected `POST /api/internal/jobs/run` endpoint that enqueues
+  the monthly subscription-billing period and drains billing and notification
+  jobs. Concurrent workers cannot claim the same job.
+- Order creation now commits its merchant notification in the same transaction
+  as stock, payment, delivery, and customer statistics.
+- Password resets, staff invites, merchant registration links, and phone OTPs
+  are queued with encrypted payloads; raw tokens and OTP bodies are not stored
+  as readable outbox JSON.
+- Replaced console-only email, SMS, and WhatsApp mocks with fail-closed Resend,
+  Twilio, and Meta Cloud API adapters. Missing credentials cause retries and a
+  visible dead letter instead of a false delivery success.
+- Public storefront checkout now uses the same atomic repository path as every
+  other order source.
+
+### Verification
+
+- ESLint completed with zero errors and zero warnings.
+- All 208 Merchant OS unit tests passed.
+- The Next.js production build and TypeScript validation passed.
+- The PostgreSQL integration suite now covers idempotent enqueue, concurrent
+  workers, retries, and terminal dead-letter behavior.
+
+### Required external action
+
+Apply migration `20260825060000_add_durable_outbox`, set
+`JOB_RUNNER_SECRET` and `SECRETS_ENCRYPTION_KEY`, configure the hosting
+scheduler, then add credentials only for the delivery channels being launched.
+
 ## 2026-08-25 — P1 billing reliability batch 1
 
 - Added a database unique key for merchant plus exact settlement period, so

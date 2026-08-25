@@ -76,6 +76,26 @@ Never point this command at production or shared staging data. GitHub Actions
 creates a fresh PostgreSQL service, applies every committed migration, runs the
 integration lifecycle, and discards the database with the job.
 
+## Durable job runner
+
+Migration `20260825060000_add_durable_outbox` creates the PostgreSQL outbox.
+The hosting scheduler should call the runner regularly (for example every
+minute); repeated or concurrent calls are safe:
+
+```bash
+curl -X POST https://app.example.com/api/internal/jobs/run \
+  -H "Authorization: Bearer $JOB_RUNNER_SECRET"
+```
+
+The runner enqueues the current subscription-billing period idempotently and
+claims notification/billing jobs with row locks. Inspect `outbox_jobs` rows in
+`FAILED` status for dead letters. Retry them only after correcting the cause;
+do not alter completed job idempotency keys.
+
+External notification bodies are encrypted before entering the outbox, so
+`SECRETS_ENCRYPTION_KEY` is required even when only one delivery provider is
+enabled. Provider variables are documented in `merchant-os/.env.example`.
+
 ## Local Google Maps configuration
 
 Never add a Maps key to a manifest, Swift source, tracked Gradle file, or Dart

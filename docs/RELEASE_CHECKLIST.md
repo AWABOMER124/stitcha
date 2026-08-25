@@ -24,7 +24,8 @@
       updated mobile authentication flow was released.
 - [ ] `AUTH_SECRET`, `AUTH_TRUST_HOST`, URLs, database, encryption, and storage
       variables are configured in the deployment platform.
-- [ ] Durable notification/job providers are configured; no required channel is mock.
+- [ ] `JOB_RUNNER_SECRET`, the scheduler, and required Resend/Twilio/Meta
+      provider credentials are configured; no required channel is left disabled.
 - [ ] Health checks, structured logs, alerts, backups, and rollback are verified.
 - [ ] The production image CDN host is allow-listed and image optimization is
       verified without permitting arbitrary remote proxying.

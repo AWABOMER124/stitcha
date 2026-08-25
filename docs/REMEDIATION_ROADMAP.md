@@ -63,9 +63,9 @@ verified in CI and in staging.
 
 ## P1 — Reliable core order loop (weeks 3–6)
 
-- [ ] Replace mock notification providers with durable jobs, retries,
+- [x] Replace mock notification providers with durable jobs, retries,
       idempotency keys, and dead-letter visibility.
-- [ ] Move billing schedules out of the web process into one durable scheduler.
+- [x] Move billing schedules out of the web process into one durable scheduler.
 - [x] Make order creation, stock deduction, cancellation restoration, and
       status changes atomic and concurrency-safe for tracked inventory.
 - [ ] Add location-aware delivery quoting, refund rules, and complete payment

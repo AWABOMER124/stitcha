@@ -21,7 +21,7 @@ tests pass, but every release must satisfy the gates in
 [`docs/REMEDIATION_ROADMAP.md`](docs/REMEDIATION_ROADMAP.md) and
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
 
-Do not treat demo values, mock notification providers, or manually granted
+Do not treat demo values, unconfigured external providers, or manually granted
 subscriptions as production capabilities. Known gaps are tracked explicitly in
 the roadmap instead of being presented as complete features.
 
@@ -45,6 +45,10 @@ behind the repository's controlled Nginx/Dokploy proxy, also set
 Mobile authentication uses revocable access/refresh sessions. Deploy migration
 `20260825040000_add_customer_refresh_sessions` before releasing a mobile build
 from this branch. Existing legacy customer tokens require a one-time login.
+
+Deploy migrations through `20260825060000_add_durable_outbox` before enabling
+the internal job runner. The runner requires `JOB_RUNNER_SECRET`; sensitive
+notification payloads require `SECRETS_ENCRYPTION_KEY`.
 
 Verification:
 

@@ -4,6 +4,8 @@ import prisma from '@/lib/db/prisma';
 import { BusinessRuleError } from '@/lib/errors';
 import { createOrder, updateOrderStatus } from './orders.service';
 import { getOrderHistoryForAccount, placeOrderForAccount } from '@/modules/storefront/services/storefront.service';
+import { enqueueJob, processOutboxBatch } from '@/services/jobs/outbox.service';
+import { notificationJobHandlers } from '@/services/jobs/notification.jobs';
 
 describe('database-backed order lifecycle', () => {
   const suffix = randomUUID();
@@ -79,6 +81,23 @@ describe('database-backed order lifecycle', () => {
 
   afterAll(async () => {
     if (merchantId) {
+      const orderIds = await prisma.order.findMany({
+        where: { merchantId },
+        select: { id: true },
+      });
+      await prisma.outboxJob.deleteMany({
+        where: {
+          idempotencyKey: {
+            in: [
+              ...orderIds.map((order) => `order:new:${order.id}`),
+              `e2e:retry:${suffix}`,
+              `e2e:concurrent:${suffix}`,
+              `e2e:dead:${suffix}`,
+              `e2e:stale-final:${suffix}`,
+            ],
+          },
+        },
+      });
       await prisma.merchant.deleteMany({ where: { id: merchantId } });
     }
     if (accountId) {
@@ -226,5 +245,118 @@ describe('database-backed order lifecycle', () => {
     await updateOrderStatus(merchantId, raceOrder.id, 'CANCELLED');
     await expect(prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } }))
       .resolves.toMatchObject({ quantity: 2 });
+  });
+
+  it('claims durable jobs once, retries failures, and exposes dead letters', async () => {
+    const retryTopic = `test.retry.${suffix}`;
+    let retryDeliveries = 0;
+    const retryHandlers = new Map([
+      ...notificationJobHandlers,
+      [retryTopic, async () => {
+        retryDeliveries += 1;
+        if (retryDeliveries === 1) throw new Error('temporary failure');
+      }],
+    ]);
+    await enqueueJob({
+      topic: retryTopic,
+      idempotencyKey: `e2e:retry:${suffix}`,
+      payload: { test: true },
+    });
+    await enqueueJob({
+      topic: retryTopic,
+      idempotencyKey: `e2e:retry:${suffix}`,
+      payload: { ignoredDuplicate: true },
+    });
+
+    await processOutboxBatch({
+      workerId: `retry-1-${suffix}`,
+      handlers: retryHandlers,
+      retryBaseDelayMs: 0,
+    });
+    await processOutboxBatch({
+      workerId: `retry-2-${suffix}`,
+      handlers: retryHandlers,
+      retryBaseDelayMs: 0,
+    });
+    await expect(prisma.outboxJob.findUniqueOrThrow({
+      where: { idempotencyKey: `e2e:retry:${suffix}` },
+    })).resolves.toMatchObject({ status: 'COMPLETED', attempts: 2 });
+
+    const concurrentTopic = `test.concurrent.${suffix}`;
+    let concurrentDeliveries = 0;
+    const concurrentHandlers = new Map([
+      ...notificationJobHandlers,
+      [concurrentTopic, async () => {
+        concurrentDeliveries += 1;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }],
+    ]);
+    await enqueueJob({
+      topic: concurrentTopic,
+      idempotencyKey: `e2e:concurrent:${suffix}`,
+      payload: { test: true },
+    });
+    await Promise.all([
+      processOutboxBatch({ workerId: `race-a-${suffix}`, handlers: concurrentHandlers }),
+      processOutboxBatch({ workerId: `race-b-${suffix}`, handlers: concurrentHandlers }),
+    ]);
+    expect(concurrentDeliveries).toBe(1);
+
+    const deadTopic = `test.dead.${suffix}`;
+    const deadHandlers = new Map([
+      ...notificationJobHandlers,
+      [deadTopic, async () => { throw new Error('permanent\nprovider failure'); }],
+    ]);
+    await enqueueJob({
+      topic: deadTopic,
+      idempotencyKey: `e2e:dead:${suffix}`,
+      payload: { test: true },
+      maxAttempts: 2,
+    });
+    await processOutboxBatch({
+      workerId: `dead-1-${suffix}`,
+      handlers: deadHandlers,
+      retryBaseDelayMs: 0,
+    });
+    await processOutboxBatch({
+      workerId: `dead-2-${suffix}`,
+      handlers: deadHandlers,
+      retryBaseDelayMs: 0,
+    });
+    await expect(prisma.outboxJob.findUniqueOrThrow({
+      where: { idempotencyKey: `e2e:dead:${suffix}` },
+    })).resolves.toMatchObject({
+      status: 'FAILED',
+      attempts: 2,
+      lastError: 'permanent provider failure',
+    });
+
+    const stale = await enqueueJob({
+      topic: `test.stale.${suffix}`,
+      idempotencyKey: `e2e:stale-final:${suffix}`,
+      payload: { test: true },
+      maxAttempts: 1,
+    });
+    await prisma.outboxJob.update({
+      where: { id: stale.id },
+      data: {
+        status: 'PROCESSING',
+        attempts: 1,
+        lockedBy: 'crashed-worker',
+        lockedAt: new Date(Date.now() - 60_000),
+      },
+    });
+    await processOutboxBatch({
+      workerId: `recovery-${suffix}`,
+      handlers: notificationJobHandlers,
+      lockTimeoutMs: 1_000,
+    });
+    await expect(prisma.outboxJob.findUniqueOrThrow({ where: { id: stale.id } }))
+      .resolves.toMatchObject({
+        status: 'FAILED',
+        attempts: 1,
+        lockedBy: null,
+        lastError: 'Worker lock expired after final attempt',
+      });
   });
 });

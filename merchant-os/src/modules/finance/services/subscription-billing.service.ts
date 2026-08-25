@@ -15,7 +15,7 @@ import * as financeService from './finance.service';
  */
 
 /** The most recently fully-completed calendar month, as [periodFrom, periodTo). */
-function previousMonthRange(now = new Date()): { periodFrom: Date; periodTo: Date } {
+export function previousMonthRange(now = new Date()): { periodFrom: Date; periodTo: Date } {
   const periodFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   const periodTo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   return { periodFrom, periodTo };

@@ -36,6 +36,15 @@ validated public resource such as a storefront slug.
 Public route handlers must validate input, rate-limit abuse-sensitive actions,
 avoid leaking internal exceptions, and return the smallest required data shape.
 
+## Durable asynchronous work
+
+Business transactions write side effects to the PostgreSQL `outbox_jobs` table
+with a unique idempotency key. A secret-protected scheduled endpoint claims
+rows using `FOR UPDATE SKIP LOCKED`, executes billing and notification handlers,
+then records completion, retry timing, or terminal failure. This keeps order
+commits independent from provider availability without losing the intent to
+send. Authentication links and OTP message bodies are encrypted before storage.
+
 ## Flutter customer application
 
 The Flutter app uses feature-first folders, Riverpod, GoRouter, Dio, Firebase
