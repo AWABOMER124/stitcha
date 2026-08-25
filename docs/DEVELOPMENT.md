@@ -9,6 +9,10 @@
 
 ## Required verification
 
+The GitHub Actions workflow at `.github/workflows/ci.yml` runs these gates on
+pull requests, pushes to `main`, and pushes to `codex/**` branches. Do not merge
+until both the **Merchant OS** and **Flutter app** jobs pass.
+
 Merchant OS:
 
 ```bash
@@ -47,3 +51,9 @@ live database. Never point automated tests at production.
 Freezed and JSON files are committed. Regenerate them whenever a source model
 changes and review the generated diff. Platform plugin registrants should only
 change when plugin dependencies change.
+
+## Dependency updates
+
+Dependabot checks npm and Flutter packages weekly and GitHub Actions monthly.
+Dependency pull requests must pass the same CI gates and should be merged in
+small groups so regressions remain easy to identify.

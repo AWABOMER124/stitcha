@@ -24,6 +24,7 @@ verified in CI and in staging.
 - [x] Replace fabricated order history with the authenticated history API.
 - [x] Remove fabricated delivery fees, ETAs, driver details, and unsupported
       Bankak checkout UI.
+- [x] Run web build/lint/tests and Flutter analysis/tests in GitHub Actions.
 
 ### Remaining P0
 

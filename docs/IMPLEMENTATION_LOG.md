@@ -1,5 +1,18 @@
 # Implementation log
 
+## 2026-08-25 — CI and repository hygiene
+
+- Added GitHub Actions gates for Merchant OS install, Prisma generation, lint,
+  tests, and production build.
+- Added Flutter lockfile install, analysis, and tests as a separate CI job.
+- Added grouped weekly npm/Flutter dependency updates and monthly workflow
+  dependency updates through Dependabot.
+- Added a repository-wide EditorConfig to standardize UTF-8, LF line endings,
+  final newlines, and indentation.
+- Verified the exact CI commands locally: Merchant OS lint/build passed (seven
+  existing image warnings), and Flutter lockfile install/analyze/tests passed
+  with four tests and five advisory info messages.
+
 ## 2026-08-25 — P0 hardening batch 2
 
 ### Honest mobile order experience
