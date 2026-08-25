@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:ui';
 import 'package:wassalk_app/core/localization/app_localizations.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
@@ -16,8 +15,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final _phoneController = TextEditingController(text: '0912345678');
-  final _passwordController = TextEditingController(text: '123456');
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _showPassword = false;
   late AnimationController _animController;
   late Animation<double> _fadeIn;
@@ -30,12 +29,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..forward();
-    
+
     _fadeIn = CurvedAnimation(
-      parent: _animController, 
+      parent: _animController,
       curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
     );
-    
+
     _slideUp = Tween<Offset>(
       begin: const Offset(0, 0.1),
       end: Offset.zero,
@@ -65,7 +64,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             content: Text(err.toString()),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
         ),
       );
@@ -91,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ),
             ),
           ),
-          
+
           SafeArea(
             child: FadeTransition(
               opacity: _fadeIn,
@@ -102,7 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   child: Column(
                     children: [
                       const SizedBox(height: 60),
-                      
+
                       // Logo Section
                       Hero(
                         tag: 'app_logo',
@@ -127,9 +127,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       Text(
                         'وصـلـك',
                         style: AppTextStyles.displayMedium.copyWith(
@@ -144,7 +144,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      
+
                       const SizedBox(height: 48),
 
                       // Auth Card
@@ -187,9 +187,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               icon: Icons.lock_outline_rounded,
                               isPassword: true,
                               showPassword: _showPassword,
-                              onToggle: () => setState(() => _showPassword = !_showPassword),
+                              onToggle: () => setState(
+                                  () => _showPassword = !_showPassword),
                             ),
-                            
+
                             // Forgot password
                             Align(
                               alignment: Alignment.centerLeft,
@@ -207,43 +208,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 ),
                               ),
                             ),
-                            
+
                             const SizedBox(height: 16),
 
                             // Login Button
                             _buildAuthButton(
                               label: loc.loginButton,
                               isLoading: authState.isLoading,
-                              onPressed: authState.isLoading ? null : () {
-                                ref.read(authProvider.notifier).login(
-                                      _phoneController.text,
-                                      _passwordController.text,
-                                    );
-                              },
+                              onPressed: authState.isLoading
+                                  ? null
+                                  : () {
+                                      ref.read(authProvider.notifier).login(
+                                            _phoneController.text,
+                                            _passwordController.text,
+                                          );
+                                    },
                             ),
-                            
+
                             const SizedBox(height: 24),
 
                             // Divider
                             Row(
                               children: [
-                                Expanded(child: Divider(color: AppColors.divider.withValues(alpha: 0.5))),
+                                Expanded(
+                                    child: Divider(
+                                        color: AppColors.divider
+                                            .withValues(alpha: 0.5))),
                                 const Padding(
                                   padding: EdgeInsets.symmetric(horizontal: 16),
-                                  child: Text('أو عبر', style: AppTextStyles.caption),
+                                  child: Text('أو عبر',
+                                      style: AppTextStyles.caption),
                                 ),
-                                Expanded(child: Divider(color: AppColors.divider.withValues(alpha: 0.5))),
+                                Expanded(
+                                    child: Divider(
+                                        color: AppColors.divider
+                                            .withValues(alpha: 0.5))),
                               ],
                             ),
                             const SizedBox(height: 24),
-                            
+
                             // Social Login (Premium Touch)
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildSocialBtn(Icons.g_mobiledata_rounded, Colors.red),
-                                _buildSocialBtn(Icons.apple_rounded, Colors.black),
-                                _buildSocialBtn(Icons.facebook_rounded, Colors.blue.shade800),
+                                _buildSocialBtn(
+                                    Icons.g_mobiledata_rounded, Colors.red),
+                                _buildSocialBtn(
+                                    Icons.apple_rounded, Colors.black),
+                                _buildSocialBtn(Icons.facebook_rounded,
+                                    Colors.blue.shade800),
                               ],
                             ),
 
@@ -311,15 +324,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             obscureText: isPassword && !showPassword,
             textAlign: isLtr ? TextAlign.left : TextAlign.start,
             textDirection: isLtr ? TextDirection.ltr : null,
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+            style:
+                AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
             decoration: InputDecoration(
               hintText: label,
-              hintStyle: AppTextStyles.bodySm.copyWith(color: AppColors.textHint),
+              hintStyle:
+                  AppTextStyles.bodySm.copyWith(color: AppColors.textHint),
               prefixIcon: Icon(icon, color: AppColors.primary, size: 22),
               suffixIcon: isPassword
                   ? IconButton(
                       icon: Icon(
-                        showPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                        showPassword
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
                         color: AppColors.textHint,
                         size: 20,
                       ),
@@ -327,7 +344,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     )
                   : null,
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             ),
           ),
         ),
@@ -364,17 +382,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.pill)),
         ),
         child: isLoading
             ? const SizedBox(
                 height: 24,
                 width: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 3),
               )
             : Text(
                 label,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
       ),
     );
@@ -393,4 +414,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 }
-

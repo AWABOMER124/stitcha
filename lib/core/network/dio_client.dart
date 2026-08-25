@@ -14,7 +14,7 @@ class DioClient {
       lineLength: 80,
       colors: true,
       printEmojis: true,
-      printTime: false,
+      dateTimeFormat: DateTimeFormat.none,
     ),
   );
 
@@ -62,7 +62,7 @@ class DioClient {
         },
         onResponse: (response, handler) {
           if (kDebugMode) {
-            _logger.v(
+            _logger.t(
                 '✅ API RESPONSE: [${response.statusCode}] ${response.requestOptions.path}');
           }
           return handler.next(response);

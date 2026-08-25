@@ -9,9 +9,12 @@
   dependency updates through Dependabot.
 - Added a repository-wide EditorConfig to standardize UTF-8, LF line endings,
   final newlines, and indentation.
-- Verified the exact CI commands locally: Merchant OS lint/build passed (seven
-  existing image warnings), and Flutter lockfile install/analyze/tests passed
-  with four tests and five advisory info messages.
+- Verified the CI commands locally: Merchant OS lint/build passed (seven
+  existing image warnings), Flutter lockfile install and four tests passed,
+  and analysis surfaced five advisory findings.
+- The first hosted run exposed that Flutter treats analyzer info messages as a
+  failing exit code on Linux. The five findings were fixed, including removal
+  of demo login credentials, and the gate remains strict.
 
 ## 2026-08-25 — P0 hardening batch 2
 
