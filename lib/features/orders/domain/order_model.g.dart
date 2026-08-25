@@ -12,7 +12,7 @@ _$OrderModelImpl _$$OrderModelImplFromJson(Map<String, dynamic> json) =>
       status: json['status'] as String,
       totalAmount: (json['totalAmount'] as num).toDouble(),
       date: json['date'] as String,
-      address: json['address'] as String,
+      address: json['address'] as String?,
       storeName: json['storeName'] as String,
     );
 

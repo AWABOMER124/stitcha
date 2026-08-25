@@ -109,12 +109,16 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
 
   async function sendChat() {
     if (!chatName.trim() || !chatMsg.trim()) return;
-    await fetch(`/api/store/${merchant.slug}/inquiry`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customerName: chatName, message: chatMsg, merchantId: merchant.id }),
-    }).catch(() => {});
-    setChatSent(true);
+    try {
+      const response = await fetch(`/api/store/${merchant.slug}/inquiry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerName: chatName, message: chatMsg }),
+      });
+      if (response.ok) setChatSent(true);
+    } catch {
+      // Keep the form open so the customer can retry.
+    }
   }
 
   const minOrder = Number(settings?.minimumOrderAmount ?? 0);

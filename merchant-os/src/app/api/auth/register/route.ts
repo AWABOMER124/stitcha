@@ -52,6 +52,7 @@ export async function POST(req: Request) {
       data: {
         name: ownerName,
         email: normalizedEmail,
+        phone,
         passwordHash,
         role: 'MERCHANT_OWNER',
       },

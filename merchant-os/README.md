@@ -2,6 +2,11 @@
 
 > SaaS operating system for merchants, restaurants, cafes, stores, pharmacies, and groceries.
 
+Cross-project documentation lives in the repository root: see
+[`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md),
+[`../docs/REMEDIATION_ROADMAP.md`](../docs/REMEDIATION_ROADMAP.md), and
+[`../docs/RELEASE_CHECKLIST.md`](../docs/RELEASE_CHECKLIST.md).
+
 ## 🏗️ Architecture
 
 **Modular Monolith** — the codebase is divided into self-contained modules with clear boundaries and dependency rules. Four portals share the same Next.js app and database:

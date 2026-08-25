@@ -9,11 +9,12 @@ class StoreModel with _$StoreModel {
     required String id,
     required String name,
     required String category,
-    required String imageUrl,
-    required double rating,
+    String? imageUrl,
+    double? rating,
     required String deliveryTime,
     required double deliveryFee,
   }) = _StoreModel;
 
-  factory StoreModel.fromJson(Map<String, dynamic> json) => _$StoreModelFromJson(json);
+  factory StoreModel.fromJson(Map<String, dynamic> json) =>
+      _$StoreModelFromJson(json);
 }

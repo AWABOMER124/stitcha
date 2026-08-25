@@ -23,8 +23,8 @@ mixin _$StoreModel {
   String get id => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   String get category => throw _privateConstructorUsedError;
-  String get imageUrl => throw _privateConstructorUsedError;
-  double get rating => throw _privateConstructorUsedError;
+  String? get imageUrl => throw _privateConstructorUsedError;
+  double? get rating => throw _privateConstructorUsedError;
   String get deliveryTime => throw _privateConstructorUsedError;
   double get deliveryFee => throw _privateConstructorUsedError;
 
@@ -48,8 +48,8 @@ abstract class $StoreModelCopyWith<$Res> {
       {String id,
       String name,
       String category,
-      String imageUrl,
-      double rating,
+      String? imageUrl,
+      double? rating,
       String deliveryTime,
       double deliveryFee});
 }
@@ -72,8 +72,8 @@ class _$StoreModelCopyWithImpl<$Res, $Val extends StoreModel>
     Object? id = null,
     Object? name = null,
     Object? category = null,
-    Object? imageUrl = null,
-    Object? rating = null,
+    Object? imageUrl = freezed,
+    Object? rating = freezed,
     Object? deliveryTime = null,
     Object? deliveryFee = null,
   }) {
@@ -90,14 +90,14 @@ class _$StoreModelCopyWithImpl<$Res, $Val extends StoreModel>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as String,
-      imageUrl: null == imageUrl
+      imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      rating: null == rating
+              as String?,
+      rating: freezed == rating
           ? _value.rating
           : rating // ignore: cast_nullable_to_non_nullable
-              as double,
+              as double?,
       deliveryTime: null == deliveryTime
           ? _value.deliveryTime
           : deliveryTime // ignore: cast_nullable_to_non_nullable
@@ -122,8 +122,8 @@ abstract class _$$StoreModelImplCopyWith<$Res>
       {String id,
       String name,
       String category,
-      String imageUrl,
-      double rating,
+      String? imageUrl,
+      double? rating,
       String deliveryTime,
       double deliveryFee});
 }
@@ -144,8 +144,8 @@ class __$$StoreModelImplCopyWithImpl<$Res>
     Object? id = null,
     Object? name = null,
     Object? category = null,
-    Object? imageUrl = null,
-    Object? rating = null,
+    Object? imageUrl = freezed,
+    Object? rating = freezed,
     Object? deliveryTime = null,
     Object? deliveryFee = null,
   }) {
@@ -162,14 +162,14 @@ class __$$StoreModelImplCopyWithImpl<$Res>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as String,
-      imageUrl: null == imageUrl
+      imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      rating: null == rating
+              as String?,
+      rating: freezed == rating
           ? _value.rating
           : rating // ignore: cast_nullable_to_non_nullable
-              as double,
+              as double?,
       deliveryTime: null == deliveryTime
           ? _value.deliveryTime
           : deliveryTime // ignore: cast_nullable_to_non_nullable
@@ -189,8 +189,8 @@ class _$StoreModelImpl implements _StoreModel {
       {required this.id,
       required this.name,
       required this.category,
-      required this.imageUrl,
-      required this.rating,
+      this.imageUrl,
+      this.rating,
       required this.deliveryTime,
       required this.deliveryFee});
 
@@ -204,9 +204,9 @@ class _$StoreModelImpl implements _StoreModel {
   @override
   final String category;
   @override
-  final String imageUrl;
+  final String? imageUrl;
   @override
-  final double rating;
+  final double? rating;
   @override
   final String deliveryTime;
   @override
@@ -261,8 +261,8 @@ abstract class _StoreModel implements StoreModel {
       {required final String id,
       required final String name,
       required final String category,
-      required final String imageUrl,
-      required final double rating,
+      final String? imageUrl,
+      final double? rating,
       required final String deliveryTime,
       required final double deliveryFee}) = _$StoreModelImpl;
 
@@ -276,9 +276,9 @@ abstract class _StoreModel implements StoreModel {
   @override
   String get category;
   @override
-  String get imageUrl;
+  String? get imageUrl;
   @override
-  double get rating;
+  double? get rating;
   @override
   String get deliveryTime;
   @override

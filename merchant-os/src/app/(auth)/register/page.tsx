@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
 
 /**
@@ -47,7 +48,16 @@ export default function RegisterPage() {
         const data = await res.json();
         setError(data.error || "Registration failed");
       } else {
-        window.location.href = "/dashboard";
+        const signInResult = await signIn("credentials", {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        });
+        if (signInResult?.error) {
+          window.location.href = "/login";
+        } else {
+          window.location.href = "/dashboard";
+        }
       }
     } catch {
       setError(dict.common.somethingWrong);

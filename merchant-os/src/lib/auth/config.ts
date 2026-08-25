@@ -6,6 +6,7 @@ import type { UserRole } from '@prisma/client';
 import { enforceRateLimit, getClientIp } from '@/lib/security/rate-limit';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: process.env.AUTH_TRUST_HOST === 'true',
   providers: [
     Credentials({
       name: 'credentials',

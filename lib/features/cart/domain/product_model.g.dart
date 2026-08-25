@@ -11,10 +11,10 @@ _$ProductModelImpl _$$ProductModelImplFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       storeId: json['storeId'] as String,
       name: json['name'] as String,
-      description: json['description'] as String,
+      description: json['description'] as String?,
       price: (json['price'] as num).toDouble(),
-      imageUrl: json['imageUrl'] as String,
-      category: json['category'] as String,
+      imageUrl: json['imageUrl'] as String?,
+      category: json['category'] as String?,
     );
 
 Map<String, dynamic> _$$ProductModelImplToJson(_$ProductModelImpl instance) =>
