@@ -166,7 +166,8 @@ describe('database-backed order lifecycle', () => {
       type: 'MERCHANT_DELIVERY',
       address: 'Mobile E2E address',
     });
-    expect(persistedMobileOrder.payment).toMatchObject({ method: 'CASH', amount: 375 });
+    expect(persistedMobileOrder.payment?.method).toBe('CASH');
+    expect(Number(persistedMobileOrder.payment?.amount)).toBe(375);
     await expect(prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } }))
       .resolves.toMatchObject({ quantity: 5 });
 
