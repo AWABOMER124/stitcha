@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 export const recordPaymentSchema = z.object({
   orderId: z.string().min(1),
-  method: z.enum(['CASH', 'CARD', 'ONLINE', 'WALLET']),
+  method: z.enum(['CASH', 'CARD', 'ONLINE', 'WALLET', 'MANUAL_TRANSFER']),
   amount: z.number().positive(),
   transactionRef: z.string().optional(),
 });
