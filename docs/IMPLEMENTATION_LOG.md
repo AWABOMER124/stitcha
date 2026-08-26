@@ -1,5 +1,36 @@
 # Implementation log
 
+## 2026-08-26 — Store creation and AI product-image studio
+
+- Audited direct registration, storefront composition, product management,
+  store customization, and the existing Claude store-content generator.
+- Added runtime validation at registration, model-output, and browser-draft
+  trust boundaries before any AI-generated catalogue is written.
+- Completed the missing product-image workflow with tenant-isolated upload,
+  file decoding, resize/compression, ten-image management, and saved previews.
+- Added a fail-closed GPT Image product studio for white backgrounds,
+  transparent cutouts, and merchant-described lifestyle scenes, with prompts
+  that preserve the real product and rate limits that bound provider cost.
+- Documented implementation and production boundaries in
+  `docs/STOREFRONT_AI_AUDIT.md`.
+
+### Verification
+
+- Merchant OS: dependency audit reported zero known vulnerabilities, ESLint
+  completed without warnings, all 228 unit tests passed, and the Next.js
+  16.3.3 production build completed successfully.
+- Flutter: static analysis reported no issues and all 11 tests passed.
+- The new production build includes both authenticated image endpoints:
+  `/api/products/images/upload` and `/api/products/images/enhance`.
+
+### Deployment boundary
+
+The repository has no configured GitHub deployment target or deployment
+history. Shipping the code and passing CI therefore does not deploy it to a
+live server. Production enablement still requires the documented database,
+object storage, Anthropic, and OpenAI environment values, followed by an
+acceptance test with real merchant product images.
+
 ## 2026-08-26 — WASLA identity system
 
 - Rebranded the public product from Waslak/وصلك to `WASLA | وصلة` without

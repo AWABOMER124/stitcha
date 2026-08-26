@@ -10,6 +10,7 @@ import * as storefrontService from './services/storefront.service';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 import { generateStoreContent } from '@/services/ai/ai-store-content.service';
 import type { StoreContentResult } from '@/services/ai/types';
+import { storeContentSchema, storeGenerationPromptSchema } from '@/services/ai/store-content.schema';
 import * as categoriesService from '@/modules/categories/services/categories.service';
 import * as productsService from '@/modules/products/services/products.service';
 
@@ -71,7 +72,7 @@ export async function generateStoreContentAction(prompt: string): Promise<Action
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
     enforceRateLimit(`ai-generate:${session.user.merchantId}`, 20, 60 * 60_000);
-    const result = await generateStoreContent(prompt);
+    const result = await generateStoreContent(storeGenerationPromptSchema.parse(prompt));
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'فشل التوليد' };
@@ -92,15 +93,16 @@ export async function applyAiStoreContentAction(
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
     const merchantId = session.user.merchantId;
+    const safeContent = storeContentSchema.parse(content);
 
     await saveStorefrontSettingsAction({
-      theme: { primaryColor: content.primaryColor } as Prisma.InputJsonValue,
-      welcomeText: content.welcomeText,
+      theme: { primaryColor: safeContent.primaryColor } as Prisma.InputJsonValue,
+      welcomeText: safeContent.welcomeText,
     });
 
     let categoriesCreated = 0;
     let productsCreated = 0;
-    for (const category of content.categories) {
+    for (const category of safeContent.categories) {
       try {
         const createdCategory = await categoriesService.createCategory(merchantId, {
           name: category.name,

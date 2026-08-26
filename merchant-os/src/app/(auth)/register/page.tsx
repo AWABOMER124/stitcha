@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
 
@@ -10,6 +11,7 @@ import { useLocale } from "@/lib/i18n/context";
  */
 export default function RegisterPage() {
   const { dict } = useLocale();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     merchantName: "",
     ownerName: "",
@@ -54,9 +56,9 @@ export default function RegisterPage() {
           redirect: false,
         });
         if (signInResult?.error) {
-          window.location.href = "/login";
+          router.replace("/login");
         } else {
-          window.location.href = "/dashboard";
+          router.replace("/dashboard");
         }
       }
     } catch {

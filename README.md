@@ -93,6 +93,7 @@ mode keeps the map unavailable without fabricating one.
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Implementation log](docs/IMPLEMENTATION_LOG.md)
 - [Direct merchant, freemium, and delivery strategy](docs/DIRECT_MERCHANT_STRATEGY.md)
+- [Storefront and AI product-image audit](docs/STOREFRONT_AI_AUDIT.md)
 - [Merchant OS detailed reference](merchant-os/docs/SYSTEM_REFERENCE.md)
 
 ## Security

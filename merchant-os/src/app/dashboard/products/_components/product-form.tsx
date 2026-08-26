@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createProductAction, updateProductAction } from '@/modules/products/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { ProductImageStudio } from './product-image-studio';
 
 interface Category {
   id: string;
@@ -20,19 +21,22 @@ interface ProductFormData {
   sku?: string;
   isActive?: boolean;
   isFeatured?: boolean;
+  images?: string[];
 }
 
 interface ProductFormProps {
   categories: Category[];
   product?: ProductFormData;
+  aiImageEnabled?: boolean;
 }
 
-export function ProductForm({ categories, product }: ProductFormProps) {
+export function ProductForm({ categories, product, aiImageEnabled = false }: ProductFormProps) {
   const { dict } = useLocale();
   const t = dict.productFormPage;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>(product?.images ?? []);
 
   const isEdit = !!product?.id;
 
@@ -51,6 +55,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       sku: (fd.get('sku') as string) || undefined,
       isActive: fd.get('isActive') === 'on',
       isFeatured: fd.get('isFeatured') === 'on',
+      images,
     };
 
     startTransition(async () => {
@@ -106,6 +111,8 @@ export function ProductForm({ categories, product }: ProductFormProps) {
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
         />
       </div>
+
+      <ProductImageStudio images={images} onChange={setImages} copy={t} aiEnabled={aiImageEnabled} />
 
       {/* Category */}
       <div className="space-y-1.5">

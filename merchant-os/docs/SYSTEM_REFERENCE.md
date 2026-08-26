@@ -284,7 +284,7 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 | `users` | لوحة التاجر + بوابة الموزّع | دعوة/تعديل/تعطيل موظفين (نسختين متوازيتين) | |
 | `whatsapp-channel` | لوحة التاجر + **ويب هوك خارجي** | إعداد WhatsApp Business API لكل تاجر | يشغّل `/api/webhooks/whatsapp` (HMAC) و`/api/inbox/*` |
 | `reports` | لوحة التاجر | تقارير | ⚠️ **بدون `actions.ts`** — الوحيد المخالف للنمط الموحّد، غالباً يُستدعى مباشرة من صفحات Server Component |
-| `ai-store-generator` | **بوابة الموزّع** | توليد متجر (اسم/فئات/منتجات) من وصف نصي عبر Claude، وإنشاء `Merchant` حقيقي مباشرة | راجع [`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md) |
+| `ai-store-generator` | **لوحة التاجر** (المسار القديم للموزّع معطّل افتراضياً) | توليد اسم ووصف وهوية وفئات ومنتجات من وصف نصي عبر Claude، مع معاينة قبل الكتابة | راجع [`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md) |
 | `customer-auth` | **تطبيق الفلاتر** | تسجيل/دخول `CustomerAccount` (JWT) | راجع قسم 6 |
 | `storefront` | المتجر العام + تطبيق الفلاتر | تصفح متجر/منتجات، دفع طلب، حالة طلب | يخدم البوابتين معاً |
 | `finance` | بوابة الموزّع | خطط عمولة، تسويات، مناطق توصيل | مبني 2026-06-27، انظر ملاحظة الذاكرة |
@@ -367,6 +367,8 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 | `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | ⚠️ **مطلوبان للويب هوك، غير موثّقين في `.env.example`** | بدونهم `/api/webhooks/whatsapp` يفشل التحقق من التوقيع |
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | ❌ | بدونهم: تخزين محلي على القرص (`public/uploads/`) — غير دائم على استضافة متعددة النسخ |
 | `ANTHROPIC_API_KEY` | ❌ | يشغّل `ai/generate-store` و`inbox/suggest-reply` — 503 نظيف لو ناقص |
+| `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL` | ❌ | تحرير صور المنتجات؛ المفتاح على الخادم فقط |
+| `AI_IMAGE_ENHANCEMENT_ENABLED` | ✅ للإطلاق | علم إطلاق يفشل مغلقاً؛ افتراضياً `false` |
 | `RESEND_API_KEY`/`SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`/`AFRICASTALKING_API_KEY` | ❌ | غير مفعّلين فعلياً بعد — راجع قسم 9 |
 | `ALLOW_SEED` | ❌ | لازم يكون `true` عشان `db seed` يشتغل لما `NODE_ENV=production` |
 

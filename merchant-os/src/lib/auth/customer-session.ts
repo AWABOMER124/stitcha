@@ -40,7 +40,7 @@ export interface CustomerTokenPair {
 /** Creates a new independently revocable mobile session. */
 export async function issueCustomerSession(
   accountId: string,
-  familyId = crypto.randomUUID(),
+  familyId: string = crypto.randomUUID(),
 ): Promise<CustomerTokenPair> {
   const refreshToken = newRefreshToken();
   const session = await prisma.customerRefreshSession.create({

@@ -1,14 +1,6 @@
-export interface StoreContentResult {
-  name: string;
-  description: string;
-  slogan: string;
-  primaryColor: string;
-  welcomeText: string;
-  categories: Array<{
-    name: string;
-    products: Array<{ name: string; price: number; description?: string }>;
-  }>;
-}
+export type { StoreContentResult } from './store-content.schema';
+
+import type { StoreContentResult } from './store-content.schema';
 
 /**
  * A model/provider that can turn a free-text prompt into a full draft store

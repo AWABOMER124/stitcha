@@ -1673,6 +1673,26 @@ export interface Dictionary {
     filterAllStatus: string;
     filterActive: string;
     filterInactive: string;
+    imagesTitle: string;
+    imagesDescription: string;
+    productImageAlt: string;
+    sourcePreviewAlt: string;
+    chooseImage: string;
+    imageInvalid: string;
+    imageFailed: string;
+    imageReuseFailed: string;
+    improveAgain: string;
+    removeImage: string;
+    modeWhite: string;
+    modeTransparent: string;
+    modeLifestyle: string;
+    scenePlaceholder: string;
+    aiImageNotice: string;
+    aiImageUnavailable: string;
+    enhanceImage: string;
+    enhancingImage: string;
+    useOriginal: string;
+    uploadingImage: string;
   };
 }
 
@@ -3335,6 +3355,26 @@ export const dictionaries: Record<Locale, Dictionary> = {
       filterAllStatus: 'All Status',
       filterActive: 'Active',
       filterInactive: 'Inactive',
+      imagesTitle: 'Product images & AI studio',
+      imagesDescription: 'Upload up to 10 product images, clean the background, isolate the product, or create a professional lifestyle scene.',
+      productImageAlt: 'Product image',
+      sourcePreviewAlt: 'Source product image preview',
+      chooseImage: 'Choose a JPEG, PNG, or WebP image up to 5MB',
+      imageInvalid: 'Use a JPEG, PNG, or WebP image no larger than 5MB.',
+      imageFailed: 'Image processing failed.',
+      imageReuseFailed: 'This stored image could not be loaded for another edit. Upload the original file instead.',
+      improveAgain: 'Improve',
+      removeImage: 'Remove image',
+      modeWhite: 'White studio',
+      modeTransparent: 'Transparent',
+      modeLifestyle: 'Lifestyle scene',
+      scenePlaceholder: 'Describe the setting, for example: a warm specialty coffee counter with soft morning light…',
+      aiImageNotice: 'The AI is instructed to preserve the real product, packaging, colors, logos, and text. Always review the result before saving.',
+      aiImageUnavailable: 'Original image upload is ready. AI enhancement becomes available after the server key and feature flag are configured.',
+      enhanceImage: 'Enhance with AI',
+      enhancingImage: 'Enhancing…',
+      useOriginal: 'Use original',
+      uploadingImage: 'Uploading…',
     },
   },
   ar: {
@@ -4995,6 +5035,26 @@ export const dictionaries: Record<Locale, Dictionary> = {
       filterAllStatus: 'كل الحالات',
       filterActive: 'نشط',
       filterInactive: 'غير نشط',
+      imagesTitle: 'صور المنتج واستوديو الذكاء الاصطناعي',
+      imagesDescription: 'ارفع حتى 10 صور، نظّف الخلفية، اعزل المنتج أو ضعه في مشهد إعلاني احترافي.',
+      productImageAlt: 'صورة المنتج',
+      sourcePreviewAlt: 'معاينة صورة المنتج الأصلية',
+      chooseImage: 'اختر صورة JPEG أو PNG أو WebP بحجم أقصى 5MB',
+      imageInvalid: 'استخدم صورة JPEG أو PNG أو WebP لا تتجاوز 5MB.',
+      imageFailed: 'فشلت معالجة الصورة.',
+      imageReuseFailed: 'تعذر تحميل الصورة المحفوظة لتحسينها مجدداً. ارفع الملف الأصلي بدلاً منها.',
+      improveAgain: 'تحسين',
+      removeImage: 'حذف الصورة',
+      modeWhite: 'استوديو أبيض',
+      modeTransparent: 'خلفية شفافة',
+      modeLifestyle: 'مشهد واقعي',
+      scenePlaceholder: 'صف الخلفية، مثال: طاولة قهوة مختصة دافئة بإضاءة صباحية ناعمة…',
+      aiImageNotice: 'يُطلب من الذكاء الاصطناعي الحفاظ على المنتج الحقيقي وتغليفه وألوانه وشعاره ونصوصه. راجع النتيجة دائماً قبل الحفظ.',
+      aiImageUnavailable: 'رفع الصورة الأصلية جاهز. يتاح التحسين بالذكاء الاصطناعي بعد إعداد مفتاح الخادم وتفعيل الميزة.',
+      enhanceImage: 'تحسين بالذكاء الاصطناعي',
+      enhancingImage: 'جاري التحسين…',
+      useOriginal: 'استخدام الأصلية',
+      uploadingImage: 'جاري الرفع…',
     },
   },
 };
