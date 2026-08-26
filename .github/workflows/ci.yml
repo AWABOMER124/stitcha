@@ -46,7 +46,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: merchant-os/package-lock.json
       - name: Install dependencies
@@ -88,3 +88,60 @@ jobs:
         run: flutter analyze
       - name: Test
         run: flutter test
+
+  production-container:
+    name: Production container
+    runs-on: ubuntu-latest
+    needs: merchant-os
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: stitcha_container_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stitcha_container_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Build Dokploy image from repository root
+        run: >-
+          docker build
+          --build-arg NEXT_PUBLIC_APP_URL=http://localhost:3000
+          --tag wasla-merchant-os:ci .
+      - name: Start production container
+        run: >-
+          docker run --detach --name wasla-container-ci --network host
+          --env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/stitcha_container_ci
+          --env AUTH_SECRET=ci-only-secret-with-at-least-32-characters
+          --env AUTH_TRUST_HOST=true
+          --env NEXTAUTH_URL=http://localhost:3000
+          --env NEXT_PUBLIC_APP_URL=http://localhost:3000
+          --env SECRETS_ENCRYPTION_KEY=ci-only-encryption-secret-value
+          wasla-merchant-os:ci
+      - name: Verify migrations and health endpoint
+        run: |
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/health; then
+              exit 0
+            fi
+            if [ "$(docker inspect --format '{{.State.Running}}' wasla-container-ci)" != "true" ]; then
+              docker logs wasla-container-ci
+              exit 1
+            fi
+            sleep 2
+          done
+          docker logs wasla-container-ci
+          exit 1
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs wasla-container-ci
+      - name: Stop production container
+        if: always()
+        run: docker rm --force wasla-container-ci

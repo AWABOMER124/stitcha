@@ -363,9 +363,10 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 | `DATABASE_URL` | ✅ | اتصال Postgres |
 | `AUTH_SECRET` | ✅ | سر جلسة NextAuth — **نفسه يُستخدم لتوقيع JWT عميل تطبيق الفلاتر** (`customer-session.ts`) |
 | `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL` | ✅ | رابط التطبيق العام |
-| `SECRETS_ENCRYPTION_KEY` | ⚠️ **مطلوب فعلياً، غير موثّق في `.env.example`/README** | يُشفّر `WhatsAppConfig.accessToken` — النظام يرمي خطأ فوراً لو ناقص أو أقصر من 16 حرف أول مرة يحاول تاجر يحفظ إعداد واتساب |
-| `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | ⚠️ **مطلوبان للويب هوك، غير موثّقين في `.env.example`** | بدونهم `/api/webhooks/whatsapp` يفشل التحقق من التوقيع |
+| `SECRETS_ENCRYPTION_KEY` | ⚠️ **مطلوب فعلياً** | يُشفّر `WhatsAppConfig.accessToken` وبيانات الموفر الحساسة — النظام يرمي خطأ فوراً لو ناقص أو أقصر من 16 حرف |
+| `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | ⚠️ **مطلوبان للويب هوك** | بدونهم `/api/webhooks/whatsapp` يفشل التحقق من التوقيع |
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | ❌ | بدونهم: تخزين محلي على القرص (`public/uploads/`) — غير دائم على استضافة متعددة النسخ |
+| `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | حسب الموفّر | لدعم MinIO وSpaces والموفّرين المتوافقين مع S3؛ العنوان المخصص يتطلب `S3_CDN_URL` |
 | `ANTHROPIC_API_KEY` | ❌ | يشغّل `ai/generate-store` و`inbox/suggest-reply` — 503 نظيف لو ناقص |
 | `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL` | ❌ | تحرير صور المنتجات؛ المفتاح على الخادم فقط |
 | `AI_IMAGE_ENHANCEMENT_ENABLED` | ✅ للإطلاق | علم إطلاق يفشل مغلقاً؛ افتراضياً `false` |

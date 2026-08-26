@@ -1,0 +1,30 @@
+.git
+.github
+.agents
+.codex
+.dart_tool
+build
+coverage
+node_modules
+**/node_modules
+**/.next
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/public/uploads
+*.log
+npm-debug.log*
+.DS_Store
+
+# Dokploy builds only merchant-os from the repository-root Dockerfile. Avoid
+# uploading mobile SDK/build trees and local platform artifacts as context.
+android
+ios
+lib
+linux
+macos
+test
+web
+windows
+docs

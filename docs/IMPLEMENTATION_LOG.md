@@ -1,5 +1,38 @@
 # Implementation log
 
+## 2026-08-26 — Dokploy production readiness
+
+- Added a repository-root Docker context policy so Dokploy no longer receives
+  local dependencies, build outputs, uploads, environment files, or unrelated
+  mobile build trees.
+- Added a database-backed `/api/health` readiness endpoint and an OCI container
+  health check with startup grace for migrations.
+- Upgraded the container and CI runtime from Node.js 20 to Node.js 24 LTS after
+  the production build exposed a Node 22+ engine requirement in Prisma's tree.
+- The container now launches Next.js directly after `prisma migrate deploy`,
+  preserving graceful signal handling and never seeding production.
+- Enforced Linux line endings for shell entrypoints and normalized them again
+  during the image build, preventing Windows checkouts from producing an
+  unbootable container.
+- Added S3-compatible endpoint support and strict credential/public-origin
+  validation for durable product images.
+- Added a Dokploy runbook covering build arguments, runtime secrets, persistent
+  storage, rollout smoke tests, AI activation, and rollback.
+- CI now builds the exact repository-root production image, boots it against a
+  fresh PostgreSQL service, applies the migration chain, and requires the health
+  endpoint to return HTTP 200.
+
+### Local verification
+
+- Merchant OS: 228 tests passed, ESLint passed, and the production build passed
+  with `/api/health`, upload, and image-enhancement routes present.
+- The exact Dokploy image built on Node.js 24 with zero known dependency
+  vulnerabilities, applied all 25 migrations to a fresh PostgreSQL 16
+  database, started as the non-root user, and reached both Docker `healthy` and
+  HTTP `{ "status": "ok" }` states.
+- The test containers, isolated network, transient database, and local image
+  were removed after verification.
+
 ## 2026-08-26 — Store creation and AI product-image studio
 
 - Audited direct registration, storefront composition, product management,

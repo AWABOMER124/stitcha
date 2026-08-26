@@ -189,8 +189,10 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `AUTH_SECRET` | Yes | NextAuth session secret |
 | `NEXTAUTH_URL` | Yes | Public app URL, used by NextAuth |
 | `NEXT_PUBLIC_APP_URL` | Yes | Public app URL, used in emails/links (e.g. password reset) |
-| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | If unset, file uploads fall back to local disk storage (`public/uploads/`) — fine for a single instance, not for multi-instance/ephemeral hosting |
+| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | Durable public product uploads; if unset, attach a persistent volume to `/app/public/uploads` |
+| `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | Provider-specific | S3-compatible endpoint options for MinIO, Spaces, and similar services; a custom endpoint also requires `S3_CDN_URL` |
 | `ANTHROPIC_API_KEY` | No | Powers `/api/ai/generate-store`; the route returns a clean 503 if unset |
+| `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`, `AI_IMAGE_ENHANCEMENT_ENABLED` | No | Product-image studio; keep the fail-closed feature flag `false` until provider, storage, and spend limits are verified |
 | `SECRETS_ENCRYPTION_KEY` | Yes for sensitive data/jobs | Encrypts tenant secrets and external-notification outbox payloads |
 | `JOB_RUNNER_SECRET` | Yes in production | Bearer secret for the scheduled internal job runner |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Per channel | Email delivery through Resend |
@@ -199,6 +201,10 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `ALLOW_SEED` | No | Must be `true` to run `db seed` when `NODE_ENV=production` |
 
 ## 🐳 Deployment
+
+For the production VPS procedure, environment list, persistent image storage,
+health check, upgrade sequence, and rollback, follow
+[`../docs/DOKPLOY_DEPLOYMENT.md`](../docs/DOKPLOY_DEPLOYMENT.md).
 
 **Two Dockerfiles exist on purpose, not by accident** — keep both in sync if you change build/runtime logic:
 

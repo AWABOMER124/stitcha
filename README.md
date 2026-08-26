@@ -90,6 +90,7 @@ mode keeps the map unavailable without fabricating one.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Remediation and delivery roadmap](docs/REMEDIATION_ROADMAP.md)
 - [Development workflow](docs/DEVELOPMENT.md)
+- [Dokploy VPS deployment runbook](docs/DOKPLOY_DEPLOYMENT.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Implementation log](docs/IMPLEMENTATION_LOG.md)
 - [Direct merchant, freemium, and delivery strategy](docs/DIRECT_MERCHANT_STRATEGY.md)

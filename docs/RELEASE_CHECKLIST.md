@@ -15,6 +15,8 @@
 ## Merchant OS
 
 - [ ] `npm ci`, lint, tests, and production build pass in CI.
+- [ ] The repository-root Dokploy image builds in CI and `/api/health` returns
+      HTTP 200 against the production PostgreSQL connection.
 - [ ] The database-backed order lifecycle passes after all migrations are
       applied to a fresh PostgreSQL database.
 - [ ] Prisma migrations were tested against a staging backup/restore cycle.
@@ -29,6 +31,10 @@
 - [ ] Health checks, structured logs, alerts, backups, and rollback are verified.
 - [ ] The production image CDN host is allow-listed and image optimization is
       verified without permitting arbitrary remote proxying.
+- [ ] Product uploads use S3-compatible storage, or `/app/public/uploads` is a
+      persistent Dokploy volume writable by UID/GID `1001` and survives restart.
+- [ ] `NEXT_PUBLIC_APP_URL` is passed both as a Docker build argument and a
+      runtime environment variable using the final HTTPS origin.
 - [ ] Keyboard-only smoke tests verify skip links, modal focus containment,
       Escape close, and focus restoration in each authenticated shell.
 
