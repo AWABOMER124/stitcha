@@ -1,5 +1,15 @@
 # Implementation log
 
+## 2026-08-26 — Visual storefront builder
+
+- Replaced URL-only storefront branding fields with direct, authenticated image upload.
+- Added a responsive merchant builder with mobile/desktop live preview.
+- Added drag-and-drop section ordering, visibility controls, and touch-friendly move buttons.
+- Connected saved section order and visibility to the public storefront.
+- Fixed storefront logo persistence by saving it to `Merchant.logo`, while retaining legacy theme fallback.
+- Added production guidance in `merchant-os/docs/STOREFRONT_BUILDER.md`.
+- Verification: ESLint passed, production build passed, 228 automated tests passed.
+
 ## 2026-08-26 — Dokploy production readiness
 
 - Added a repository-root Docker context policy so Dokploy no longer receives

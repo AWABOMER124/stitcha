@@ -21,8 +21,21 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   const { dict, dir } = useLocale();
   const t = dict.storefrontPublic;
   const settings = merchant.storefrontSettings;
-  const theme = (settings?.theme ?? {}) as Record<string, string>;
-  const primary = theme.primaryColor ?? '#13c4a3';
+  const theme = (settings?.theme ?? {}) as Record<string, unknown>;
+  const primary = typeof theme.primaryColor === 'string' ? theme.primaryColor : '#13c4a3';
+  const logoSrc = merchant.logo ?? (typeof theme.logoUrl === 'string' ? theme.logoUrl : null);
+  const defaultSections = ['hero', 'categories', 'products'] as const;
+  type StoreSection = (typeof defaultSections)[number];
+  const configuredSections = Array.isArray(theme.sectionOrder)
+    ? theme.sectionOrder.filter((item): item is StoreSection => defaultSections.includes(item as StoreSection))
+    : [];
+  const sectionOrder = [...configuredSections, ...defaultSections.filter(item => !configuredSections.includes(item))];
+  const hiddenSections = new Set(
+    Array.isArray(theme.hiddenSections)
+      ? theme.hiddenSections.filter((item): item is StoreSection => defaultSections.includes(item as StoreSection))
+      : [],
+  );
+  const sectionStyle = (id: StoreSection): CSSProperties => ({ order: sectionOrder.indexOf(id) });
   const isOpen = settings?.isOpen ?? true;
 
   const [activeCat, setActiveCat] = useState<string>('all');
@@ -132,8 +145,8 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-stone-200 shadow-sm">
         <div className="mx-auto max-w-4xl flex items-center gap-3 px-4 h-14">
-          {merchant.logo
-            ? <ExternalImage src={merchant.logo} alt={merchant.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
+          {logoSrc
+            ? <ExternalImage src={logoSrc} alt={merchant.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
             : <div className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: primary }}>{merchant.name[0]}</div>}
           <span className="font-bold text-stone-900 flex-1">{merchant.name}</span>
           <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${isOpen ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
@@ -152,9 +165,10 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
         </div>
       </header>
 
+      <div className="flex flex-col">
       {/* Hero */}
-      {(settings?.welcomeText || settings?.bannerImage) && (
-        <div className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${primary}ee, ${primary}99)` }}>
+      {!hiddenSections.has('hero') && (settings?.welcomeText || settings?.bannerImage) && (
+        <div className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${primary}ee, ${primary}99)`, ...sectionStyle('hero') }}>
           {settings.bannerImage && (
             <ExternalImage
               src={settings.bannerImage}
@@ -173,17 +187,17 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       )}
 
       {/* Category Tabs */}
-      <div className="sticky top-[106px] z-30 bg-white border-b border-stone-100">
+      {!hiddenSections.has('categories') && <div className="sticky top-[106px] z-30 bg-white border-b border-stone-100" style={sectionStyle('categories')}>
         <div className="max-w-4xl mx-auto px-4 flex gap-2 overflow-x-auto py-2 no-scrollbar">
           <button onClick={() => setActiveCat('all')} className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all ${activeCat === 'all' ? 'text-white shadow-sm' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} style={activeCat === 'all' ? { background: primary } : {}}>{t.allCategory}</button>
           {categories.map(c => (
             <button key={c.id} onClick={() => { setActiveCat(c.id); catRefs.current[c.id]?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-all ${activeCat === c.id ? 'text-white shadow-sm' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} style={activeCat === c.id ? { background: primary } : {}}>{c.name}</button>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* Products */}
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-8">
+      {!hiddenSections.has('products') && <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6" style={sectionStyle('products')}>
         {grouped.length === 0 && (
           <div className="text-center py-16 text-stone-400">
             <div className="text-5xl mb-3">🔍</div>
@@ -218,7 +232,8 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
             </div>
           </section>
         ))}
-      </main>
+      </main>}
+      </div>
 
       {/* Cart FAB */}
       {cartCount > 0 && !cartOpen && (
