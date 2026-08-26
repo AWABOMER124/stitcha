@@ -699,9 +699,9 @@ model Merchant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  distributor              Distributor?                @relation(fields: [distributorId], references: [id], onDelete: SetNull)
-  commissionPlan           CommissionPlan?             @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
-  preferredDeliveryCompany DeliveryCompany?            @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
+  distributor              Distributor?                  @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  commissionPlan           CommissionPlan?               @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  preferredDeliveryCompany DeliveryCompany?              @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
   users                    MerchantUser[]
   branches                 Branch[]
   products                 Product[]
@@ -721,6 +721,7 @@ model Merchant {
   featuredPlacements       FeaturedPlacement[]
   subscription             MerchantSubscription?
   planChangeRequests       MerchantPlanChangeRequest[]
+  subscriptionPayments     MerchantSubscriptionPayment[]
 
   @@index([slug])
   @@index([status])
@@ -776,6 +777,7 @@ model MerchantPlan {
 
   subscriptions  MerchantSubscription[]
   changeRequests MerchantPlanChangeRequest[]
+  payments       MerchantSubscriptionPayment[]
 
   @@index([isActive, sortOrder])
   @@map("merchant_plans")
@@ -821,12 +823,69 @@ model MerchantPlanChangeRequest {
   updatedAt    DateTime                        @updatedAt
   resolvedAt   DateTime?
 
-  merchant   Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  targetPlan MerchantPlan @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
+  merchant   Merchant                      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  targetPlan MerchantPlan                  @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
+  payments   MerchantSubscriptionPayment[]
 
   @@index([merchantId, status])
   @@index([status, createdAt])
   @@map("merchant_plan_change_requests")
+}
+
+model PlatformPaymentAccount {
+  id            String               @id @default(cuid())
+  channel       ManualPaymentChannel
+  label         String
+  accountName   String
+  accountNumber String
+  instructions  String?
+  monthlyAmount Decimal              @db.Decimal(12, 2)
+  currency      String               @default("SDG")
+  isActive      Boolean              @default(true)
+  sortOrder     Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  payments MerchantSubscriptionPayment[]
+
+  @@index([isActive, sortOrder])
+  @@map("platform_payment_accounts")
+}
+
+/// Merchant proof for a WASLA plan transfer. Evidence lives in private storage.
+model MerchantSubscriptionPayment {
+  id                  String                    @id @default(cuid())
+  merchantId          String
+  targetPlanId        String
+  planChangeRequestId String?
+  paymentAccountId    String
+  amount              Decimal                   @db.Decimal(12, 2)
+  currency            String
+  channel             ManualPaymentChannel
+  transactionRef      String
+  senderName          String?
+  transferredAt       DateTime?
+  proofStorageKey     String
+  proofMimeType       String
+  proofSize           Int
+  proofSha256         String
+  status              ManualPaymentReviewStatus @default(PENDING)
+  reviewedById        String?
+  reviewedAt          DateTime?
+  rejectionReason     String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  merchant          Merchant                   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  targetPlan        MerchantPlan               @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
+  planChangeRequest MerchantPlanChangeRequest? @relation(fields: [planChangeRequestId], references: [id], onDelete: SetNull)
+  paymentAccount    PlatformPaymentAccount     @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
+
+  @@unique([paymentAccountId, transactionRef])
+  @@unique([merchantId, proofSha256])
+  @@index([merchantId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("merchant_subscription_payments")
 }
 
 /// Custom role definition — merchant-scoped or system-wide
@@ -1161,6 +1220,19 @@ enum MerchantPlanChangeRequestStatus {
   PENDING
   CONTACTED
   COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum ManualPaymentChannel {
+  BANKAK
+  MYCASHY
+  OTHER
+}
+
+enum ManualPaymentReviewStatus {
+  PENDING
+  VERIFIED
   REJECTED
   CANCELLED
 }
