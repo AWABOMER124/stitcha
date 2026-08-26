@@ -1,18 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const prismaMock = {
+  merchant: { findUnique: vi.fn() },
   merchantSubscription: { findUnique: vi.fn() },
-  merchantPlan: { findMany: vi.fn() },
+  merchantPlan: { findMany: vi.fn(), findFirst: vi.fn() },
+  merchantPlanChangeRequest: {
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    findUniqueOrThrow: vi.fn(),
+    create: vi.fn(),
+  },
 };
+const sendPlatformNotification = vi.fn();
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
+vi.mock('@/modules/platform-notifications/services/platform-notifications.service', () => ({
+  sendNotification: sendPlatformNotification,
+}));
 
-const { getMerchantPlanSnapshot, listPublicPlans } = await import('./merchant-subscriptions.service');
+const { getMerchantPlanSnapshot, listPublicPlans, requestPlanChange } = await import('./merchant-subscriptions.service');
 const { parseEntitlements } = await import('./entitlements');
 
 describe('merchant SaaS entitlements', () => {
   beforeEach(() => {
     prismaMock.merchantSubscription.findUnique.mockReset();
     prismaMock.merchantPlan.findMany.mockReset();
+    prismaMock.merchantPlan.findFirst.mockReset();
+    prismaMock.merchant.findUnique.mockReset();
+    Object.values(prismaMock.merchantPlanChangeRequest).forEach((fn) => fn.mockReset());
+    sendPlatformNotification.mockReset().mockResolvedValue(undefined);
   });
 
   it('fails safely to Basic when a merchant has no subscription row', async () => {
@@ -70,5 +85,32 @@ describe('merchant SaaS entitlements', () => {
       where: { isActive: true, isPublic: true },
       orderBy: [{ sortOrder: 'asc' }, { monthlyPrice: 'asc' }],
     });
+  });
+
+  it('creates one idempotent Pro upgrade request and notifies platform operations', async () => {
+    prismaMock.merchant.findUnique.mockResolvedValue({ name: 'Store' });
+    prismaMock.merchantPlan.findFirst.mockResolvedValue({ id: 'pro_id', code: 'PRO', name: 'Pro' });
+    prismaMock.merchantSubscription.findUnique.mockResolvedValue({ status: 'ACTIVE', plan: { code: 'FREE' } });
+    prismaMock.merchantPlanChangeRequest.findUnique.mockResolvedValue(null);
+    prismaMock.merchantPlanChangeRequest.create.mockResolvedValue({
+      id: 'request_1', status: 'PENDING', targetPlan: { code: 'PRO', name: 'Pro' },
+    });
+
+    await expect(requestPlanChange('merchant_1', 'PRO')).resolves.toMatchObject({ status: 'PENDING' });
+    expect(prismaMock.merchantPlanChangeRequest.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ requestKey: 'pending:merchant_1:pro_id' }),
+    }));
+    expect(sendPlatformNotification).toHaveBeenCalledOnce();
+  });
+
+  it('returns an existing pending request without duplicating or notifying', async () => {
+    prismaMock.merchant.findUnique.mockResolvedValue({ name: 'Store' });
+    prismaMock.merchantPlan.findFirst.mockResolvedValue({ id: 'pro_id', code: 'PRO', name: 'Pro' });
+    prismaMock.merchantSubscription.findUnique.mockResolvedValue({ status: 'ACTIVE', plan: { code: 'FREE' } });
+    prismaMock.merchantPlanChangeRequest.findUnique.mockResolvedValue({ id: 'request_1', status: 'PENDING' });
+
+    await expect(requestPlanChange('merchant_1', 'PRO')).resolves.toMatchObject({ status: 'PENDING' });
+    expect(prismaMock.merchantPlanChangeRequest.create).not.toHaveBeenCalled();
+    expect(sendPlatformNotification).not.toHaveBeenCalled();
   });
 });

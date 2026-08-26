@@ -10,7 +10,8 @@ Updated: 2026-08-26
       entitlements, and a safe migration for existing merchants.
 - [x] Assign every new merchant to Basic while grandfathering existing
       merchants on zero-charge Pro during the transition.
-- [ ] Add current-plan, comparison, and upgrade-request UI.
+- [x] Add current-plan, comparison, and idempotent upgrade-request UI without
+      granting paid access before operational review/payment.
 - [ ] Add platform-owned delivery partners, service areas, quotes, shipments,
       COD custody, and delivery settlements.
 - [ ] Backfill verified delivery operators, then retire distributor signup,

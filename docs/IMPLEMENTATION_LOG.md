@@ -1,5 +1,23 @@
 # Implementation log
 
+## 2026-08-26 — Direct merchant SaaS transition batch 2
+
+- Added a bilingual, responsive plan-and-billing page to the merchant dashboard
+  showing the current plan, grandfathered status, and an honest Basic/Pro
+  feature comparison.
+- Added idempotent merchant upgrade requests. Repeated clicks cannot create
+  duplicate pending requests, and requesting Pro never grants access before
+  payment/review.
+- Added a platform-operations notification for each new upgrade request and an
+  explicit pending state in the merchant UI.
+- Added a dedicated migration and database-backed coverage for plan requests.
+
+### Verification
+
+- Prisma schema validation and client generation passed.
+- ESLint completed with no errors or warnings.
+- All 216 Merchant OS unit tests and the production build passed.
+
 ## 2026-08-26 — Direct merchant SaaS transition batch 1
 
 - Added platform-owned Basic and Pro plan records and one current subscription

@@ -1,4 +1,6 @@
 import prisma from '@/lib/db/prisma';
+import { ConflictError, NotFoundError } from '@/lib/errors';
+import * as platformNotifications from '@/modules/platform-notifications/services/platform-notifications.service';
 import { FREE_ENTITLEMENTS, FREE_PLAN_CODE, parseEntitlements, type MerchantEntitlements } from './entitlements';
 
 export interface MerchantPlanSnapshot {
@@ -46,6 +48,77 @@ export async function listPublicPlans() {
     currency: plan.currency,
     entitlements: parseEntitlements(plan.entitlements),
   }));
+}
+
+export async function getPendingPlanChangeRequest(merchantId: string) {
+  const request = await prisma.merchantPlanChangeRequest.findFirst({
+    where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } },
+    include: { targetPlan: { select: { code: true, name: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+  return request && {
+    id: request.id,
+    status: request.status,
+    targetPlan: request.targetPlan,
+    createdAt: request.createdAt,
+  };
+}
+
+export async function requestPlanChange(
+  merchantId: string,
+  targetPlanCode: string,
+  note?: string,
+) {
+  const [merchant, targetPlan, current] = await Promise.all([
+    prisma.merchant.findUnique({ where: { id: merchantId }, select: { name: true } }),
+    prisma.merchantPlan.findFirst({
+      where: { code: targetPlanCode, isActive: true, isPublic: true },
+      select: { id: true, code: true, name: true },
+    }),
+    prisma.merchantSubscription.findUnique({
+      where: { merchantId },
+      include: { plan: { select: { code: true } } },
+    }),
+  ]);
+  if (!merchant) throw new NotFoundError('Merchant');
+  if (!targetPlan) throw new NotFoundError('MerchantPlan');
+  if (current?.plan.code === targetPlan.code && current.status === 'ACTIVE') {
+    throw new ConflictError('This plan is already active');
+  }
+
+  const requestKey = `pending:${merchantId}:${targetPlan.id}`;
+  const existing = await prisma.merchantPlanChangeRequest.findUnique({
+    where: { requestKey },
+    include: { targetPlan: { select: { code: true, name: true } } },
+  });
+  if (existing) return existing;
+
+  let request;
+  try {
+    request = await prisma.merchantPlanChangeRequest.create({
+      data: { merchantId, targetPlanId: targetPlan.id, requestKey, note },
+      include: { targetPlan: { select: { code: true, name: true } } },
+    });
+  } catch (error) {
+    if (!isUniqueConflict(error)) throw error;
+    request = await prisma.merchantPlanChangeRequest.findUniqueOrThrow({
+      where: { requestKey },
+      include: { targetPlan: { select: { code: true, name: true } } },
+    });
+    return request;
+  }
+
+  await platformNotifications.sendNotification({
+    type: 'SYSTEM',
+    title: 'Merchant plan upgrade request',
+    body: `${merchant.name} requested the ${targetPlan.name} plan.`,
+  }).catch((error) => console.error('[merchant-subscriptions] Failed to notify platform:', error));
+
+  return request;
+}
+
+function isUniqueConflict(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 }
 
 function isEffective(

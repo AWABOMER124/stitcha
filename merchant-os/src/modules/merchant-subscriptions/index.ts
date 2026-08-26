@@ -1,4 +1,9 @@
-export { getMerchantPlanSnapshot, listPublicPlans } from './merchant-subscriptions.service';
+export {
+  getMerchantPlanSnapshot,
+  getPendingPlanChangeRequest,
+  listPublicPlans,
+  requestPlanChange,
+} from './merchant-subscriptions.service';
 export {
   FREE_ENTITLEMENTS,
   FREE_PLAN_CODE,

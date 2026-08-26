@@ -133,6 +133,7 @@ export interface Dictionary {
     delivery: string;
     reports: string;
     notifications: string;
+    subscription: string;
     settings: string;
   };
   navDistributor: {
@@ -1806,6 +1807,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       delivery: 'Delivery',
       reports: 'Reports',
       notifications: 'Notifications',
+      subscription: 'Plan & Billing',
       settings: 'Settings',
     },
     navDistributor: {
@@ -3465,6 +3467,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       delivery: 'التوصيل',
       reports: 'التقارير',
       notifications: 'الإشعارات',
+      subscription: 'الاشتراك والباقات',
       settings: 'الإعدادات',
     },
     navDistributor: {

@@ -128,6 +128,15 @@ describe('database-backed order lifecycle', () => {
     expect(plans).toHaveLength(2);
     expect(plans.map((plan) => ({ code: plan.code, price: Number(plan.monthlyPrice) })))
       .toEqual([{ code: 'FREE', price: 0 }, { code: 'PRO', price: 10 }]);
+
+    const request = await prisma.merchantPlanChangeRequest.create({
+      data: {
+        merchantId,
+        targetPlanId: plans[1].id,
+        requestKey: `e2e:plan-upgrade:${suffix}`,
+      },
+    });
+    expect(request).toMatchObject({ status: 'PENDING', merchantId });
   });
 
   it('creates, fulfills, audits, and archives a real order', async () => {

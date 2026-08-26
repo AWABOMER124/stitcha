@@ -408,9 +408,9 @@ model Merchant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  distributor              Distributor?           @relation(fields: [distributorId], references: [id], onDelete: SetNull)
-  commissionPlan           CommissionPlan?        @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
-  preferredDeliveryCompany DeliveryCompany?       @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
+  distributor              Distributor?                @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  commissionPlan           CommissionPlan?             @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  preferredDeliveryCompany DeliveryCompany?            @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
   users                    MerchantUser[]
   branches                 Branch[]
   products                 Product[]
@@ -429,6 +429,7 @@ model Merchant {
   whatsappConfig           WhatsAppConfig?
   featuredPlacements       FeaturedPlacement[]
   subscription             MerchantSubscription?
+  planChangeRequests       MerchantPlanChangeRequest[]
 
   @@index([slug])
   @@index([status])
@@ -482,7 +483,8 @@ model MerchantPlan {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  subscriptions MerchantSubscription[]
+  subscriptions  MerchantSubscription[]
+  changeRequests MerchantPlanChangeRequest[]
 
   @@index([isActive, sortOrder])
   @@map("merchant_plans")
@@ -513,6 +515,27 @@ model MerchantSubscription {
   @@index([planId, status])
   @@index([status, currentPeriodEndsAt])
   @@map("merchant_subscriptions")
+}
+
+/// Merchant-initiated plan change request. This provides a safe internal
+/// review path before external recurring billing is connected.
+model MerchantPlanChangeRequest {
+  id           String                          @id @default(cuid())
+  merchantId   String
+  targetPlanId String
+  requestKey   String?                         @unique
+  status       MerchantPlanChangeRequestStatus @default(PENDING)
+  note         String?
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+  resolvedAt   DateTime?
+
+  merchant   Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  targetPlan MerchantPlan @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
+
+  @@index([merchantId, status])
+  @@index([status, createdAt])
+  @@map("merchant_plan_change_requests")
 }
 
 /// Custom role definition — merchant-scoped or system-wide
@@ -840,6 +863,14 @@ enum MerchantSubscriptionStatus {
   ACTIVE
   PAST_DUE
   GRACE_PERIOD
+  CANCELLED
+}
+
+enum MerchantPlanChangeRequestStatus {
+  PENDING
+  CONTACTED
+  COMPLETED
+  REJECTED
   CANCELLED
 }
 
