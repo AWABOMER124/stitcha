@@ -9,13 +9,13 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'Wassalk';
+  String get appName => 'WASLA';
 
   @override
   String get loginTitle => 'Login';
 
   @override
-  String get loginSubtitle => 'Welcome back to Wassalk family';
+  String get loginSubtitle => 'Welcome back to WASLA family';
 
   @override
   String get phoneNumber => 'Phone Number';

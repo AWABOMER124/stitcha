@@ -12,7 +12,8 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const SENSITIVE_KEYS = new Set([
-  'password', 'passwordhash', 'token', 'tokenhash', 'secret', 'authorization', 'cookie',
+  'password', 'passwordhash', 'token', 'accesstoken', 'refreshtoken',
+  'tokenhash', 'secret', 'authorization', 'cookie',
 ]);
 
 function redact(value: unknown): unknown {

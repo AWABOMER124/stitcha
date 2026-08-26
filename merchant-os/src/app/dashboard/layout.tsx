@@ -9,6 +9,7 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardTopbar } from "@/components/dashboard/topbar";
 import { MobileNavProvider } from "@/components/ui/mobile-nav-context";
 import { AppProviders } from "@/components/ui/app-providers";
+import { SkipLink } from "@/components/ui/skip-link";
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default async function DashboardLayout({
     <LocaleProvider initialLocale={initialLocale}>
       <AppProviders>
         <MobileNavProvider>
+          <SkipLink />
           <div className="flex h-screen overflow-hidden bg-[var(--background)]">
             {/* Sidebar */}
             <DashboardSidebar merchantName={merchant?.name ?? '—'} merchantSlug={merchant?.slug ?? ''} />
@@ -43,7 +45,7 @@ export default async function DashboardLayout({
             {/* Main Content */}
             <div className="flex flex-1 flex-col overflow-hidden">
               <DashboardTopbar />
-              <main className="flex-1 overflow-y-auto p-6">
+              <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-6 focus:outline-none">
                 {children}
               </main>
             </div>

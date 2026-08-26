@@ -1,5 +1,5 @@
 // ============================================================================
-// Waslak Merchant OS — Prisma Schema
+// WASLA Commerce OS — Prisma Schema
 // Multi-tenant SaaS platform for merchants
 // (restaurants, cafes, groceries, pharmacies, retail stores)
 // ============================================================================
@@ -44,6 +44,37 @@ enum DistributorStatus {
   PENDING
   ACTIVE
   SUSPENDED
+}
+
+enum DeliveryPartnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum DeliveryQuoteStatus {
+  OFFERED
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum PlatformShipmentStatus {
+  REQUESTED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum CodCollectionStatus {
+  PENDING
+  COLLECTED
+  REMITTED
+  DISPUTED
+  WRITTEN_OFF
 }
 
 enum UserRole {
@@ -342,6 +373,266 @@ model DeliveryProviderConfig {
   @@map("delivery_provider_configs")
 }
 
+/// Platform-contracted delivery operator. This is intentionally independent
+/// from Distributor and becomes the ownership boundary for delivery supply.
+model DeliveryPartner {
+  id                      String                @id @default(cuid())
+  legacyDeliveryCompanyId String?               @unique
+  name                    String
+  slug                    String                @unique
+  contactName             String?
+  phone                   String?
+  email                   String?
+  status                  DeliveryPartnerStatus @default(PENDING)
+  supportsCod             Boolean               @default(false)
+  isActive                Boolean               @default(true)
+  rating                  Decimal               @default(5) @db.Decimal(3, 2)
+  completedDeliveries     Int                   @default(0)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  providerConfig DeliveryPartnerProviderConfig?
+  serviceAreas   DeliveryPartnerServiceArea[]
+  pricingRules   DeliveryPartnerPricingRule[]
+  couriers       DeliveryCourier[]
+  quotes         DeliveryQuote[]
+  shipments      PlatformShipment[]
+  settlements    DeliveryPartnerSettlement[]
+
+  @@index([status, isActive])
+  @@map("delivery_partners")
+}
+
+model DeliveryPartnerProviderConfig {
+  id           String   @id @default(cuid())
+  partnerId    String   @unique
+  providerKey  String
+  apiBaseUrl   String?
+  credentials  String?
+  webhookToken String   @unique @default(cuid())
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  partner DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_partner_provider_configs")
+}
+
+model DeliveryPartnerServiceArea {
+  id                  String   @id @default(cuid())
+  partnerId           String
+  code                String
+  name                String
+  city                String?
+  centerLat           Float?
+  centerLng           Float?
+  radiusKm            Float?
+  estimatedMinutesMin Int?
+  estimatedMinutesMax Int?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  partner      DeliveryPartner              @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  pricingRules DeliveryPartnerPricingRule[]
+
+  @@unique([partnerId, code])
+  @@index([city, isActive])
+  @@map("delivery_partner_service_areas")
+}
+
+model DeliveryPartnerPricingRule {
+  id            String       @id @default(cuid())
+  partnerId     String
+  serviceAreaId String?
+  vehicleType   VehicleType?
+  baseFee       Decimal      @db.Decimal(10, 2)
+  perKmFee      Decimal      @default(0) @db.Decimal(10, 2)
+  minimumFee    Decimal      @default(0) @db.Decimal(10, 2)
+  maximumFee    Decimal?     @db.Decimal(10, 2)
+  maxDistanceKm Float?
+  currency      String       @default("SDG")
+  priority      Int          @default(0)
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  partner     DeliveryPartner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  serviceArea DeliveryPartnerServiceArea? @relation(fields: [serviceAreaId], references: [id], onDelete: Cascade)
+  quotes      DeliveryQuote[]
+
+  @@index([partnerId, isActive, priority])
+  @@index([serviceAreaId])
+  @@map("delivery_partner_pricing_rules")
+}
+
+/// Courier supply owned by a delivery partner or directly contracted by the
+/// platform. Legacy drivers are copied only when they belonged to a verified
+/// DeliveryCompany; distributor-fleet drivers require manual classification.
+model DeliveryCourier {
+  id             String       @id @default(cuid())
+  partnerId      String?
+  legacyDriverId String?      @unique
+  name           String
+  phone          String
+  nationalId     String?
+  photo          String?
+  vehicleType    VehicleType  @default(MOTORCYCLE)
+  vehiclePlate   String?
+  status         DriverStatus @default(OFFLINE)
+  isIndependent  Boolean      @default(false)
+  isActive       Boolean      @default(true)
+  isVerified     Boolean      @default(false)
+  rating         Decimal      @default(5) @db.Decimal(3, 2)
+  currentLat     Float?
+  currentLng     Float?
+  lastSeenAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  partner   DeliveryPartner?          @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  shipments PlatformShipment[]
+  proofs    PlatformProofOfDelivery[]
+
+  @@index([partnerId, status])
+  @@index([phone])
+  @@map("delivery_couriers")
+}
+
+model DeliveryQuote {
+  id            String              @id @default(cuid())
+  orderId       String
+  partnerId     String
+  pricingRuleId String?
+  status        DeliveryQuoteStatus @default(OFFERED)
+  distanceKm    Float
+  fee           Decimal             @db.Decimal(10, 2)
+  currency      String              @default("SDG")
+  etaMinutesMin Int?
+  etaMinutesMax Int?
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime            @default(now())
+
+  order       Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  partner     DeliveryPartner             @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  pricingRule DeliveryPartnerPricingRule? @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
+  shipment    PlatformShipment?
+
+  @@index([orderId, status])
+  @@index([partnerId, expiresAt])
+  @@map("delivery_quotes")
+}
+
+model PlatformShipment {
+  id                String                 @id @default(cuid())
+  orderId           String                 @unique
+  quoteId           String?                @unique
+  partnerId         String
+  courierId         String?
+  trackingCode      String                 @unique
+  providerReference String?
+  status            PlatformShipmentStatus @default(REQUESTED)
+  fee               Decimal                @db.Decimal(10, 2)
+  currency          String                 @default("SDG")
+  assignedAt        DateTime?
+  pickedUpAt        DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  quote         DeliveryQuote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  partner       DeliveryPartner          @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  courier       DeliveryCourier?         @relation(fields: [courierId], references: [id], onDelete: SetNull)
+  events        DeliveryEvent[]
+  proof         PlatformProofOfDelivery?
+  codCollection CodCollection?
+
+  @@index([partnerId, status])
+  @@index([courierId, status])
+  @@map("platform_shipments")
+}
+
+model DeliveryEvent {
+  id         String                 @id @default(cuid())
+  shipmentId String
+  status     PlatformShipmentStatus
+  note       String?
+  actorType  String?
+  actorId    String?
+  metadata   Json?
+  occurredAt DateTime               @default(now())
+
+  shipment PlatformShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, occurredAt])
+  @@map("delivery_events")
+}
+
+model PlatformProofOfDelivery {
+  id            String   @id @default(cuid())
+  shipmentId    String   @unique
+  courierId     String?
+  recipientName String?
+  photoUrl      String?
+  signatureUrl  String?
+  otpVerified   Boolean  @default(false)
+  notes         String?
+  lat           Float?
+  lng           Float?
+  deliveredAt   DateTime @default(now())
+
+  shipment PlatformShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  courier  DeliveryCourier? @relation(fields: [courierId], references: [id], onDelete: SetNull)
+
+  @@map("platform_proofs_of_delivery")
+}
+
+model CodCollection {
+  id              String              @id @default(cuid())
+  shipmentId      String              @unique
+  status          CodCollectionStatus @default(PENDING)
+  expectedAmount  Decimal             @db.Decimal(10, 2)
+  collectedAmount Decimal?            @db.Decimal(10, 2)
+  remittedAmount  Decimal?            @db.Decimal(10, 2)
+  currency        String              @default("SDG")
+  collectedAt     DateTime?
+  remittedAt      DateTime?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  shipment PlatformShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("cod_collections")
+}
+
+model DeliveryPartnerSettlement {
+  id            String           @id @default(cuid())
+  partnerId     String
+  status        SettlementStatus @default(PENDING)
+  periodFrom    DateTime
+  periodTo      DateTime
+  shipmentCount Int              @default(0)
+  deliveryFees  Decimal          @default(0) @db.Decimal(12, 2)
+  codCollected  Decimal          @default(0) @db.Decimal(12, 2)
+  codRemitted   Decimal          @default(0) @db.Decimal(12, 2)
+  netPayable    Decimal          @default(0) @db.Decimal(12, 2)
+  currency      String           @default("SDG")
+  paidAt        DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  partner DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+
+  @@unique([partnerId, periodFrom, periodTo])
+  @@index([status, periodTo])
+  @@map("delivery_partner_settlements")
+}
+
 /// Staff members of a distributor
 model DistributorUser {
   id            String   @id @default(cuid())
@@ -408,9 +699,9 @@ model Merchant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  distributor              Distributor?           @relation(fields: [distributorId], references: [id], onDelete: SetNull)
-  commissionPlan           CommissionPlan?        @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
-  preferredDeliveryCompany DeliveryCompany?       @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
+  distributor              Distributor?                @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  commissionPlan           CommissionPlan?             @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  preferredDeliveryCompany DeliveryCompany?            @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
   users                    MerchantUser[]
   branches                 Branch[]
   products                 Product[]
@@ -428,6 +719,8 @@ model Merchant {
   conversations            Conversation[]
   whatsappConfig           WhatsAppConfig?
   featuredPlacements       FeaturedPlacement[]
+  subscription             MerchantSubscription?
+  planChangeRequests       MerchantPlanChangeRequest[]
 
   @@index([slug])
   @@index([status])
@@ -463,6 +756,77 @@ model MerchantUser {
   @@index([userId])
   @@index([branchId])
   @@map("merchant_users")
+}
+
+/// Platform-owned SaaS plan. This replaces distributor-owned commission plans
+/// as the source of product access for direct merchants.
+model MerchantPlan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String?
+  monthlyPrice Decimal  @default(0) @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  entitlements Json
+  isPublic     Boolean  @default(true)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions  MerchantSubscription[]
+  changeRequests MerchantPlanChangeRequest[]
+
+  @@index([isActive, sortOrder])
+  @@map("merchant_plans")
+}
+
+/// Current SaaS subscription for a merchant. One row per merchant keeps plan
+/// checks cheap while preserving a safe path to direct platform billing.
+model MerchantSubscription {
+  id                    String                     @id @default(cuid())
+  merchantId            String                     @unique
+  planId                String
+  status                MerchantSubscriptionStatus @default(ACTIVE)
+  startsAt              DateTime                   @default(now())
+  currentPeriodStartsAt DateTime?
+  currentPeriodEndsAt   DateTime?
+  graceEndsAt           DateTime?
+  cancelAtPeriodEnd     Boolean                    @default(false)
+  cancelledAt           DateTime?
+  priceOverride         Decimal?                   @db.Decimal(10, 2)
+  currencyOverride      String?
+  isGrandfathered       Boolean                    @default(false)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  plan     MerchantPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId, status])
+  @@index([status, currentPeriodEndsAt])
+  @@map("merchant_subscriptions")
+}
+
+/// Merchant-initiated plan change request. This provides a safe internal
+/// review path before external recurring billing is connected.
+model MerchantPlanChangeRequest {
+  id           String                          @id @default(cuid())
+  merchantId   String
+  targetPlanId String
+  requestKey   String?                         @unique
+  status       MerchantPlanChangeRequestStatus @default(PENDING)
+  note         String?
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+  resolvedAt   DateTime?
+
+  merchant   Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  targetPlan MerchantPlan @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
+
+  @@index([merchantId, status])
+  @@index([status, createdAt])
+  @@map("merchant_plan_change_requests")
 }
 
 /// Custom role definition — merchant-scoped or system-wide
@@ -753,14 +1117,51 @@ model CustomerAccount {
   updatedAt DateTime @updatedAt
 
   // Relations
-  customers     Customer[]
-  subscriptions CustomerSubscription[]
+  customers       Customer[]
+  subscriptions   CustomerSubscription[]
+  refreshSessions CustomerRefreshSession[]
 
   @@map("customer_accounts")
 }
 
+/// Revocable mobile-app session. Only a SHA-256 hash of the opaque refresh
+/// token is persisted. Rotated tokens share a family so reuse can revoke the
+/// whole compromised session chain.
+model CustomerRefreshSession {
+  id        String @id @default(cuid())
+  accountId String
+  familyId  String
+  tokenHash String @unique
+
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  account CustomerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("customer_refresh_sessions")
+}
+
 enum CustomerSubscriptionStatus {
   ACTIVE
+  CANCELLED
+}
+
+enum MerchantSubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  GRACE_PERIOD
+  CANCELLED
+}
+
+enum MerchantPlanChangeRequestStatus {
+  PENDING
+  CONTACTED
+  COMPLETED
+  REJECTED
   CANCELLED
 }
 
@@ -851,14 +1252,16 @@ model Order {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant        Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  customer        Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  branch          Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  items           OrderItem[]
-  statusHistory   OrderStatusHistory[]
-  delivery        Delivery?
-  payment         Payment?
-  proofOfDelivery ProofOfDelivery?
+  merchant         Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer         Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch           Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  items            OrderItem[]
+  statusHistory    OrderStatusHistory[]
+  delivery         Delivery?
+  payment          Payment?
+  proofOfDelivery  ProofOfDelivery?
+  deliveryQuotes   DeliveryQuote[]
+  platformShipment PlatformShipment?
 
   @@unique([merchantId, orderNumber])
   @@index([merchantId])
@@ -997,8 +1400,9 @@ model NotificationLog {
   title     String
   body      String
 
-  isRead   Boolean @default(false)
-  metadata Json?
+  isRead         Boolean @default(false)
+  metadata       Json?
+  idempotencyKey String? @unique
 
   createdAt DateTime @default(now())
 
@@ -1055,6 +1459,36 @@ model PlatformNotificationLog {
   @@index([isRead])
   @@index([createdAt])
   @@map("platform_notification_logs")
+}
+
+enum OutboxJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Durable work queue for notifications, billing, and other retryable side effects.
+model OutboxJob {
+  id             String          @id @default(cuid())
+  topic          String
+  payload        Json
+  idempotencyKey String          @unique
+  status         OutboxJobStatus @default(PENDING)
+  attempts       Int             @default(0)
+  maxAttempts    Int             @default(5)
+  availableAt    DateTime        @default(now())
+  lockedAt       DateTime?
+  lockedBy       String?
+  lastError      String?
+  completedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status, availableAt])
+  @@index([status, lockedAt])
+  @@index([topic, status])
+  @@map("outbox_jobs")
 }
 
 // ============================================================================
@@ -1197,6 +1631,7 @@ model Settlement {
   merchant     Merchant               @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   transactions FinancialTransaction[]
 
+  @@unique([merchantId, periodFrom, periodTo])
   @@index([distributorId])
   @@index([merchantId])
   @@index([status])

@@ -2,6 +2,7 @@
 import { useState, useTransition } from 'react';
 import { saveStorefrontSettingsAction } from '@/modules/storefront/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { ExternalImage } from '@/components/external-image';
 
 export type Settings = { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null;
 
@@ -45,8 +46,8 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  const [primary, setPrimary] = useState(theme.primaryColor ?? '#b91c1c');
-  const [accent, setAccent] = useState(theme.accentColor ?? '#dc2626');
+  const [primary, setPrimary] = useState(theme.primaryColor ?? '#13c4a3');
+  const [accent, setAccent] = useState(theme.accentColor ?? '#3b82f6');
   const [logoUrl, setLogoUrl] = useState(theme.logoUrl ?? '');
   const [bannerUrl, setBannerUrl] = useState(settings?.bannerImage ?? '');
   const [welcome, setWelcome] = useState(settings?.welcomeText ?? '');
@@ -86,7 +87,15 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
       {/* Live Preview */}
       <div className="rounded-2xl overflow-hidden border border-[var(--border)] h-24 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${primary}, ${accent})` }}>
         <div className="text-center text-white">
-          {logoUrl ? <img src={logoUrl} alt="" className="h-8 mx-auto rounded-lg object-contain mb-1" /> : <div className="w-10 h-10 rounded-xl bg-white/20 mx-auto flex items-center justify-center text-2xl mb-1">🏪</div>}
+          {logoUrl ? (
+            <ExternalImage
+              src={logoUrl}
+              alt={t.previewLabel}
+              width={32}
+              height={32}
+              className="h-8 w-8 mx-auto rounded-lg object-contain mb-1"
+            />
+          ) : <div className="w-10 h-10 rounded-xl bg-white/20 mx-auto flex items-center justify-center text-2xl mb-1">🏪</div>}
           <p className="font-bold text-sm">{t.previewLabel}</p>
         </div>
       </div>
@@ -96,13 +105,13 @@ export function CustomizeClient({ settings, slug }: { settings: Settings; slug: 
           <Field label={t.primaryColorLabel}>
             <div className="flex gap-2 items-center">
               <input type="color" value={primary} onChange={e => setPrimary(e.target.value)} className="w-10 h-10 rounded-lg border border-[var(--border)] cursor-pointer p-0.5" />
-              <input value={primary} onChange={e => setPrimary(e.target.value)} className={`${inputCls} flex-1`} placeholder="#b91c1c" />
+              <input value={primary} onChange={e => setPrimary(e.target.value)} className={`${inputCls} flex-1`} placeholder="#13c4a3" />
             </div>
           </Field>
           <Field label={t.secondaryColorLabel}>
             <div className="flex gap-2 items-center">
               <input type="color" value={accent} onChange={e => setAccent(e.target.value)} className="w-10 h-10 rounded-lg border border-[var(--border)] cursor-pointer p-0.5" />
-              <input value={accent} onChange={e => setAccent(e.target.value)} className={`${inputCls} flex-1`} placeholder="#dc2626" />
+              <input value={accent} onChange={e => setAccent(e.target.value)} className={`${inputCls} flex-1`} placeholder="#3b82f6" />
             </div>
           </Field>
         </div>

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
 
 export default function LoginPage() {
   const { dict } = useLocale();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,11 +34,11 @@ export default function LoginPage() {
         const session = await res.json();
         const role = session?.user?.role as string | undefined;
         if (role === "PLATFORM_OWNER") {
-          window.location.href = "/admin";
+          router.replace("/admin");
         } else if (role === "DISTRIBUTOR_OWNER" || role === "DISTRIBUTOR_ADMIN") {
-          window.location.href = "/distributor/dashboard";
+          router.replace("/distributor/dashboard");
         } else {
-          window.location.href = "/dashboard";
+          router.replace("/dashboard");
         }
       }
     } catch {
@@ -154,15 +156,6 @@ export default function LoginPage() {
           className="font-medium text-[var(--primary)] hover:underline"
         >
           {dict.login.createMerchantAccount}
-        </Link>
-      </p>
-      <p className="text-center text-sm text-[var(--muted-foreground)]">
-        {dict.login.areYouDistributor}{" "}
-        <Link
-          href="/register-distributor"
-          className="font-medium text-[var(--primary)] hover:underline"
-        >
-          {dict.login.registerHere}
         </Link>
       </p>
     </div>

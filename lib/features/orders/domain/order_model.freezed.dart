@@ -24,7 +24,7 @@ mixin _$OrderModel {
   String get status => throw _privateConstructorUsedError;
   double get totalAmount => throw _privateConstructorUsedError;
   String get date => throw _privateConstructorUsedError;
-  String get address => throw _privateConstructorUsedError;
+  String? get address => throw _privateConstructorUsedError;
   String get storeName => throw _privateConstructorUsedError;
 
   /// Serializes this OrderModel to a JSON map.
@@ -48,7 +48,7 @@ abstract class $OrderModelCopyWith<$Res> {
       String status,
       double totalAmount,
       String date,
-      String address,
+      String? address,
       String storeName});
 }
 
@@ -71,7 +71,7 @@ class _$OrderModelCopyWithImpl<$Res, $Val extends OrderModel>
     Object? status = null,
     Object? totalAmount = null,
     Object? date = null,
-    Object? address = null,
+    Object? address = freezed,
     Object? storeName = null,
   }) {
     return _then(_value.copyWith(
@@ -91,10 +91,10 @@ class _$OrderModelCopyWithImpl<$Res, $Val extends OrderModel>
           ? _value.date
           : date // ignore: cast_nullable_to_non_nullable
               as String,
-      address: null == address
+      address: freezed == address
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
       storeName: null == storeName
           ? _value.storeName
           : storeName // ignore: cast_nullable_to_non_nullable
@@ -116,7 +116,7 @@ abstract class _$$OrderModelImplCopyWith<$Res>
       String status,
       double totalAmount,
       String date,
-      String address,
+      String? address,
       String storeName});
 }
 
@@ -137,7 +137,7 @@ class __$$OrderModelImplCopyWithImpl<$Res>
     Object? status = null,
     Object? totalAmount = null,
     Object? date = null,
-    Object? address = null,
+    Object? address = freezed,
     Object? storeName = null,
   }) {
     return _then(_$OrderModelImpl(
@@ -157,10 +157,10 @@ class __$$OrderModelImplCopyWithImpl<$Res>
           ? _value.date
           : date // ignore: cast_nullable_to_non_nullable
               as String,
-      address: null == address
+      address: freezed == address
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
       storeName: null == storeName
           ? _value.storeName
           : storeName // ignore: cast_nullable_to_non_nullable
@@ -177,7 +177,7 @@ class _$OrderModelImpl implements _OrderModel {
       required this.status,
       required this.totalAmount,
       required this.date,
-      required this.address,
+      this.address,
       required this.storeName});
 
   factory _$OrderModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -192,7 +192,7 @@ class _$OrderModelImpl implements _OrderModel {
   @override
   final String date;
   @override
-  final String address;
+  final String? address;
   @override
   final String storeName;
 
@@ -243,7 +243,7 @@ abstract class _OrderModel implements OrderModel {
       required final String status,
       required final double totalAmount,
       required final String date,
-      required final String address,
+      final String? address,
       required final String storeName}) = _$OrderModelImpl;
 
   factory _OrderModel.fromJson(Map<String, dynamic> json) =
@@ -258,7 +258,7 @@ abstract class _OrderModel implements OrderModel {
   @override
   String get date;
   @override
-  String get address;
+  String? get address;
   @override
   String get storeName;
 

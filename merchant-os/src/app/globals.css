@@ -3,7 +3,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Alexandria Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -15,50 +15,59 @@
 }
 
 :root {
-  /* Waslak brand colors - deep red primary */
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --card: #ffffff;
-  --card-foreground: #0a0a0a;
+  --wasla-midnight: #07111f;
+  --wasla-teal: #13c4a3;
+  --wasla-blue: #3b82f6;
+  --wasla-cloud: #f6f8fb;
+  --wasla-surface: #ffffff;
+  --wasla-slate: #64748b;
+  --wasla-border: #e2e8f0;
+  --background: var(--wasla-cloud);
+  --foreground: var(--wasla-midnight);
+  --card: var(--wasla-surface);
+  --card-foreground: var(--wasla-midnight);
   --popover: #ffffff;
   --popover-foreground: #0a0a0a;
-  --primary: #b91c1c;
+  --primary: var(--wasla-teal);
   --primary-foreground: #ffffff;
-  --secondary: #f5f5f4;
-  --secondary-foreground: #1c1917;
-  --muted: #f5f5f4;
-  --muted-foreground: #78716c;
-  --accent: #f5f5f4;
-  --accent-foreground: #1c1917;
-  --destructive: #ef4444;
+  --secondary: #eaf2ff;
+  --secondary-foreground: var(--wasla-midnight);
+  --muted: #eef2f6;
+  --muted-foreground: var(--wasla-slate);
+  --accent: var(--wasla-blue);
+  --accent-foreground: #ffffff;
+  --success: #16a34a;
+  --warning: #d97706;
+  --info: #2563eb;
+  --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e7e5e4;
-  --input: #e7e5e4;
-  --ring: #b91c1c;
-  --radius: 0.625rem;
-  --chart-1: #b91c1c;
-  --chart-2: #ea580c;
+  --border: var(--wasla-border);
+  --input: var(--wasla-border);
+  --ring: var(--wasla-teal);
+  --radius: 0.75rem;
+  --chart-1: var(--wasla-teal);
+  --chart-2: var(--wasla-blue);
   --chart-3: #d97706;
   --chart-4: #16a34a;
   --chart-5: #0891b2;
-  --sidebar: #fafaf9;
-  --sidebar-foreground: #1c1917;
-  --sidebar-primary: #b91c1c;
+  --sidebar: var(--wasla-surface);
+  --sidebar-foreground: var(--wasla-midnight);
+  --sidebar-primary: var(--wasla-teal);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f5f5f4;
-  --sidebar-accent-foreground: #1c1917;
-  --sidebar-border: #e7e5e4;
-  --sidebar-ring: #b91c1c;
+  --sidebar-accent: #eefbf8;
+  --sidebar-accent-foreground: var(--wasla-midnight);
+  --sidebar-border: var(--wasla-border);
+  --sidebar-ring: var(--wasla-teal);
 }
 
 .dark {
-  --background: #0c0a09;
-  --foreground: #fafaf9;
-  --card: #1c1917;
-  --card-foreground: #fafaf9;
-  --popover: #1c1917;
+  --background: #07111f;
+  --foreground: #f6f8fb;
+  --card: #0d1b2a;
+  --card-foreground: #f6f8fb;
+  --popover: #0d1b2a;
   --popover-foreground: #fafaf9;
-  --primary: #dc2626;
+  --primary: #13c4a3;
   --primary-foreground: #ffffff;
   --secondary: #292524;
   --secondary-foreground: #fafaf9;
@@ -70,15 +79,15 @@
   --destructive-foreground: #ffffff;
   --border: #292524;
   --input: #292524;
-  --ring: #dc2626;
+  --ring: #13c4a3;
   --chart-1: #dc2626;
   --chart-2: #f97316;
   --chart-3: #f59e0b;
   --chart-4: #22c55e;
   --chart-5: #06b6d4;
-  --sidebar: #1c1917;
+  --sidebar: #0d1b2a;
   --sidebar-foreground: #fafaf9;
-  --sidebar-primary: #dc2626;
+  --sidebar-primary: #13c4a3;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #292524;
   --sidebar-accent-foreground: #fafaf9;
@@ -92,5 +101,16 @@
   }
   body {
     @apply bg-[var(--background)] text-[var(--foreground)];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

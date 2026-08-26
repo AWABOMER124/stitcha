@@ -23,10 +23,10 @@ mixin _$ProductModel {
   String get id => throw _privateConstructorUsedError;
   String get storeId => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
-  String get description => throw _privateConstructorUsedError;
+  String? get description => throw _privateConstructorUsedError;
   double get price => throw _privateConstructorUsedError;
-  String get imageUrl => throw _privateConstructorUsedError;
-  String get category => throw _privateConstructorUsedError;
+  String? get imageUrl => throw _privateConstructorUsedError;
+  String? get category => throw _privateConstructorUsedError;
 
   /// Serializes this ProductModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -48,10 +48,10 @@ abstract class $ProductModelCopyWith<$Res> {
       {String id,
       String storeId,
       String name,
-      String description,
+      String? description,
       double price,
-      String imageUrl,
-      String category});
+      String? imageUrl,
+      String? category});
 }
 
 /// @nodoc
@@ -72,10 +72,10 @@ class _$ProductModelCopyWithImpl<$Res, $Val extends ProductModel>
     Object? id = null,
     Object? storeId = null,
     Object? name = null,
-    Object? description = null,
+    Object? description = freezed,
     Object? price = null,
-    Object? imageUrl = null,
-    Object? category = null,
+    Object? imageUrl = freezed,
+    Object? category = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -90,22 +90,22 @@ class _$ProductModelCopyWithImpl<$Res, $Val extends ProductModel>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
-      description: null == description
+      description: freezed == description
           ? _value.description
           : description // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
       price: null == price
           ? _value.price
           : price // ignore: cast_nullable_to_non_nullable
               as double,
-      imageUrl: null == imageUrl
+      imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      category: null == category
+              as String?,
+      category: freezed == category
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
     ) as $Val);
   }
 }
@@ -122,10 +122,10 @@ abstract class _$$ProductModelImplCopyWith<$Res>
       {String id,
       String storeId,
       String name,
-      String description,
+      String? description,
       double price,
-      String imageUrl,
-      String category});
+      String? imageUrl,
+      String? category});
 }
 
 /// @nodoc
@@ -144,10 +144,10 @@ class __$$ProductModelImplCopyWithImpl<$Res>
     Object? id = null,
     Object? storeId = null,
     Object? name = null,
-    Object? description = null,
+    Object? description = freezed,
     Object? price = null,
-    Object? imageUrl = null,
-    Object? category = null,
+    Object? imageUrl = freezed,
+    Object? category = freezed,
   }) {
     return _then(_$ProductModelImpl(
       id: null == id
@@ -162,22 +162,22 @@ class __$$ProductModelImplCopyWithImpl<$Res>
           ? _value.name
           : name // ignore: cast_nullable_to_non_nullable
               as String,
-      description: null == description
+      description: freezed == description
           ? _value.description
           : description // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
       price: null == price
           ? _value.price
           : price // ignore: cast_nullable_to_non_nullable
               as double,
-      imageUrl: null == imageUrl
+      imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      category: null == category
+              as String?,
+      category: freezed == category
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
-              as String,
+              as String?,
     ));
   }
 }
@@ -189,10 +189,10 @@ class _$ProductModelImpl implements _ProductModel {
       {required this.id,
       required this.storeId,
       required this.name,
-      required this.description,
+      this.description,
       required this.price,
-      required this.imageUrl,
-      required this.category});
+      this.imageUrl,
+      this.category});
 
   factory _$ProductModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$ProductModelImplFromJson(json);
@@ -204,13 +204,13 @@ class _$ProductModelImpl implements _ProductModel {
   @override
   final String name;
   @override
-  final String description;
+  final String? description;
   @override
   final double price;
   @override
-  final String imageUrl;
+  final String? imageUrl;
   @override
-  final String category;
+  final String? category;
 
   @override
   String toString() {
@@ -260,10 +260,10 @@ abstract class _ProductModel implements ProductModel {
       {required final String id,
       required final String storeId,
       required final String name,
-      required final String description,
+      final String? description,
       required final double price,
-      required final String imageUrl,
-      required final String category}) = _$ProductModelImpl;
+      final String? imageUrl,
+      final String? category}) = _$ProductModelImpl;
 
   factory _ProductModel.fromJson(Map<String, dynamic> json) =
       _$ProductModelImpl.fromJson;
@@ -275,13 +275,13 @@ abstract class _ProductModel implements ProductModel {
   @override
   String get name;
   @override
-  String get description;
+  String? get description;
   @override
   double get price;
   @override
-  String get imageUrl;
+  String? get imageUrl;
   @override
-  String get category;
+  String? get category;
 
   /// Create a copy of ProductModel
   /// with the given fields replaced by the non-null parameter values.

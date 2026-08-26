@@ -8,6 +8,19 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val mapsApiKey = providers.gradleProperty("MAPS_API_KEY")
+    .orElse(providers.environmentVariable("MAPS_API_KEY"))
+    .orNull
+val isReleaseBuild = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+if (isReleaseBuild && mapsApiKey.isNullOrBlank()) {
+    throw GradleException(
+        "MAPS_API_KEY is required for release builds. " +
+            "Pass -PMAPS_API_KEY=... or set the MAPS_API_KEY environment variable.",
+    )
+}
+
 android {
     namespace = "com.example.wassalk_app"
     compileSdk = flutter.compileSdkVersion
@@ -32,6 +45,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey.orEmpty()
     }
 
     buildTypes {

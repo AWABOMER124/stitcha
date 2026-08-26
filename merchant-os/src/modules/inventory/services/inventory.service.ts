@@ -36,39 +36,6 @@ export async function getLowStockAlerts(merchantId: string) {
   return inventoryRepo.findLowStock(merchantId);
 }
 
-/**
- * Deduct stock when an order is placed. Called by orders service during
- * order creation. Products without inventory tracking enabled are skipped
- * silently (see inventoryRepo.batchAdjustStock).
- */
-export async function deductForOrder(
-  merchantId: string,
-  items: { productId: string; quantity: number }[]
-) {
-  return inventoryRepo.batchAdjustStock(
-    merchantId,
-    items.map((item) => ({ productId: item.productId, delta: -item.quantity })),
-    'SALE',
-    'Order placed',
-  );
-}
-
-/**
- * Restore stock when an order is cancelled or rejected. Called by orders
- * service on that status transition.
- */
-export async function restoreForCancellation(
-  merchantId: string,
-  items: { productId: string; quantity: number }[]
-) {
-  return inventoryRepo.batchAdjustStock(
-    merchantId,
-    items.map((item) => ({ productId: item.productId, delta: item.quantity })),
-    'RETURN',
-    'Order cancelled',
-  );
-}
-
 /** Get stock movement history for a product */
 export async function getMovements(merchantId: string, productId: string, page = 1, limit = 20) {
   return inventoryRepo.getMovements(merchantId, productId, { page, limit });

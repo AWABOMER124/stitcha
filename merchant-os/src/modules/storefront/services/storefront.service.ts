@@ -5,27 +5,11 @@ import type { PlaceOrderInput } from '../schemas/storefront.schemas';
 import { nanoid } from 'nanoid';
 import { serializePrismaObject } from '@/lib/serialization';
 import type { CustomerAccount, OrderStatus, Prisma } from '@prisma/client';
-import * as notificationsService from '@/modules/notifications/services/notifications.service';
+import * as ordersRepo from '@/modules/orders/repositories/orders.repository';
 
 /**
  * Storefront service — public-facing operations.
  */
-
-/** Alerts the merchant (in-app bell) that a new order landed from their public storefront.
- * Best-effort — a notification failure shouldn't fail the checkout itself. */
-async function notifyMerchantNewOrder(merchantId: string, orderNumber: string, customerName: string, total: number) {
-  try {
-    await notificationsService.sendNotification(merchantId, {
-      type: 'NEW_ORDER',
-      channel: 'IN_APP',
-      recipient: merchantId,
-      title: 'طلب جديد',
-      body: `طلب ${orderNumber} من ${customerName} بقيمة ${total.toLocaleString()} SDG`,
-    });
-  } catch {
-    // Notification is a side-effect, not part of the checkout contract.
-  }
-}
 
 export const getMerchantBySlug = storefrontRepo.getMerchantBySlug;
 export const getCategoriesForStore = storefrontRepo.getCategories;
@@ -122,37 +106,20 @@ export async function placeOrder(slug: string, data: PlaceOrderInput) {
 
   const orderNumber = `ORD-${nanoid(8).toUpperCase()}`;
 
-  const order = await prisma.order.create({
-    data: {
-      merchantId: merchant.id,
-      orderNumber,
-      customerId: customer.id,
-      status: 'NEW',
-      subtotal,
-      deliveryFee: 0,
-      total: subtotal,
-      deliveryMethod: data.deliveryMethod,
-      paymentMethod: 'CASH',
-      notes: data.notes,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      customerAddress: data.customerAddress,
-      items: { create: orderItems },
-      statusHistory: { create: { status: 'NEW', note: 'Order placed from storefront' } },
-    },
-    include: { items: true },
+  const order = await ordersRepo.create(merchant.id, {
+    orderNumber,
+    customerId: customer.id,
+    subtotal,
+    deliveryFee: 0,
+    total: subtotal,
+    deliveryMethod: data.deliveryMethod,
+    paymentMethod: 'CASH',
+    notes: data.notes,
+    customerName: data.customerName,
+    customerPhone: data.customerPhone,
+    customerAddress: data.customerAddress,
+    items: orderItems,
   });
-
-  // Update customer stats
-  await prisma.customer.update({
-    where: { id: customer.id },
-    data: {
-      totalOrders: { increment: 1 },
-      totalSpent: { increment: subtotal },
-    },
-  });
-
-  await notifyMerchantNewOrder(merchant.id, order.orderNumber, data.customerName, subtotal);
 
   return { orderId: order.id, orderNumber: order.orderNumber };
 }
@@ -187,10 +154,8 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
   OTHER: 'أخرى',
 };
 
-// No ratings system and no per-location delivery-fee resolution exist yet
-// (see plan: these are deliberately deferred, not silently faked as real data).
-const DEFAULT_DELIVERY_TIME = '30-45 دقيقة';
-const DEFAULT_DELIVERY_FEE = 15;
+// No ratings system or per-location delivery quote exists yet. Keep these
+// values absent so the app never presents an estimate as confirmed pricing.
 
 type MerchantForApp = {
   id: string;
@@ -208,8 +173,8 @@ function mapMerchantForApp(merchant: MerchantForApp) {
     category: BUSINESS_TYPE_LABELS[merchant.businessType] ?? merchant.businessType,
     imageUrl: merchant.logo ?? merchant.coverImage ?? null,
     rating: null as number | null,
-    deliveryTime: DEFAULT_DELIVERY_TIME,
-    deliveryFee: DEFAULT_DELIVERY_FEE,
+    deliveryTime: null,
+    deliveryFee: null,
     isFeatured: merchant.isFeatured ?? false,
   };
 }
@@ -372,34 +337,20 @@ export async function placeOrderForAccount(account: CustomerAccount, data: Mobil
     throw new ValidationError(`الحد الأدنى للطلب هو ${merchant.storefrontSettings.minimumOrderAmount} SDG`);
   }
 
-  const orderNumber = `ORD-${nanoid(8).toUpperCase()}`;
-  const order = await prisma.order.create({
-    data: {
-      merchantId,
-      orderNumber,
-      customerId: customer.id,
-      status: 'NEW',
-      subtotal,
-      deliveryFee: 0,
-      total: subtotal,
-      deliveryMethod: 'MERCHANT_DELIVERY',
-      paymentMethod: 'CASH',
-      notes: data.notes,
-      customerName: account.name,
-      customerPhone: account.phone,
-      customerAddress: data.address,
-      items: { create: orderItems },
-      statusHistory: { create: { status: 'NEW', note: 'Order placed from mobile app' } },
-    },
-    include: { merchant: { select: { name: true } } },
+  const order = await ordersRepo.create(merchantId, {
+    orderNumber: `ORD-${nanoid(8).toUpperCase()}`,
+    customerId: customer.id,
+    subtotal,
+    deliveryFee: 0,
+    total: subtotal,
+    deliveryMethod: 'MERCHANT_DELIVERY',
+    paymentMethod: 'CASH',
+    notes: data.notes,
+    customerName: account.name,
+    customerPhone: account.phone,
+    customerAddress: data.address,
+    items: orderItems,
   });
-
-  await prisma.customer.update({
-    where: { id: customer.id },
-    data: { totalOrders: { increment: 1 }, totalSpent: { increment: subtotal } },
-  });
-
-  await notifyMerchantNewOrder(merchantId, order.orderNumber, account.name, subtotal);
 
   return mapOrderForApp(order);
 }

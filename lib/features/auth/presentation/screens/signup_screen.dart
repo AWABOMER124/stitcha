@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wassalk_app/core/localization/app_localizations.dart';
+import 'package:wassalk_app/core/network/user_facing_error.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
 import '../providers/auth_providers.dart';
@@ -31,12 +32,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..forward();
-    
+
     _fadeIn = CurvedAnimation(
-      parent: _animController, 
+      parent: _animController,
       curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
     );
-    
+
     _slideUp = Tween<Offset>(
       begin: const Offset(0, 0.1),
       end: Offset.zero,
@@ -58,18 +59,20 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    
+
     ref.listen(authProvider, (previous, next) {
       next.whenData((user) {
         if (user != null) context.go('/');
       });
       next.whenOrNull(
-        error: (err, st) => ScaffoldMessenger.of(context).showSnackBar(
+        error: (err, _) => ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(err.toString()),
+            content: Text(classifyUserFacingError(err)
+                .messageFor(Localizations.localeOf(context).languageCode)),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md)),
           ),
         ),
       );
@@ -94,7 +97,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
               ),
             ),
           ),
-          
+
           SafeArea(
             child: FadeTransition(
               opacity: _fadeIn,
@@ -108,7 +111,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                       const SizedBox(height: 20),
                       IconButton(
                         onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: AppColors.textPrimary),
                         style: IconButton.styleFrom(
                           backgroundColor: AppColors.surface,
                           padding: const EdgeInsets.all(12),
@@ -117,14 +121,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                         ),
                       ),
                       const SizedBox(height: 32),
-                      
                       const Hero(
                         tag: 'auth_header',
                         child: Text(
                           'إنشــاء حســاب 👋',
                           style: TextStyle(
-                            fontSize: 32, 
-                            fontWeight: FontWeight.w900, 
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
                             color: AppColors.textPrimary,
                             letterSpacing: -0.5,
                           ),
@@ -132,12 +135,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'انضم إلى مجتمع وصلك واحصل على مزايا حصرية',
-                        style: AppTextStyles.bodySm.copyWith(color: AppColors.textSecondary),
+                        'انضم إلى مجتمع وصلة واحصل على مزايا حصرية',
+                        style: AppTextStyles.bodySm
+                            .copyWith(color: AppColors.textSecondary),
                       ),
-                      
                       const SizedBox(height: 48),
-
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         decoration: BoxDecoration(
@@ -173,11 +175,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                               icon: Icons.lock_outline_rounded,
                               isPassword: true,
                               showPassword: _showPassword,
-                              onToggle: () => setState(() => _showPassword = !_showPassword),
+                              onToggle: () => setState(
+                                  () => _showPassword = !_showPassword),
                             ),
-                            
+
                             const SizedBox(height: 20),
-                            
+
                             // Terms checkbox
                             Row(
                               children: [
@@ -186,38 +189,47 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                   width: 24,
                                   child: Checkbox(
                                     value: _agreedToTerms,
-                                    onChanged: (v) => setState(() => _agreedToTerms = v ?? false),
+                                    onChanged: (v) => setState(
+                                        () => _agreedToTerms = v ?? false),
                                     activeColor: AppColors.primary,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                    side: const BorderSide(color: AppColors.divider, width: 1.5),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6)),
+                                    side: const BorderSide(
+                                        color: AppColors.divider, width: 1.5),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 const Expanded(
                                   child: Text(
                                     'أوافق على شروط الاستخدام وسياسة الخصوصية',
-                                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500),
                                   ),
                                 ),
                               ],
                             ),
-                            
+
                             const SizedBox(height: 32),
-                            
+
                             _buildAuthButton(
                               label: 'إنشاء حساب جديد',
                               isLoading: authState.isLoading,
-                              onPressed: (authState.isLoading || !_agreedToTerms) ? null : () {
-                                ref.read(authProvider.notifier).signup(
-                                  _nameController.text,
-                                  _phoneController.text,
-                                  _passwordController.text,
-                                );
-                              },
+                              onPressed: (authState.isLoading ||
+                                      !_agreedToTerms)
+                                  ? null
+                                  : () {
+                                      ref.read(authProvider.notifier).signup(
+                                            _nameController.text,
+                                            _phoneController.text,
+                                            _passwordController.text,
+                                          );
+                                    },
                             ),
-                            
+
                             const SizedBox(height: 24),
-                            
+
                             // Redirection
                             Center(
                               child: TextButton(
@@ -283,7 +295,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    showPassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                    showPassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
                     color: AppColors.textHint,
                     size: 20,
                   ),
@@ -291,7 +305,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         ),
       ),
     );
@@ -303,26 +318,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     required VoidCallback? onPressed,
   }) {
     final bool isDisabled = !isLoading && !_agreedToTerms;
-    
+
     return Container(
       width: double.infinity,
       height: 60,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.pill),
         gradient: LinearGradient(
-          colors: isDisabled 
+          colors: isDisabled
               ? [AppColors.greyMedium, AppColors.greyMedium]
               : [AppColors.primary, AppColors.primaryDark],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
-        boxShadow: isDisabled ? null : [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          )
-        ],
+        boxShadow: isDisabled
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                )
+              ],
       ),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
@@ -330,20 +347,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.pill)),
         ),
         child: isLoading
             ? const SizedBox(
                 height: 24,
                 width: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 3),
               )
             : Text(
                 label,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
       ),
     );
   }
 }
-

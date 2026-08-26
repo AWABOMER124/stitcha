@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Uses platform-native encryption on both Android and iOS.
 /// This service is the ONLY place in the app that reads/writes sensitive data.
 class StorageService {
+  final _authClearedController = StreamController<void>.broadcast();
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
@@ -38,7 +41,14 @@ class StorageService {
     await _storage.delete(key: 'user_id');
     await _storage.delete(key: 'user_name');
     await _storage.delete(key: 'user_phone');
+    if (!_authClearedController.isClosed) {
+      _authClearedController.add(null);
+    }
   }
+
+  Stream<void> get authCleared => _authClearedController.stream;
+
+  void dispose() => _authClearedController.close();
 
   // ─── Generic Key-Value (non-sensitive user data) ─────────────
   Future<void> saveValue(String key, String value) async {
@@ -55,5 +65,8 @@ class StorageService {
 }
 
 // Global provider — single instance across the app
-final storageServiceProvider =
-    Provider<StorageService>((ref) => StorageService());
+final storageServiceProvider = Provider<StorageService>((ref) {
+  final storage = StorageService();
+  ref.onDispose(storage.dispose);
+  return storage;
+});

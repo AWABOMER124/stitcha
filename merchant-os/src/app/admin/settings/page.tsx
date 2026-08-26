@@ -14,7 +14,7 @@ export default async function AdminSettingsPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] divide-y divide-[var(--border)]">
-        <SettingRow label={t.platformName} value="وصلك — Waslak" />
+        <SettingRow label={t.platformName} value="وصلة — WASLA" />
         <SettingRow label={t.defaultCurrency} value="SDG" />
         <SettingRow label={t.timezone} value="Africa/Khartoum (UTC+3)" />
         <SettingRow label={t.systemVersion} value="1.0.0" />

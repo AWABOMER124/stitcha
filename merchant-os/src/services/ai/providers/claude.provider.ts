@@ -1,5 +1,6 @@
 import { BusinessRuleError } from '@/lib/errors';
 import type { StoreContentProvider, StoreContentResult } from '../types';
+import { storeContentSchema } from '../store-content.schema';
 
 export class ClaudeStoreContentProvider implements StoreContentProvider {
   async generate(prompt: string): Promise<StoreContentResult> {
@@ -49,6 +50,10 @@ export class ClaudeStoreContentProvider implements StoreContentProvider {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new BusinessRuleError('Invalid AI response');
 
-    return JSON.parse(match[0]) as StoreContentResult;
+    try {
+      return storeContentSchema.parse(JSON.parse(match[0]));
+    } catch {
+      throw new BusinessRuleError('AI returned invalid store content');
+    }
   }
 }

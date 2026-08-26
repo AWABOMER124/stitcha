@@ -1,11 +1,10 @@
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import prisma from '@/lib/db/prisma';
 import { uniqueSlug } from '@/lib/slug';
-import { WhatsAppProvider } from '@/services/notifications/providers/whatsapp.provider';
+import { enqueueExternalNotification } from '@/services/jobs/notification.jobs';
 import type { BusinessType, Prisma } from '@prisma/client';
 
 const REGISTRATION_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const whatsAppProvider = new WhatsAppProvider();
 
 export interface CreatePendingMerchantInput {
   name: string;
@@ -50,6 +49,9 @@ export async function createPendingMerchantWithInvite(input: CreatePendingMercha
         distributorId: input.distributorId,
         registrationToken,
         registrationTokenExpiresAt: new Date(Date.now() + REGISTRATION_LINK_TTL_MS),
+        subscription: {
+          create: { plan: { connect: { code: 'FREE' } } },
+        },
       },
     });
 
@@ -103,13 +105,13 @@ export async function createPendingMerchantWithInvite(input: CreatePendingMercha
 
   const registrationUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/complete-registration/${registrationToken}`;
   try {
-    await whatsAppProvider.send({
+    await enqueueExternalNotification({
       type: 'SYSTEM',
       channel: 'WHATSAPP',
       recipient: input.phone,
-      title: 'أكمل تسجيل متجرك في وصلك',
-      body: `مرحبًا، تمت إضافة متجر "${input.name}" على منصة وصلك. أكمل بياناتك من الرابط التالي (صالح لمدة 7 أيام):\n${registrationUrl}`,
-    });
+      title: 'أكمل تسجيل متجرك في وصلة',
+      body: `مرحبًا، تمت إضافة متجر "${input.name}" على منصة وصلة. أكمل بياناتك من الرابط التالي (صالح لمدة 7 أيام):\n${registrationUrl}`,
+    }, `merchant-invite:${merchant.id}:${createHash('sha256').update(registrationToken).digest('hex')}`);
   } catch (err) {
     console.error('[merchant-invite] Failed to send registration link:', err);
   }

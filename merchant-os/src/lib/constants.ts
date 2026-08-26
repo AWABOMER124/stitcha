@@ -1,6 +1,7 @@
 import type { OrderStatus } from '@prisma/client';
 
-export const APP_NAME = 'Waslak Merchant OS';
+import { brand } from '@/config/brand.config';
+export const APP_NAME = brand.longName;
 export const DEFAULT_CURRENCY = 'SDG';
 export const DEFAULT_TIMEZONE = 'Africa/Khartoum';
 export const ITEMS_PER_PAGE = 20;

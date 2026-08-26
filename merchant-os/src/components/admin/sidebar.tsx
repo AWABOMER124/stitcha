@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react';
 import { useLocale } from '@/lib/i18n/context';
 import type { Dictionary } from '@/lib/i18n/translations';
 import { useMobileNav } from '@/components/ui/mobile-nav-context';
+import { WaslaMark } from '@/components/brand/wasla-logo';
 
 type NavItem =
   | { type: 'link'; label: string; href: string; icon: string }
@@ -22,6 +23,7 @@ function buildNavItems(nav: Dictionary['navAdmin']): NavItem[] {
     { type: 'link', label: nav.distributors, href: '/admin/distributors', icon: '🏢' },
     { type: 'link', label: nav.merchants, href: '/admin/merchants', icon: '🏪' },
     { type: 'divider' },
+    { type: 'link', label: 'Delivery partners', href: '/admin/delivery-partners', icon: '🚚' },
     { type: 'section', label: nav.financeReportsSection },
     { type: 'link', label: nav.finance, href: '/admin/finance', icon: '💰' },
     { type: 'link', label: nav.customerSubscriptions, href: '/admin/customer-subscriptions', icon: '⭐' },
@@ -53,12 +55,10 @@ export function AdminSidebar() {
       <aside className={`${open ? 'flex' : 'hidden'} fixed inset-y-0 start-0 z-40 w-64 flex-col border-e border-[var(--sidebar-border)] bg-[var(--sidebar)] lg:static lg:flex`}>
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary)] text-white text-lg font-bold shadow">
-            ✦
-          </div>
+          <WaslaMark />
           <div>
-            <h2 className="text-sm font-bold text-[var(--sidebar-foreground)]">Waslak Admin</h2>
-            <p className="text-[10px] text-[var(--muted-foreground)] leading-tight">Platform Control</p>
+            <h2 className="text-sm font-bold text-[var(--sidebar-foreground)]">WASLA | وصلة</h2>
+            <p className="text-[10px] text-[var(--muted-foreground)] leading-tight">Commerce OS</p>
           </div>
           <button
             onClick={close}

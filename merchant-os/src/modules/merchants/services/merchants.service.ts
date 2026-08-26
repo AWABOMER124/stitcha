@@ -71,6 +71,9 @@ export async function createMerchant(data: CreateMerchantInput, userId: string) 
         address: data.address,
         logo: data.logo,
         coverImage: data.coverImage,
+        subscription: {
+          create: { plan: { connect: { code: 'FREE' } } },
+        },
       },
     });
 

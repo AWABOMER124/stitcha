@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
 import { auth } from '@/lib/auth/config';
-import { WhatsAppProvider } from '@/services/notifications/providers/whatsapp.provider';
+import { enqueueExternalNotification } from '@/services/jobs/notification.jobs';
 
 const REGISTRATION_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const whatsAppProvider = new WhatsAppProvider();
 
 /** Regenerate and resend a merchant's registration invite link (e.g. after it expired or was lost). */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -35,13 +34,13 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const registrationUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/complete-registration/${registrationToken}`;
 
   try {
-    await whatsAppProvider.send({
+    await enqueueExternalNotification({
       type: 'SYSTEM',
       channel: 'WHATSAPP',
       recipient: merchant.phone,
-      title: 'أكمل تسجيل متجرك في وصلك',
-      body: `مرحبًا، هذا رابط جديد لإكمال تسجيل متجر "${merchant.name}" على منصة وصلك (صالح لمدة 7 أيام):\n${registrationUrl}`,
-    });
+      title: 'أكمل تسجيل متجرك في وصلة',
+      body: `مرحبًا، هذا رابط جديد لإكمال تسجيل متجر "${merchant.name}" على منصة وصلة (صالح لمدة 7 أيام):\n${registrationUrl}`,
+    }, `merchant-invite:${merchant.id}:${crypto.createHash('sha256').update(registrationToken).digest('hex')}`);
   } catch (err) {
     console.error('[resend-invite] Failed to send registration link:', err);
     return NextResponse.json({ error: 'Failed to send WhatsApp message' }, { status: 502 });

@@ -23,10 +23,10 @@ mixin _$StoreModel {
   String get id => throw _privateConstructorUsedError;
   String get name => throw _privateConstructorUsedError;
   String get category => throw _privateConstructorUsedError;
-  String get imageUrl => throw _privateConstructorUsedError;
-  double get rating => throw _privateConstructorUsedError;
-  String get deliveryTime => throw _privateConstructorUsedError;
-  double get deliveryFee => throw _privateConstructorUsedError;
+  String? get imageUrl => throw _privateConstructorUsedError;
+  double? get rating => throw _privateConstructorUsedError;
+  String? get deliveryTime => throw _privateConstructorUsedError;
+  double? get deliveryFee => throw _privateConstructorUsedError;
 
   /// Serializes this StoreModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -48,10 +48,10 @@ abstract class $StoreModelCopyWith<$Res> {
       {String id,
       String name,
       String category,
-      String imageUrl,
-      double rating,
-      String deliveryTime,
-      double deliveryFee});
+      String? imageUrl,
+      double? rating,
+      String? deliveryTime,
+      double? deliveryFee});
 }
 
 /// @nodoc
@@ -72,10 +72,10 @@ class _$StoreModelCopyWithImpl<$Res, $Val extends StoreModel>
     Object? id = null,
     Object? name = null,
     Object? category = null,
-    Object? imageUrl = null,
-    Object? rating = null,
-    Object? deliveryTime = null,
-    Object? deliveryFee = null,
+    Object? imageUrl = freezed,
+    Object? rating = freezed,
+    Object? deliveryTime = freezed,
+    Object? deliveryFee = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -90,22 +90,22 @@ class _$StoreModelCopyWithImpl<$Res, $Val extends StoreModel>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as String,
-      imageUrl: null == imageUrl
+      imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      rating: null == rating
+              as String?,
+      rating: freezed == rating
           ? _value.rating
           : rating // ignore: cast_nullable_to_non_nullable
-              as double,
-      deliveryTime: null == deliveryTime
+              as double?,
+      deliveryTime: freezed == deliveryTime
           ? _value.deliveryTime
           : deliveryTime // ignore: cast_nullable_to_non_nullable
-              as String,
-      deliveryFee: null == deliveryFee
+              as String?,
+      deliveryFee: freezed == deliveryFee
           ? _value.deliveryFee
           : deliveryFee // ignore: cast_nullable_to_non_nullable
-              as double,
+              as double?,
     ) as $Val);
   }
 }
@@ -122,10 +122,10 @@ abstract class _$$StoreModelImplCopyWith<$Res>
       {String id,
       String name,
       String category,
-      String imageUrl,
-      double rating,
-      String deliveryTime,
-      double deliveryFee});
+      String? imageUrl,
+      double? rating,
+      String? deliveryTime,
+      double? deliveryFee});
 }
 
 /// @nodoc
@@ -144,10 +144,10 @@ class __$$StoreModelImplCopyWithImpl<$Res>
     Object? id = null,
     Object? name = null,
     Object? category = null,
-    Object? imageUrl = null,
-    Object? rating = null,
-    Object? deliveryTime = null,
-    Object? deliveryFee = null,
+    Object? imageUrl = freezed,
+    Object? rating = freezed,
+    Object? deliveryTime = freezed,
+    Object? deliveryFee = freezed,
   }) {
     return _then(_$StoreModelImpl(
       id: null == id
@@ -162,22 +162,22 @@ class __$$StoreModelImplCopyWithImpl<$Res>
           ? _value.category
           : category // ignore: cast_nullable_to_non_nullable
               as String,
-      imageUrl: null == imageUrl
+      imageUrl: freezed == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String,
-      rating: null == rating
+              as String?,
+      rating: freezed == rating
           ? _value.rating
           : rating // ignore: cast_nullable_to_non_nullable
-              as double,
-      deliveryTime: null == deliveryTime
+              as double?,
+      deliveryTime: freezed == deliveryTime
           ? _value.deliveryTime
           : deliveryTime // ignore: cast_nullable_to_non_nullable
-              as String,
-      deliveryFee: null == deliveryFee
+              as String?,
+      deliveryFee: freezed == deliveryFee
           ? _value.deliveryFee
           : deliveryFee // ignore: cast_nullable_to_non_nullable
-              as double,
+              as double?,
     ));
   }
 }
@@ -189,10 +189,10 @@ class _$StoreModelImpl implements _StoreModel {
       {required this.id,
       required this.name,
       required this.category,
-      required this.imageUrl,
-      required this.rating,
-      required this.deliveryTime,
-      required this.deliveryFee});
+      this.imageUrl,
+      this.rating,
+      this.deliveryTime,
+      this.deliveryFee});
 
   factory _$StoreModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$StoreModelImplFromJson(json);
@@ -204,13 +204,13 @@ class _$StoreModelImpl implements _StoreModel {
   @override
   final String category;
   @override
-  final String imageUrl;
+  final String? imageUrl;
   @override
-  final double rating;
+  final double? rating;
   @override
-  final String deliveryTime;
+  final String? deliveryTime;
   @override
-  final double deliveryFee;
+  final double? deliveryFee;
 
   @override
   String toString() {
@@ -261,10 +261,10 @@ abstract class _StoreModel implements StoreModel {
       {required final String id,
       required final String name,
       required final String category,
-      required final String imageUrl,
-      required final double rating,
-      required final String deliveryTime,
-      required final double deliveryFee}) = _$StoreModelImpl;
+      final String? imageUrl,
+      final double? rating,
+      final String? deliveryTime,
+      final double? deliveryFee}) = _$StoreModelImpl;
 
   factory _StoreModel.fromJson(Map<String, dynamic> json) =
       _$StoreModelImpl.fromJson;
@@ -276,13 +276,13 @@ abstract class _StoreModel implements StoreModel {
   @override
   String get category;
   @override
-  String get imageUrl;
+  String? get imageUrl;
   @override
-  double get rating;
+  double? get rating;
   @override
-  String get deliveryTime;
+  String? get deliveryTime;
   @override
-  double get deliveryFee;
+  double? get deliveryFee;
 
   /// Create a copy of StoreModel
   /// with the given fields replaced by the non-null parameter values.

@@ -11,4 +11,4 @@ echo "▶ Running database migrations..."
 npx prisma migrate deploy
 
 echo "▶ Starting application..."
-exec npm start
+exec node node_modules/next/dist/bin/next start

@@ -5,7 +5,7 @@ import { getCategoriesAction } from '@/modules/categories/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { ProductForm } from '../../_components/product-form';
 
-export const metadata = { title: 'Edit Product — Wassalk OS' };
+export const metadata = { title: 'Edit Product — WASLA Commerce OS' };
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -40,6 +40,7 @@ export default async function EditProductPage({ params }: PageProps) {
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
         <ProductForm
           categories={categories}
+          aiImageEnabled={process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
           product={{
             id: product.id,
             name: product.name,
@@ -50,6 +51,7 @@ export default async function EditProductPage({ params }: PageProps) {
             sku: product.sku ?? undefined,
             isActive: product.isActive,
             isFeatured: product.isFeatured,
+            images: Array.isArray(product.images) ? product.images as string[] : [],
           }}
         />
       </div>

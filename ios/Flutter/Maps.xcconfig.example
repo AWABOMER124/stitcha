@@ -1,0 +1,2 @@
+// Copy to Maps.xcconfig (ignored by Git), then use the rotated iOS-restricted key.
+MAPS_API_KEY=replace-with-restricted-ios-key

@@ -1,6 +1,11 @@
-# Waslak Merchant OS
+# WASLA Commerce OS
 
 > SaaS operating system for merchants, restaurants, cafes, stores, pharmacies, and groceries.
+
+Cross-project documentation lives in the repository root: see
+[`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md),
+[`../docs/REMEDIATION_ROADMAP.md`](../docs/REMEDIATION_ROADMAP.md), and
+[`../docs/RELEASE_CHECKLIST.md`](../docs/RELEASE_CHECKLIST.md).
 
 ## 🏗️ Architecture
 
@@ -92,7 +97,8 @@ src/
 │   ├── serialization/         # Decimal/Date-safe serializers (see below)
 │   └── logger.ts              # Structured server-side logger
 ├── services/
-│   ├── notifications/        # Notification providers (console-mock today)
+│   ├── notifications/        # Resend, Twilio, Meta, and in-app providers
+│   ├── jobs/                 # PostgreSQL outbox, retries, billing runner
 │   └── storage/               # File storage providers (local + S3)
 └── types/
 ```
@@ -183,13 +189,22 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `AUTH_SECRET` | Yes | NextAuth session secret |
 | `NEXTAUTH_URL` | Yes | Public app URL, used by NextAuth |
 | `NEXT_PUBLIC_APP_URL` | Yes | Public app URL, used in emails/links (e.g. password reset) |
-| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | If unset, file uploads fall back to local disk storage (`public/uploads/`) — fine for a single instance, not for multi-instance/ephemeral hosting |
+| `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | Durable public product uploads; if unset, attach a persistent volume to `/app/public/uploads` |
+| `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | Provider-specific | S3-compatible endpoint options for MinIO, Spaces, and similar services; a custom endpoint also requires `S3_CDN_URL` |
 | `ANTHROPIC_API_KEY` | No | Powers `/api/ai/generate-store`; the route returns a clean 503 if unset |
-| `RESEND_API_KEY` / `SENDGRID_API_KEY` | No | Not yet wired to a real provider — see Known Limitations |
-| `TWILIO_ACCOUNT_SID` / `AFRICASTALKING_API_KEY` | No | Same — SMS is console-mocked today |
+| `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`, `AI_IMAGE_ENHANCEMENT_ENABLED` | No | Product-image studio; keep the fail-closed feature flag `false` until provider, storage, and spend limits are verified |
+| `SECRETS_ENCRYPTION_KEY` | Yes for sensitive data/jobs | Encrypts tenant secrets and external-notification outbox payloads |
+| `JOB_RUNNER_SECRET` | Yes in production | Bearer secret for the scheduled internal job runner |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Per channel | Email delivery through Resend |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM` | Per channel | SMS delivery through Twilio |
+| `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_GRAPH_API_VERSION` | Per channel | WhatsApp delivery through Meta Cloud API |
 | `ALLOW_SEED` | No | Must be `true` to run `db seed` when `NODE_ENV=production` |
 
 ## 🐳 Deployment
+
+For the production VPS procedure, environment list, persistent image storage,
+health check, upgrade sequence, and rollback, follow
+[`../docs/DOKPLOY_DEPLOYMENT.md`](../docs/DOKPLOY_DEPLOYMENT.md).
 
 **Two Dockerfiles exist on purpose, not by accident** — keep both in sync if you change build/runtime logic:
 
@@ -202,7 +217,7 @@ Both need a placeholder `DATABASE_URL` set as a build-stage `ENV` — `prisma.co
 
 ## 🧪 Manual test checklist
 
-No automated test suite exists yet (see Known Limitations). Before shipping a change, exercise:
+Automated unit and PostgreSQL integration suites run in CI. Supplement them with these manual checks before shipping:
 
 - `/login` → correct redirect per role (`PLATFORM_OWNER` → `/admin`, distributor roles → `/distributor/dashboard`, merchant roles → `/dashboard`)
 - `/forgot-password` → `/reset-password?token=...` → new password works on next login
@@ -215,10 +230,10 @@ No automated test suite exists yet (see Known Limitations). Before shipping a ch
 
 ## ⚠️ Known Limitations
 
-- **Email/SMS are console-mocks.** `src/services/notifications/providers/{email,sms}.provider.ts` log to console/`NotificationLog` instead of sending real messages. Swap in a real provider by implementing `NotificationProvider` and updating `src/services/notifications/index.ts` — no other call site needs to change.
+- **External delivery still needs production credentials and a scheduler.** The Resend, Twilio, and Meta adapters fail closed until their channel variables are set. Configure `JOB_RUNNER_SECRET` and call `/api/internal/jobs/run`; failed deliveries remain visible in `outbox_jobs`.
 - **File storage defaults to local disk** unless `S3_*` env vars are set — not durable across redeploys on ephemeral hosting.
 - **AI storefront generator is unconfigured** without `ANTHROPIC_API_KEY` (fails gracefully with a 503, doesn't crash).
-- **No automated tests.** `scripts/check-raw-prisma-returns.sh` is a lightweight heuristic guard, not a substitute for real test coverage.
+- **Coverage is focused on critical paths.** Keep adding UI and end-to-end coverage; `scripts/check-raw-prisma-returns.sh` remains a supplementary heuristic guard.
 - Several dashboard action patterns catch errors ad hoc (`e instanceof Error ? e.message : 'Failed'`) rather than going through the centralized `handleActionError` (`src/lib/errors/handler.ts`) — functionally fine today, but a good target for consolidation so error logging and message-masking stay consistent everywhere.
 
 ## 📐 Architecture Decisions
@@ -236,4 +251,4 @@ This product is a **Merchant SaaS + generated storefront**. Marketplace discover
 
 ## 📝 License
 
-Private — Waslak © 2024–2026
+Private — WASLA © 2024–2026

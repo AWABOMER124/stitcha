@@ -137,8 +137,8 @@ export function DistributorSidebar() {
           و
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-black text-[var(--sidebar-foreground)] tracking-wide">وصلك</h2>
-          <p className="text-[10px] text-[var(--muted-foreground)] leading-tight">بوابة الموزع</p>
+          <h2 className="text-sm font-black text-[var(--sidebar-foreground)] tracking-wide">WASLA | وصلة</h2>
+          <p className="text-[10px] text-[var(--muted-foreground)] leading-tight">Legacy access</p>
         </div>
         <span className="flex-shrink-0 text-[10px] bg-[var(--sidebar-primary)]/10 text-[var(--sidebar-primary)] border border-[var(--sidebar-primary)]/20 px-1.5 py-0.5 rounded font-mono font-bold">
           v{APP_VERSION}

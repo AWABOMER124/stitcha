@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
 import * as service from '@/modules/storefront/services/storefront.service';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
+import { ExternalImage } from '@/components/external-image';
 
 export default async function CategoryPage({
   params,
@@ -69,12 +70,14 @@ export default async function CategoryPage({
                 href={`/store/${slug}`}
                 className="bg-white rounded-2xl border border-stone-100 overflow-hidden text-right shadow-sm hover:shadow-md transition-all group"
               >
-                <div className="aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
+                <div className="relative aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
                   {(p.images as unknown as string[] | null)?.[0] ? (
-                    <img
+                    <ExternalImage
                       src={(p.images as unknown as string[])[0]}
                       alt={p.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      fill
+                      sizes="(max-width: 640px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform"
                     />
                   ) : (
                     <span className="text-4xl opacity-40">🍽️</span>

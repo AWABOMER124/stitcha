@@ -38,7 +38,7 @@ describe('ClaudeStoreContentProvider', () => {
   it('sends the API key and prompt to the Anthropic endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ content: [{ text: '{"name":"x","description":"x","slogan":"x","primaryColor":"#000000","welcomeText":"x","categories":[]}' }] }),
+      json: async () => ({ content: [{ text: '{"name":"Store","description":"x","slogan":"x","primaryColor":"#000000","welcomeText":"x","categories":[{"name":"Products","products":[{"name":"Item","price":1}]}]}' }] }),
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 

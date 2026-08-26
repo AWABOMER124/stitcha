@@ -78,6 +78,18 @@ describe('runSubscriptionBilling', () => {
     expect(result.billed).toEqual([]);
   });
 
+  it.each(['P2002', 'CONFLICT'])('treats a concurrent %s race as already billed', async (code) => {
+    prismaMock.merchant.findMany.mockResolvedValue([{ id: 'merch_1', distributorId: 'dist_1' }]);
+    prismaMock.settlement.findFirst.mockResolvedValue(null);
+    financeServiceMock.createSettlement.mockRejectedValue({ code });
+
+    const result = await runSubscriptionBilling();
+
+    expect(result.billed).toEqual([]);
+    expect(result.skippedAlreadyBilled).toEqual(['merch_1']);
+    expect(result.failed).toEqual([]);
+  });
+
   it('records a per-merchant failure without stopping the batch', async () => {
     prismaMock.merchant.findMany.mockResolvedValue([
       { id: 'merch_bad', distributorId: 'dist_1' },

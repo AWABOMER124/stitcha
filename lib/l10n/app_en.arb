@@ -1,10 +1,10 @@
 {
   "@@locale": "en",
-  "appName": "Wassalk",
+  "appName": "WASLA",
 
   "// Auth": "",
   "loginTitle": "Login",
-  "loginSubtitle": "Welcome back to Wassalk family",
+  "loginSubtitle": "Welcome back to WASLA family",
   "phoneNumber": "Phone Number",
   "password": "Password",
   "forgotPassword": "Forgot Password?",

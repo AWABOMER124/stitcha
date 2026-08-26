@@ -28,8 +28,11 @@ export async function POST(req: NextRequest) {
 
     const input: MobileOrderInput = {
       items: body.items.map((item) => {
-        if (!item.product_id || !item.qty) throw new ValidationError('عنصر غير صالح في السلة');
-        return { productId: item.product_id, quantity: item.qty };
+        const quantity = item.qty;
+        if (!item.product_id || typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity <= 0) {
+          throw new ValidationError('عنصر غير صالح في السلة');
+        }
+        return { productId: item.product_id, quantity };
       }),
       address: body.address,
       paymentMethod: body.payment_method,

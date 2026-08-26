@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
 
 /**
- * Merchant registration page for Waslak Merchant OS
+ * Merchant registration page for WASLA Commerce OS
  */
 export default function RegisterPage() {
   const { dict } = useLocale();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     merchantName: "",
     ownerName: "",
@@ -47,7 +50,16 @@ export default function RegisterPage() {
         const data = await res.json();
         setError(data.error || "Registration failed");
       } else {
-        window.location.href = "/dashboard";
+        const signInResult = await signIn("credentials", {
+          email: formData.email,
+          password: formData.password,
+          redirect: false,
+        });
+        if (signInResult?.error) {
+          router.replace("/login");
+        } else {
+          router.replace("/dashboard");
+        }
       }
     } catch {
       setError(dict.common.somethingWrong);
@@ -222,12 +234,6 @@ export default function RegisterPage() {
         {dict.register.alreadyHaveAccount}{" "}
         <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
           {dict.register.signIn}
-        </Link>
-      </p>
-      <p className="text-center text-sm text-[var(--muted-foreground)]">
-        {dict.login.areYouDistributor}{" "}
-        <Link href="/register-distributor" className="font-medium text-[var(--primary)] hover:underline">
-          {dict.login.registerHere}
         </Link>
       </p>
     </div>

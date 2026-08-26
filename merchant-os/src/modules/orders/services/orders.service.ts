@@ -1,15 +1,11 @@
 import prisma from '@/lib/db/prisma';
 import { NotFoundError, BusinessRuleError, ValidationError } from '@/lib/errors';
 import * as ordersRepo from '../repositories/orders.repository';
-import * as inventoryService from '@/modules/inventory/services/inventory.service';
 import * as customerSubscriptionsService from '@/modules/customer-subscriptions/services/customer-subscriptions.service';
 import * as driversService from '@/modules/drivers/services/drivers.service';
 import type { CreateOrderInput, OrderFilterInput } from '../schemas/orders.schemas';
 import type { OrderStatus } from '@prisma/client';
 import { nanoid } from 'nanoid';
-
-// Terminal statuses where stock committed at order creation should return to inventory.
-const STOCK_RESTORING_STATUSES: OrderStatus[] = ['CANCELLED', 'REJECTED'];
 
 // ============================================================================
 // Orders Service — Business logic
@@ -174,18 +170,6 @@ export async function createOrder(merchantId: string, data: CreateOrderInput) {
     items: orderItems,
   });
 
-  // Best-effort — inventory tracking is a side-effect of the order, not part
-  // of the checkout contract; a merchant with no inventory configured (or a
-  // transient failure here) shouldn't block the order itself.
-  try {
-    await inventoryService.deductForOrder(
-      merchantId,
-      data.items.map((item) => ({ productId: item.productId, quantity: item.quantity }))
-    );
-  } catch (err) {
-    console.error('[orders] Failed to deduct inventory for order', order.orderNumber, err);
-  }
-
   return order;
 }
 
@@ -210,7 +194,7 @@ export async function updateOrderStatus(
     );
   }
 
-  const updated = await ordersRepo.updateStatus(merchantId, id, newStatus, note, userId);
+  const updated = await ordersRepo.updateStatus(merchantId, id, newStatus, note, userId, order.status);
 
   // Hybrid driver assignment: automation's first attempt is the nearest
   // available driver; if that fails (no location data, nobody online), the
@@ -226,19 +210,6 @@ export async function updateOrderStatus(
       }
     } catch (err) {
       console.error('[orders] Auto-assign nearest driver failed for order', order.orderNumber, err);
-    }
-  }
-
-  if (STOCK_RESTORING_STATUSES.includes(newStatus)) {
-    // Best-effort, same reasoning as the deduction side in createOrder().
-    try {
-      const items = (order as { items?: { productId: string; quantity: number }[] }).items ?? [];
-      await inventoryService.restoreForCancellation(
-        merchantId,
-        items.map((item) => ({ productId: item.productId, quantity: item.quantity }))
-      );
-    } catch (err) {
-      console.error('[orders] Failed to restore inventory for order', order.orderNumber, err);
     }
   }
 

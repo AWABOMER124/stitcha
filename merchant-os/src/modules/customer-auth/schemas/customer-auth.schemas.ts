@@ -15,6 +15,10 @@ export const deviceTokenSchema = z.object({
   token: z.string().min(1, 'التوكن مطلوب'),
 });
 
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(32, 'رمز التجديد غير صالح'),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type DeviceTokenInput = z.infer<typeof deviceTokenSchema>;

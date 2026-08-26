@@ -9,11 +9,12 @@ class ProductModel with _$ProductModel {
     required String id,
     required String storeId,
     required String name,
-    required String description,
+    String? description,
     required double price,
-    required String imageUrl,
-    required String category,
+    String? imageUrl,
+    String? category,
   }) = _ProductModel;
 
-  factory ProductModel.fromJson(Map<String, dynamic> json) => _$ProductModelFromJson(json);
+  factory ProductModel.fromJson(Map<String, dynamic> json) =>
+      _$ProductModelFromJson(json);
 }

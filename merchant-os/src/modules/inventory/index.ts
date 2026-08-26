@@ -15,8 +15,6 @@ export {
   getProductStock,
   adjustStock,
   getLowStockAlerts,
-  deductForOrder,
-  restoreForCancellation,
   getMovements,
   updateThreshold,
 } from './services/inventory.service';

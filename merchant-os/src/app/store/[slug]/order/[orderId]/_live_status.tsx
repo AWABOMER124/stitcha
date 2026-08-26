@@ -61,10 +61,10 @@ export function LiveOrderStatus({ slug, orderId, initialOrder }: { slug: string;
               return (
                 <div key={step.key} className="flex flex-col items-center flex-1">
                   {i > 0 && <div className={`h-0.5 w-full -mt-4 mb-0 ${i <= cur ? 'bg-emerald-400' : 'bg-stone-200'}`} style={{ marginTop: '-20px', zIndex: 0 }} />}
-                  <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all ${active ? 'shadow-lg scale-110' : ''} ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-400'}`} style={active ? { background: '#b91c1c', color: 'white' } : {}}>
+                  <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all ${active ? 'bg-[var(--primary)] text-white shadow-lg scale-110' : ''} ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-400'}`}>
                     {step.icon}
                   </div>
-                  <span className={`mt-1 text-[9px] font-medium text-center leading-tight ${active ? 'text-red-700' : done ? 'text-emerald-600' : 'text-stone-400'}`}>{step.label}</span>
+                  <span className={`mt-1 text-[9px] font-medium text-center leading-tight ${active ? 'text-[var(--primary)]' : done ? 'text-emerald-600' : 'text-stone-400'}`}>{step.label}</span>
                 </div>
               );
             })}

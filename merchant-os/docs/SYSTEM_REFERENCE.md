@@ -1,6 +1,6 @@
-# دليل النظام التقني الشامل — Waslak Merchant OS
+# دليل النظام التقني الشامل — WASLA Commerce OS
 
-مرجع تقني كامل لمنصة وصلك: البنية، الأدوار، دورة حياة العمل، نموذج البيانات الكامل،
+مرجع تقني كامل لمنصة وصلة: البنية، الأدوار، دورة حياة العمل، نموذج البيانات الكامل،
 كل موديول وقدراته، وخريطة سطح الـ API الخارجي بالكامل (تطبيق الفلاتر، السائق،
 والويب هوك). موجّه لأي مطوّر يحتاج فهم النظام ككل قبل التكامل معه — وليس فقط جزء
 توليد المتجر بالذكاء الاصطناعي (لهذا راجع
@@ -13,7 +13,7 @@
 
 ## 1. نظرة عامة
 
-**وصلك (Waslak)** منصة SaaS للتجار — مطاعم، مقاهي، بقالات، صيدليات، متاجر تجزئة —
+**وصلة (WASLA)** منصة SaaS للتجار — مطاعم، مقاهي، بقالات، صيدليات، متاجر تجزئة —
 تدير المتجر، الطلبات، المخزون، التوصيل، والمالية. المنصة مكوّنة من جزئين:
 
 | المكوّن | المسار | الوصف |
@@ -111,7 +111,7 @@ Platform (PLATFORM_OWNER)
 حسابه ومتجره مباشرة، حالة `ACTIVE` فوراً، بدون مراجعة.
 
 **ج) بمساعدة الذكاء الاصطناعي (الأحدث):** الموزّع يكتب وصفاً نصياً في
-`/distributor/merchants/new` (وضع "بالذكاء الاصطناعي")، واصلك نفسها تنادي Claude
+`/distributor/merchants/new` (وضع "بالذكاء الاصطناعي")، وصلة نفسها تنادي Claude
 (`ANTHROPIC_API_KEY` في السيرفر — لا مفاتيح خارجية، لا وكيل طرف ثالث) لتوليد
 اسم/وصف/فئات/منتجات، ثم الموزّع يضيف الهاتف/العنوان الحقيقيين (الذكاء الاصطناعي
 ما يقدر يخترعهم) ويؤكد — عندها **مباشرة**، بدون خطوة مراجعة/موافقة منفصلة، يتحول
@@ -284,7 +284,7 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 | `users` | لوحة التاجر + بوابة الموزّع | دعوة/تعديل/تعطيل موظفين (نسختين متوازيتين) | |
 | `whatsapp-channel` | لوحة التاجر + **ويب هوك خارجي** | إعداد WhatsApp Business API لكل تاجر | يشغّل `/api/webhooks/whatsapp` (HMAC) و`/api/inbox/*` |
 | `reports` | لوحة التاجر | تقارير | ⚠️ **بدون `actions.ts`** — الوحيد المخالف للنمط الموحّد، غالباً يُستدعى مباشرة من صفحات Server Component |
-| `ai-store-generator` | **بوابة الموزّع** | توليد متجر (اسم/فئات/منتجات) من وصف نصي عبر Claude، وإنشاء `Merchant` حقيقي مباشرة | راجع [`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md) |
+| `ai-store-generator` | **لوحة التاجر** (المسار القديم للموزّع معطّل افتراضياً) | توليد اسم ووصف وهوية وفئات ومنتجات من وصف نصي عبر Claude، مع معاينة قبل الكتابة | راجع [`AI_STORE_GENERATOR.md`](./AI_STORE_GENERATOR.md) |
 | `customer-auth` | **تطبيق الفلاتر** | تسجيل/دخول `CustomerAccount` (JWT) | راجع قسم 6 |
 | `storefront` | المتجر العام + تطبيق الفلاتر | تصفح متجر/منتجات، دفع طلب، حالة طلب | يخدم البوابتين معاً |
 | `finance` | بوابة الموزّع | خطط عمولة، تسويات، مناطق توصيل | مبني 2026-06-27، انظر ملاحظة الذاكرة |
@@ -317,7 +317,7 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 `WHATSAPP_APP_SECRET`، `GET` منفصل للمصافحة الأولية عبر `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
 
 ### 6.4 توليد المتجر بالذكاء الاصطناعي (جلسة NextAuth فقط — لا مفاتيح خارجية)
-واصلك نفسها تنادي Claude مباشرة (`ANTHROPIC_API_KEY` في السيرفر، `fetch` خام
+وصلة نفسها تنادي Claude مباشرة (`ANTHROPIC_API_KEY` في السيرفر، `fetch` خام
 بدون SDK) عبر `src/services/ai/` — لا وكيل طرف ثالث، لا `ApiKey` تُصدَر لأحد.
 نقطتان تستهلكان نفس `generateStoreContent()`:
 - **لوحة التاجر** (`generateStoreContentAction` / `applyAiStoreContentAction` في
@@ -363,10 +363,13 @@ DELIVERED / CANCELLED / REJECTED → (نهائية، لا انتقال بعده�
 | `DATABASE_URL` | ✅ | اتصال Postgres |
 | `AUTH_SECRET` | ✅ | سر جلسة NextAuth — **نفسه يُستخدم لتوقيع JWT عميل تطبيق الفلاتر** (`customer-session.ts`) |
 | `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL` | ✅ | رابط التطبيق العام |
-| `SECRETS_ENCRYPTION_KEY` | ⚠️ **مطلوب فعلياً، غير موثّق في `.env.example`/README** | يُشفّر `WhatsAppConfig.accessToken` — النظام يرمي خطأ فوراً لو ناقص أو أقصر من 16 حرف أول مرة يحاول تاجر يحفظ إعداد واتساب |
-| `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | ⚠️ **مطلوبان للويب هوك، غير موثّقين في `.env.example`** | بدونهم `/api/webhooks/whatsapp` يفشل التحقق من التوقيع |
+| `SECRETS_ENCRYPTION_KEY` | ⚠️ **مطلوب فعلياً** | يُشفّر `WhatsAppConfig.accessToken` وبيانات الموفر الحساسة — النظام يرمي خطأ فوراً لو ناقص أو أقصر من 16 حرف |
+| `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | ⚠️ **مطلوبان للويب هوك** | بدونهم `/api/webhooks/whatsapp` يفشل التحقق من التوقيع |
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | ❌ | بدونهم: تخزين محلي على القرص (`public/uploads/`) — غير دائم على استضافة متعددة النسخ |
+| `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | حسب الموفّر | لدعم MinIO وSpaces والموفّرين المتوافقين مع S3؛ العنوان المخصص يتطلب `S3_CDN_URL` |
 | `ANTHROPIC_API_KEY` | ❌ | يشغّل `ai/generate-store` و`inbox/suggest-reply` — 503 نظيف لو ناقص |
+| `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL` | ❌ | تحرير صور المنتجات؛ المفتاح على الخادم فقط |
+| `AI_IMAGE_ENHANCEMENT_ENABLED` | ✅ للإطلاق | علم إطلاق يفشل مغلقاً؛ افتراضياً `false` |
 | `RESEND_API_KEY`/`SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`/`AFRICASTALKING_API_KEY` | ❌ | غير مفعّلين فعلياً بعد — راجع قسم 9 |
 | `ALLOW_SEED` | ❌ | لازم يكون `true` عشان `db seed` يشتغل لما `NODE_ENV=production` |
 

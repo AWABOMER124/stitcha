@@ -8,6 +8,8 @@ interface S3Config {
   accessKeyId: string;
   secretAccessKey: string;
   cdnUrl?: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
 }
 
 export class S3Provider implements StorageProvider {
@@ -20,6 +22,8 @@ export class S3Provider implements StorageProvider {
     this.cdnUrl = config.cdnUrl ?? `https://${config.bucket}.s3.${config.region}.amazonaws.com`;
     this.client = new S3Client({
       region: config.region,
+      endpoint: config.endpoint,
+      forcePathStyle: config.forcePathStyle,
       credentials: {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,

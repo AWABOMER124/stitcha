@@ -32,7 +32,7 @@ export function CartClient({ merchant, slug }: { merchant: Merchant; slug: strin
   const t = dict.storefrontPublic;
   const settings = merchant.storefrontSettings;
   const theme = (settings?.theme ?? {}) as Record<string, string>;
-  const primary = theme.primaryColor ?? '#b91c1c';
+  const primary = theme.primaryColor ?? '#13c4a3';
   const isOpen = settings?.isOpen ?? true;
 
   const [cart, setCart] = useState<CartItem[]>([]);

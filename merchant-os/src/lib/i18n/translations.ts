@@ -19,6 +19,7 @@ export interface Dictionary {
     somethingWrong: string;
     loading: string;
     tryAgain: string;
+    skipToContent: string;
   };
   login: {
     welcomeBack: string;
@@ -132,6 +133,7 @@ export interface Dictionary {
     delivery: string;
     reports: string;
     notifications: string;
+    subscription: string;
     settings: string;
   };
   navDistributor: {
@@ -1671,6 +1673,26 @@ export interface Dictionary {
     filterAllStatus: string;
     filterActive: string;
     filterInactive: string;
+    imagesTitle: string;
+    imagesDescription: string;
+    productImageAlt: string;
+    sourcePreviewAlt: string;
+    chooseImage: string;
+    imageInvalid: string;
+    imageFailed: string;
+    imageReuseFailed: string;
+    improveAgain: string;
+    removeImage: string;
+    modeWhite: string;
+    modeTransparent: string;
+    modeLifestyle: string;
+    scenePlaceholder: string;
+    aiImageNotice: string;
+    aiImageUnavailable: string;
+    enhanceImage: string;
+    enhancingImage: string;
+    useOriginal: string;
+    uploadingImage: string;
   };
 }
 
@@ -1691,10 +1713,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       somethingWrong: 'Something went wrong. Please try again.',
       loading: 'Loading...',
       tryAgain: 'Try again',
+      skipToContent: 'Skip to main content',
     },
     login: {
       welcomeBack: 'Welcome back',
-      subtitle: 'Sign in to your Waslak Merchant OS account',
+      subtitle: 'Sign in to your WASLA Commerce OS account',
       forgotPassword: 'Forgot password?',
       invalidCredentials: 'Invalid email/phone or password',
       noAccount: "Don't have an account?",
@@ -1703,8 +1726,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       registerHere: 'Register here',
     },
     register: {
-      title: 'Create your store',
-      subtitle: 'Start selling online in minutes with Waslak',
+      title: 'Start selling online for free.',
+      subtitle: 'Create your store, manage orders and connect delivery from one place.',
       businessType: 'Business Type',
       businessName: 'Business Name',
       businessNamePlaceholder: 'Your Store Name',
@@ -1804,6 +1827,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       delivery: 'Delivery',
       reports: 'Reports',
       notifications: 'Notifications',
+      subscription: 'Plan & Billing',
       settings: 'Settings',
     },
     navDistributor: {
@@ -1867,7 +1891,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminHome: {
       title: 'Platform Dashboard',
-      subtitle: "A full overview of Waslak's performance",
+      subtitle: "A full overview of WASLA's performance",
       distributors: 'Distributors',
       active: 'active',
       pendingApproval: 'pending approval',
@@ -2791,7 +2815,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminSettingsPage: {
       title: 'Platform Settings',
-      subtitle: 'General settings for the Waslak platform',
+      subtitle: 'General settings for the WASLA platform',
       platformName: 'Platform name',
       defaultCurrency: 'Default currency',
       timezone: 'Timezone',
@@ -3294,7 +3318,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deliveryMethods: {
         PICKUP: 'Branch pickup',
         MERCHANT_DELIVERY: 'Merchant delivery',
-        WASLAK_DELIVERY: 'Waslak delivery',
+        WASLAK_DELIVERY: 'WASLA delivery',
         EXTERNAL_DELIVERY: 'External delivery',
       },
       paymentMethods: {
@@ -3331,6 +3355,26 @@ export const dictionaries: Record<Locale, Dictionary> = {
       filterAllStatus: 'All Status',
       filterActive: 'Active',
       filterInactive: 'Inactive',
+      imagesTitle: 'Product images & AI studio',
+      imagesDescription: 'Upload up to 10 product images, clean the background, isolate the product, or create a professional lifestyle scene.',
+      productImageAlt: 'Product image',
+      sourcePreviewAlt: 'Source product image preview',
+      chooseImage: 'Choose a JPEG, PNG, or WebP image up to 5MB',
+      imageInvalid: 'Use a JPEG, PNG, or WebP image no larger than 5MB.',
+      imageFailed: 'Image processing failed.',
+      imageReuseFailed: 'This stored image could not be loaded for another edit. Upload the original file instead.',
+      improveAgain: 'Improve',
+      removeImage: 'Remove image',
+      modeWhite: 'White studio',
+      modeTransparent: 'Transparent',
+      modeLifestyle: 'Lifestyle scene',
+      scenePlaceholder: 'Describe the setting, for example: a warm specialty coffee counter with soft morning light…',
+      aiImageNotice: 'The AI is instructed to preserve the real product, packaging, colors, logos, and text. Always review the result before saving.',
+      aiImageUnavailable: 'Original image upload is ready. AI enhancement becomes available after the server key and feature flag are configured.',
+      enhanceImage: 'Enhance with AI',
+      enhancingImage: 'Enhancing…',
+      useOriginal: 'Use original',
+      uploadingImage: 'Uploading…',
     },
   },
   ar: {
@@ -3349,10 +3393,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       somethingWrong: 'حدث خطأ ما. حاول مرة أخرى.',
       loading: 'جاري التحميل...',
       tryAgain: 'حاول مرة أخرى',
+      skipToContent: 'انتقل إلى المحتوى الرئيسي',
     },
     login: {
       welcomeBack: 'أهلاً بعودتك',
-      subtitle: 'سجّل دخولك لحساب وصلك',
+      subtitle: 'سجّل دخولك لحساب وصلة',
       forgotPassword: 'نسيت كلمة المرور؟',
       invalidCredentials: 'البريد/رقم الهاتف أو كلمة المرور غير صحيحة',
       noAccount: 'ليس لديك حساب؟',
@@ -3361,8 +3406,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       registerHere: 'سجّل من هنا',
     },
     register: {
-      title: 'أنشئ متجرك',
-      subtitle: 'ابدأ البيع أونلاين خلال دقائق مع وصلك',
+      title: 'ابدأ تجارتك الإلكترونية مجاناً.',
+      subtitle: 'أنشئ متجرك، أدر طلباتك واربط التوصيل من مكان واحد.',
       businessType: 'نوع النشاط',
       businessName: 'اسم النشاط التجاري',
       businessNamePlaceholder: 'اسم متجرك',
@@ -3462,6 +3507,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       delivery: 'التوصيل',
       reports: 'التقارير',
       notifications: 'الإشعارات',
+      subscription: 'الاشتراك والباقات',
       settings: 'الإعدادات',
     },
     navDistributor: {
@@ -3525,7 +3571,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminHome: {
       title: 'لوحة تحكم المنصة',
-      subtitle: 'نظرة شاملة على أداء منصة وصلك',
+      subtitle: 'نظرة شاملة على أداء منصة وصلة',
       distributors: 'الموزعون',
       active: 'نشط',
       pendingApproval: 'بانتظار الموافقة',
@@ -4449,7 +4495,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminSettingsPage: {
       title: 'إعدادات المنصة',
-      subtitle: 'إعدادات عامة لمنصة وصلك',
+      subtitle: 'إعدادات عامة لمنصة وصلة',
       platformName: 'اسم المنصة',
       defaultCurrency: 'العملة الافتراضية',
       timezone: 'المنطقة الزمنية',
@@ -4952,7 +4998,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deliveryMethods: {
         PICKUP: 'استلام من الفرع',
         MERCHANT_DELIVERY: 'توصيل المطعم',
-        WASLAK_DELIVERY: 'توصيل وصلك',
+        WASLAK_DELIVERY: 'توصيل وصلة',
         EXTERNAL_DELIVERY: 'توصيل خارجي',
       },
       paymentMethods: {
@@ -4989,6 +5035,26 @@ export const dictionaries: Record<Locale, Dictionary> = {
       filterAllStatus: 'كل الحالات',
       filterActive: 'نشط',
       filterInactive: 'غير نشط',
+      imagesTitle: 'صور المنتج واستوديو الذكاء الاصطناعي',
+      imagesDescription: 'ارفع حتى 10 صور، نظّف الخلفية، اعزل المنتج أو ضعه في مشهد إعلاني احترافي.',
+      productImageAlt: 'صورة المنتج',
+      sourcePreviewAlt: 'معاينة صورة المنتج الأصلية',
+      chooseImage: 'اختر صورة JPEG أو PNG أو WebP بحجم أقصى 5MB',
+      imageInvalid: 'استخدم صورة JPEG أو PNG أو WebP لا تتجاوز 5MB.',
+      imageFailed: 'فشلت معالجة الصورة.',
+      imageReuseFailed: 'تعذر تحميل الصورة المحفوظة لتحسينها مجدداً. ارفع الملف الأصلي بدلاً منها.',
+      improveAgain: 'تحسين',
+      removeImage: 'حذف الصورة',
+      modeWhite: 'استوديو أبيض',
+      modeTransparent: 'خلفية شفافة',
+      modeLifestyle: 'مشهد واقعي',
+      scenePlaceholder: 'صف الخلفية، مثال: طاولة قهوة مختصة دافئة بإضاءة صباحية ناعمة…',
+      aiImageNotice: 'يُطلب من الذكاء الاصطناعي الحفاظ على المنتج الحقيقي وتغليفه وألوانه وشعاره ونصوصه. راجع النتيجة دائماً قبل الحفظ.',
+      aiImageUnavailable: 'رفع الصورة الأصلية جاهز. يتاح التحسين بالذكاء الاصطناعي بعد إعداد مفتاح الخادم وتفعيل الميزة.',
+      enhanceImage: 'تحسين بالذكاء الاصطناعي',
+      enhancingImage: 'جاري التحسين…',
+      useOriginal: 'استخدام الأصلية',
+      uploadingImage: 'جاري الرفع…',
     },
   },
 };

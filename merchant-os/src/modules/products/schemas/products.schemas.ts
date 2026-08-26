@@ -5,13 +5,18 @@ import { z } from 'zod';
 // ============================================================================
 
 /** Schema for creating a new product */
+const productImageUrlSchema = z.string().max(2048).refine(
+  (value) => value.startsWith('/uploads/') || /^https:\/\//i.test(value),
+  'Product image must be a secure URL or a managed upload',
+);
+
 export const createProductSchema = z.object({
   name: z.string().min(2, 'Product name must be at least 2 characters').max(200),
   description: z.string().max(1000).optional(),
   categoryId: z.string().cuid('Invalid category ID'),
   price: z.number().positive('Price must be positive'),
   compareAtPrice: z.number().positive().optional(),
-  images: z.array(z.string().url()).optional().default([]),
+  images: z.array(productImageUrlSchema).max(10).optional().default([]),
   sku: z.string().max(50).optional(),
   barcode: z.string().max(50).optional(),
   isActive: z.boolean().optional().default(true),

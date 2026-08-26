@@ -7,12 +7,14 @@ import { DistributorSidebar } from '@/components/distributor/sidebar';
 import { DistributorTopbar } from '@/components/distributor/topbar';
 import { AppProviders } from '@/components/ui/app-providers';
 import { MobileNavProvider } from '@/components/ui/mobile-nav-context';
+import { SkipLink } from '@/components/ui/skip-link';
 
 export default async function DistributorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  if (process.env.DISTRIBUTOR_PORTAL_ENABLED !== 'true') redirect('/dashboard');
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 
@@ -28,11 +30,12 @@ export default async function DistributorLayout({
     <LocaleProvider initialLocale={initialLocale}>
       <AppProviders>
         <MobileNavProvider>
+          <SkipLink />
           <div className="flex h-screen overflow-hidden bg-[var(--background)]">
             <DistributorSidebar />
             <div className="flex flex-1 flex-col overflow-hidden">
               <DistributorTopbar />
-              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+              <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-6 focus:outline-none">{children}</main>
             </div>
           </div>
         </MobileNavProvider>

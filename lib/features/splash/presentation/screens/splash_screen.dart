@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:wassalk_app/features/auth/presentation/providers/auth_providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/ui_constants.dart';
+import '../../../../core/brand/brand_config.dart';
+import '../../../../core/brand/wasla_mark.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -51,7 +53,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _textSlide = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic));
+    ).animate(
+        CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic));
     _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _textController, curve: Curves.easeOut),
     );
@@ -85,18 +88,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.primary,
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primaryDark,
-              AppColors.primary,
-              AppColors.primaryLight,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
+        decoration: const BoxDecoration(color: AppColors.primaryDark),
         child: Stack(
           children: [
             // Subtle background pattern or texture could go here
@@ -121,7 +113,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.2),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.2),
                                       blurRadius: 50,
                                       spreadRadius: 5,
                                       offset: const Offset(0, 20),
@@ -129,11 +122,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                   ],
                                 ),
                                 child: const Center(
-                                  child: Icon(
-                                    Icons.delivery_dining_rounded,
-                                    size: 75,
-                                    color: AppColors.primary,
-                                  ),
+                                  child: WaslaMark(size: 88),
                                 ),
                               ),
                             ),
@@ -147,7 +136,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               child: Column(
                                 children: [
                                   const Text(
-                                    'وصـلـك',
+                                    WaslaBrand.displayName,
                                     style: TextStyle(
                                       fontSize: 48,
                                       fontWeight: FontWeight.w900,
@@ -169,15 +158,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                       vertical: AppSpacing.xs,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.1),
+                                      borderRadius:
+                                          BorderRadius.circular(AppRadius.pill),
                                       border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.2),
+                                        color:
+                                            Colors.white.withValues(alpha: 0.2),
                                         width: 1,
                                       ),
                                     ),
                                     child: const Text(
-                                      'مطاعم · بقالة · توصيل',
+                                      WaslaBrand.taglineAr,
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 14,
@@ -204,10 +196,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(3, (i) {
                             final delay = i * 0.2;
-                            final value = (_dotsController.value - delay).clamp(0.0, 1.0);
-                            final opacity = (value < 0.5
-                                ? value * 2
-                                : (1 - value) * 2).clamp(0.2, 1.0);
+                            final value =
+                                (_dotsController.value - delay).clamp(0.0, 1.0);
+                            final opacity =
+                                (value < 0.5 ? value * 2 : (1 - value) * 2)
+                                    .clamp(0.2, 1.0);
                             return Container(
                               margin: const EdgeInsets.symmetric(horizontal: 5),
                               width: 10,
@@ -231,4 +224,3 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 }
-

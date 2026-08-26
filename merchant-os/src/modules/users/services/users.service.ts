@@ -5,9 +5,7 @@ import * as usersRepo from '../repositories/users.repository';
 import type { CreateUserInput } from '../schemas/users.schemas';
 import type { UserRole } from '@prisma/client';
 import { nanoid } from 'nanoid';
-import { EmailProvider } from '@/services/notifications/providers/email.provider';
-
-const emailProvider = new EmailProvider();
+import { enqueueExternalNotification } from '@/services/jobs/notification.jobs';
 
 // ============================================================================
 // Users Service — Business logic
@@ -50,13 +48,13 @@ async function sendSetPasswordInvite(userId: string, email: string, name: string
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/reset-password?token=${rawToken}`;
 
   try {
-    await emailProvider.send({
+    await enqueueExternalNotification({
       type: 'SYSTEM',
       channel: 'EMAIL',
       recipient: email,
-      title: 'You have been invited to Waslak',
-      body: `Hi ${name}, you've been invited to join Waslak. Set your password here (expires in 1 hour): ${resetUrl}`,
-    });
+      title: 'You have been invited to WASLA',
+      body: `Hi ${name}, you've been invited to join WASLA. Set your password here (expires in 1 hour): ${resetUrl}`,
+    }, `user-invite:${tokenHash}`);
   } catch (err) {
     console.error('[users] Failed to send invite email:', err);
   }

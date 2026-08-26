@@ -1,5 +1,5 @@
 import prisma from '@/lib/db/prisma';
-import { NotFoundError } from '@/lib/errors';
+import { ConflictError, NotFoundError } from '@/lib/errors';
 import * as financeRepo from '../repositories/finance.repository';
 import type {
   CreateCommissionPlanInput,
@@ -117,15 +117,26 @@ export async function createSettlement(
   const fees = 0;
   const netAmount = grossAmount - commission - fees;
 
-  return financeRepo.createSettlement(distributorId, {
-    ...input,
-    totalOrders,
-    grossAmount,
-    commission,
-    fees,
-    netAmount,
-    currency: merchant.currency,
-  });
+  try {
+    return await financeRepo.createSettlement(distributorId, {
+      ...input,
+      totalOrders,
+      grossAmount,
+      commission,
+      fees,
+      netAmount,
+      currency: merchant.currency,
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new ConflictError('A settlement already exists for this merchant and period');
+    }
+    throw error;
+  }
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 }
 
 export async function markSettlementPaid(distributorId: string, id: string) {

@@ -2,22 +2,25 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
+import { z } from 'zod';
+
+const directMerchantRegistrationSchema = z.object({
+  merchantName: z.string().trim().min(2).max(120),
+  ownerName: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(254),
+  phone: z.string().trim().min(9).max(24),
+  password: z.string().min(8).max(128),
+  businessType: z.enum(['RESTAURANT', 'CAFE', 'GROCERY', 'PHARMACY', 'RETAIL', 'OTHER']).default('RETAIL'),
+});
 
 export async function POST(req: Request) {
   if (!checkRateLimit(`register:${getClientIp(req)}`, 5, 60 * 60_000)) {
     return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 });
   }
 
-  const body = await req.json();
-  const { merchantName, ownerName, email, phone, password, businessType } = body;
-
-  if (!merchantName || !ownerName || !email || !phone || !password) {
-    return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
-  }
-
-  if (password.length < 8) {
-    return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
-  }
+  const parsed = directMerchantRegistrationSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid registration details' }, { status: 400 });
+  const { merchantName, ownerName, email, phone, password, businessType } = parsed.data;
 
   const normalizedEmail = String(email).trim().toLowerCase();
 
@@ -32,7 +35,7 @@ export async function POST(req: Request) {
     .replace(/[^a-z0-9-]/g, '')
     .replace(/^-|-$/g, '')
     .slice(0, 40);
-  const slug = baseSlug + '-' + Date.now().toString(36);
+  const slug = `${baseSlug || 'store'}-${Date.now().toString(36)}`;
 
   const passwordHash = await bcrypt.hash(password, 12);
 
@@ -41,10 +44,13 @@ export async function POST(req: Request) {
       data: {
         name: merchantName,
         slug,
-        email,
+        email: normalizedEmail,
         phone,
-        businessType: businessType || 'RESTAURANT',
+        businessType,
         status: 'ACTIVE',
+        subscription: {
+          create: { plan: { connect: { code: 'FREE' } } },
+        },
       },
     });
 
@@ -52,6 +58,7 @@ export async function POST(req: Request) {
       data: {
         name: ownerName,
         email: normalizedEmail,
+        phone,
         passwordHash,
         role: 'MERCHANT_OWNER',
       },

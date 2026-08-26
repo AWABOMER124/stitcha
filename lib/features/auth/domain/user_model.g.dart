@@ -12,6 +12,8 @@ _$UserModelImpl _$$UserModelImplFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String,
       phone: json['phone'] as String,
       token: json['token'] as String?,
+      refreshToken: json['refreshToken'] as String?,
+      expiresIn: (json['expiresIn'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$$UserModelImplToJson(_$UserModelImpl instance) =>
@@ -20,4 +22,6 @@ Map<String, dynamic> _$$UserModelImplToJson(_$UserModelImpl instance) =>
       'name': instance.name,
       'phone': instance.phone,
       'token': instance.token,
+      'refreshToken': instance.refreshToken,
+      'expiresIn': instance.expiresIn,
     };

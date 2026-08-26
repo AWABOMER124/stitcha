@@ -1,13 +1,8 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
-import { EmailProvider } from '@/services/notifications/providers/email.provider';
+import { enqueueExternalNotification } from '@/services/jobs/notification.jobs';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
-
-// Password reset emails aren't merchant-scoped (any role can request one), so
-// this sends directly through the EmailProvider rather than the merchant-
-// scoped NotificationService (which requires a merchantId for its audit log).
-const emailProvider = new EmailProvider();
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -49,13 +44,13 @@ export async function POST(req: Request) {
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/reset-password?token=${rawToken}`;
 
   try {
-    await emailProvider.send({
+    await enqueueExternalNotification({
       type: 'SYSTEM',
       channel: 'EMAIL',
       recipient: user.email,
-      title: 'Reset your Waslak password',
+      title: 'Reset your WASLA password',
       body: `We received a request to reset your password. This link expires in 1 hour: ${resetUrl}\n\nIf you didn't request this, you can ignore this email.`,
-    });
+    }, `password-reset:${tokenHash}`);
   } catch (err) {
     console.error('[forgot-password] Failed to send reset email:', err);
   }

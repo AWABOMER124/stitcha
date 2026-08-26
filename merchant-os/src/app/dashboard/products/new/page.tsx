@@ -3,7 +3,7 @@ import { getCategoriesAction } from '@/modules/categories/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { ProductForm } from '../_components/product-form';
 
-export const metadata = { title: 'Add Product — Wassalk OS' };
+export const metadata = { title: 'Add Product — WASLA Commerce OS' };
 
 export default async function NewProductPage() {
   const [result, cookieStore] = await Promise.all([getCategoriesAction(), cookies()]);
@@ -24,7 +24,7 @@ export default async function NewProductPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-        <ProductForm categories={categories} />
+        <ProductForm categories={categories} aiImageEnabled={process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY} />
       </div>
     </div>
   );

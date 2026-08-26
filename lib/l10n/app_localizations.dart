@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appName.
   ///
   /// In ar, this message translates to:
-  /// **'وصلك'**
+  /// **'وصلة'**
   String get appName;
 
   /// No description provided for @loginTitle.
@@ -113,7 +113,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginSubtitle.
   ///
   /// In ar, this message translates to:
-  /// **'أهلاً بك مجدداً في عائلة وصلك'**
+  /// **'أهلاً بك مجدداً في عائلة وصلة'**
   String get loginSubtitle;
 
   /// No description provided for @phoneNumber.

@@ -1,15 +1,10 @@
 import crypto from 'crypto';
 import { ValidationError, NotFoundError } from '@/lib/errors';
 import * as repo from '../repositories/phone-verification.repository';
-import { WhatsAppProvider } from '@/services/notifications/providers/whatsapp.provider';
+import { enqueueExternalNotification } from '@/services/jobs/notification.jobs';
 
 const CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_ATTEMPTS = 5;
-
-// Phone verification isn't merchant-scoped (it happens during signup, before
-// any Merchant/Distributor necessarily exists), so this sends directly
-// through the provider rather than the merchant-scoped NotificationService.
-const whatsAppProvider = new WhatsAppProvider();
 
 function generateCode(): string {
   return crypto.randomInt(100000, 999999).toString();
@@ -32,13 +27,13 @@ export async function sendOtp(userId: string) {
   await repo.create(userId, user.phone, codeHash, expiresAt);
 
   try {
-    await whatsAppProvider.send({
+    await enqueueExternalNotification({
       type: 'SYSTEM',
       channel: 'WHATSAPP',
       recipient: user.phone,
-      title: 'رمز تأكيد الحساب — وصلك',
+      title: 'رمز تأكيد الحساب — وصلة',
       body: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 10 دقائق. لا تشارك هذا الرمز مع أي شخص.`,
-    });
+    }, `phone-otp:${userId}:${codeHash}`);
   } catch (err) {
     console.error('[phone-verification] Failed to send WhatsApp OTP:', err);
   }

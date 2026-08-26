@@ -13,16 +13,26 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }));
 
+const issueCustomerSession = vi.fn(async (accountId: string) => ({
+  token: `fake-token-for-${accountId}`,
+  refreshToken: `fake-refresh-for-${accountId}`,
+  expiresIn: 900,
+}));
+const rotateCustomerSession = vi.fn();
+
 vi.mock('@/lib/auth/customer-session', () => ({
-  signCustomerToken: vi.fn(async (accountId: string) => `fake-token-for-${accountId}`),
+  issueCustomerSession,
+  rotateCustomerSession,
 }));
 
-const { register, login } = await import('./customer-auth.service');
+const { register, login, refresh } = await import('./customer-auth.service');
 
 describe('customer-auth.service', () => {
   beforeEach(() => {
     findUnique.mockReset();
     create.mockReset();
+    issueCustomerSession.mockClear();
+    rotateCustomerSession.mockReset();
   });
 
   describe('register', () => {
@@ -50,7 +60,14 @@ describe('customer-auth.service', () => {
       expect(createdData.passwordHash).not.toBe('secret1');
       expect(createdData.passwordHash.length).toBeGreaterThan(20);
 
-      expect(result).toEqual({ id: 'acc_new', name: 'Sara', phone: '0911111111', token: 'fake-token-for-acc_new' });
+      expect(result).toEqual({
+        id: 'acc_new',
+        name: 'Sara',
+        phone: '0911111111',
+        token: 'fake-token-for-acc_new',
+        refreshToken: 'fake-refresh-for-acc_new',
+        expiresIn: 900,
+      });
     });
   });
 
@@ -77,7 +94,30 @@ describe('customer-auth.service', () => {
       findUnique.mockResolvedValue({ id: 'acc_3', name: 'Layla', phone: '0933333333', passwordHash });
 
       const result = await login({ phone: '0933333333', password: 'correct-password' });
-      expect(result).toEqual({ id: 'acc_3', name: 'Layla', phone: '0933333333', token: 'fake-token-for-acc_3' });
+      expect(result).toEqual({
+        id: 'acc_3',
+        name: 'Layla',
+        phone: '0933333333',
+        token: 'fake-token-for-acc_3',
+        refreshToken: 'fake-refresh-for-acc_3',
+        expiresIn: 900,
+      });
+    });
+  });
+
+  it('maps a rotated refresh session back to the mobile auth contract', async () => {
+    rotateCustomerSession.mockResolvedValue({
+      account: { id: 'acc_4', name: 'Mona', phone: '0999999999' },
+      tokens: { token: 'next-access', refreshToken: 'next-refresh', expiresIn: 900 },
+    });
+
+    await expect(refresh('old-refresh')).resolves.toEqual({
+      id: 'acc_4',
+      name: 'Mona',
+      phone: '0999999999',
+      token: 'next-access',
+      refreshToken: 'next-refresh',
+      expiresIn: 900,
     });
   });
 });
