@@ -145,23 +145,6 @@ describe('database-backed order lifecycle', () => {
         name: 'E2E Delivery Partner',
         slug: `e2e-delivery-${suffix}`,
         status: 'ACTIVE',
-        serviceAreas: {
-          create: {
-            code: 'central',
-            name: 'Central service area',
-            city: 'Khartoum',
-            radiusKm: 10,
-            pricingRules: {
-              create: {
-                baseFee: 500,
-                perKmFee: 100,
-                minimumFee: 700,
-                maximumFee: 1500,
-                maxDistanceKm: 10,
-              },
-            },
-          },
-        },
         couriers: {
           create: {
             name: 'E2E Courier',
@@ -170,19 +153,42 @@ describe('database-backed order lifecycle', () => {
           },
         },
       },
-      include: {
-        serviceAreas: { include: { pricingRules: true } },
-        couriers: true,
-      },
     });
 
     try {
-      expect(partner.supportsCod).toBe(false);
-      expect(partner.serviceAreas[0].pricingRules[0]).toMatchObject({
+      await prisma.deliveryPartnerServiceArea.create({
+        data: {
+          partner: { connect: { id: partner.id } },
+          code: 'central',
+          name: 'Central service area',
+          city: 'Khartoum',
+          radiusKm: 10,
+          pricingRules: {
+            create: {
+              partner: { connect: { id: partner.id } },
+              baseFee: 500,
+              perKmFee: 100,
+              minimumFee: 700,
+              maximumFee: 1500,
+              maxDistanceKm: 10,
+            },
+          },
+        },
+      });
+      const persisted = await prisma.deliveryPartner.findUniqueOrThrow({
+        where: { id: partner.id },
+        include: {
+          serviceAreas: { include: { pricingRules: true } },
+          couriers: true,
+        },
+      });
+
+      expect(persisted.supportsCod).toBe(false);
+      expect(persisted.serviceAreas[0].pricingRules[0]).toMatchObject({
         currency: 'SDG',
         isActive: true,
       });
-      expect(partner.couriers[0]).toMatchObject({
+      expect(persisted.couriers[0]).toMatchObject({
         vehicleType: 'MOTORCYCLE',
         partnerId: partner.id,
       });
