@@ -28,6 +28,7 @@ function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
     { type: "link", label: nav.storefrontSettings, href: "/dashboard/storefront", icon: "🌐" },
     { type: "link", label: nav.customize, href: "/dashboard/storefront/customize", icon: "🎨" },
     { type: "link", label: nav.aiGenerator, href: "/dashboard/storefront/ai", icon: "🤖" },
+    { type: "link", label: "طرق دفع المتجر", href: "/dashboard/storefront/payments", icon: "🏦" },
     { type: "link", label: nav.inbox, href: "/dashboard/inbox", icon: "💬" },
     { type: "section", label: nav.financeSection },
     { type: "link", label: nav.financeDashboard, href: "/dashboard/finance", icon: "💰" },

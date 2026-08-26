@@ -1,17 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { placeOrderAction } from '@/modules/storefront/actions';
 import { useLocale } from '@/lib/i18n/context';
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
-export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null };
+type PaymentAccount = { id: string; channel: string; label: string; accountName: string; accountNumber: string; instructions: string | null };
+export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null; storePaymentAccounts: PaymentAccount[] };
 
 export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: string }) {
   const router = useRouter();
   const sp = useSearchParams();
-  const { dict, dir } = useLocale();
+  const { dict, dir, locale } = useLocale();
   const t = dict.storefrontPublic;
+  const ar = locale === 'ar';
   const settings = merchant.storefrontSettings;
   const theme = (settings?.theme ?? {}) as Record<string, string>;
   const primary = theme.primaryColor ?? '#b91c1c';
@@ -22,6 +23,12 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
   const [method, setMethod] = useState<'PICKUP' | 'MERCHANT_DELIVERY'>('PICKUP');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MANUAL_TRANSFER'>('CASH');
+  const [paymentAccountId, setPaymentAccountId] = useState(merchant.storePaymentAccounts[0]?.id ?? '');
+  const [transactionRef, setTransactionRef] = useState('');
+  const [senderName, setSenderName] = useState('');
+  const [transferredAt, setTransferredAt] = useState('');
+  const [proof, setProof] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,27 +51,31 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
     if (!name.trim() || !phone.trim()) { setError(t.errNameRequired); return; }
     if (method === 'MERCHANT_DELIVERY' && !address.trim()) { setError(t.errAddressRequired); return; }
     if (subtotal < minOrder) { setError(t.errMinOrder.replace('{min}', String(minOrder))); return; }
+    if (paymentMethod === 'MANUAL_TRANSFER' && (!paymentAccountId || transactionRef.trim().length < 4 || !proof)) { setError(ar ? 'اختر حساب التحويل، أدخل رقم العملية، وارفع الإشعار.' : 'Select an account, enter the transaction reference, and upload the receipt.'); return; }
     setLoading(true);
     setError('');
-    const result = await placeOrderAction(slug, {
-      customerName: name,
-      customerPhone: phone,
-      deliveryMethod: method,
-      customerAddress: method === 'MERCHANT_DELIVERY' ? address : undefined,
-      notes: notes || undefined,
-      items: cart.map(i => ({
-        productId: i.productId,
-        quantity: i.quantity,
-        modifiers: i.selectedModifiers,
-      })),
-    });
-    setLoading(false);
-    if (result.success) {
-      localStorage.removeItem(`cart-${slug}`);
-      router.push(`/store/${slug}/order/${result.data.orderId}`);
-    } else {
-      setError(result.error ?? t.errGeneric);
+    const form = new FormData();
+    form.set('customerName', name); form.set('customerPhone', phone); form.set('deliveryMethod', method);
+    if (method === 'MERCHANT_DELIVERY') form.set('customerAddress', address);
+    if (notes) form.set('notes', notes);
+    form.set('items', JSON.stringify(cart.map(i => ({ productId: i.productId, quantity: i.quantity }))));
+    form.set('paymentMethod', paymentMethod);
+    if (paymentMethod === 'MANUAL_TRANSFER') {
+      form.set('paymentAccountId', paymentAccountId); form.set('transactionRef', transactionRef); form.set('senderName', senderName);
+      if (transferredAt) form.set('transferredAt', transferredAt);
+      if (proof) form.set('proof', proof);
     }
+    let result: { orderId?: string; error?: string };
+    try {
+      const response = await fetch(`/api/store/${encodeURIComponent(slug)}/orders`, { method: 'POST', body: form });
+      result = await response.json() as { orderId?: string; error?: string };
+      if (!response.ok || !result.orderId) throw new Error(result.error || t.errGeneric);
+    } catch (caught) {
+      setLoading(false); setError(caught instanceof Error ? caught.message : t.errGeneric); return;
+    }
+    setLoading(false);
+    localStorage.removeItem(`cart-${slug}`);
+    router.push(`/store/${slug}/order/${result.orderId}`);
   }
 
   return (
@@ -138,14 +149,19 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
         </div>
 
         {/* Payment */}
-        <div className="bg-white rounded-2xl border border-stone-100 p-4">
+        <div className="bg-white rounded-2xl border border-stone-100 p-4 space-y-3">
           <h2 className="font-bold text-stone-900 mb-3">{t.paymentMethodTitle}</h2>
-          <div className="flex items-center gap-3 border border-stone-200 rounded-xl p-3">
-            <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: primary }}>
-              <div className="w-2.5 h-2.5 rounded-full" style={{ background: primary }} />
-            </div>
-            <span className="text-sm text-stone-700">{t.cashOnDelivery}</span>
-          </div>
+          <button type="button" onClick={() => setPaymentMethod('CASH')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'CASH' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💵</span><span className="text-sm text-stone-700">{t.cashOnDelivery}</span></button>
+          {merchant.storePaymentAccounts.length > 0 && <button type="button" onClick={() => setPaymentMethod('MANUAL_TRANSFER')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'MANUAL_TRANSFER' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">🏦</span><span className="text-sm text-stone-700">{ar ? 'تحويل بنكك أو ماي كاشي' : 'Bankak or MyCashy transfer'}</span></button>}
+          {paymentMethod === 'MANUAL_TRANSFER' && <div className="space-y-3 rounded-xl bg-stone-50 p-3">
+            <p className="text-sm text-stone-600">{ar ? 'حوّل المبلغ الكامل ثم ارفع إشعار التحويل. سيؤكد المتجر الطلب بعد المطابقة.' : 'Transfer the full amount and upload the receipt. The store confirms after review.'}</p>
+            <div className="grid gap-2">{merchant.storePaymentAccounts.map(account => <button key={account.id} type="button" onClick={() => setPaymentAccountId(account.id)} className={`rounded-xl border p-3 text-start ${paymentAccountId === account.id ? 'border-[var(--sp)] bg-white' : 'border-stone-200'}`}><strong className="block text-sm">{account.label}</strong><span className="block text-xs text-stone-500">{account.accountName}</span><span className="block font-mono text-sm">{account.accountNumber}</span>{account.instructions && <span className="mt-1 block text-xs text-stone-500">{account.instructions}</span>}</button>)}</div>
+            <p className="rounded-lg bg-white p-3 text-sm">{ar ? 'المبلغ المطلوب' : 'Amount due'}: <strong>{subtotal.toLocaleString()} SDG</strong></p>
+            <input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} required minLength={4} maxLength={100} placeholder={ar ? 'رقم العملية' : 'Transaction reference'} className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm"/>
+            <input value={senderName} onChange={e => setSenderName(e.target.value)} maxLength={120} placeholder={ar ? 'اسم المحوّل (اختياري)' : 'Sender name (optional)'} className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm"/>
+            <input value={transferredAt} onChange={e => setTransferredAt(e.target.value)} type="datetime-local" className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm"/>
+            <label className="block rounded-xl border border-dashed border-stone-300 bg-white p-3 text-sm text-stone-600">{ar ? 'إشعار التحويل (صورة أو PDF، حتى 10MB)' : 'Transfer receipt (image or PDF, up to 10MB)'}<input onChange={e => setProof(e.target.files?.[0] ?? null)} required type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="mt-2 block w-full text-xs"/></label>
+          </div>}
         </div>
 
         {error && <p className="text-sm text-red-600 text-center bg-red-50 rounded-xl py-2.5">{error}</p>}

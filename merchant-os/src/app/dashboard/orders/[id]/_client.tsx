@@ -10,6 +10,7 @@ import type { ActiveOrder, OrderStatus } from '@/modules/fulfillment/types';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
 import { ExternalImage } from '@/components/external-image';
+import { reviewOrderPaymentAction } from '@/modules/store-payments/actions';
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700',
@@ -62,6 +63,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
   const [order, setOrder] = useState(initialOrder);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [paymentReason, setPaymentReason] = useState('');
   const router = useRouter();
 
   const status = order.status as OrderStatus;
@@ -81,6 +83,24 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
       } else {
         setError(result.error);
       }
+    });
+  }
+
+  function handlePaymentReview(decision: 'VERIFY' | 'REJECT') {
+    if (!order.payment) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await reviewOrderPaymentAction({ paymentId: order.payment!.id, orderId: order.id, decision, reason: paymentReason });
+      if (!result.success) { setError(result.error); return; }
+      setOrder(previous => previous.payment?.manualProof ? {
+        ...previous,
+        payment: {
+          ...previous.payment,
+          status: decision === 'VERIFY' ? 'COMPLETED' : 'FAILED',
+          manualProof: { ...previous.payment.manualProof, status: decision === 'VERIFY' ? 'VERIFIED' : 'REJECTED', rejectionReason: decision === 'REJECT' ? paymentReason : null },
+        },
+      } : previous);
+      router.refresh();
     });
   }
 
@@ -261,6 +281,13 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
                 </div>
               )}
             </div>
+            {order.payment?.manualProof && <div className="border-t border-[var(--border)] pt-3 space-y-3">
+              <div className="flex items-center justify-between text-sm"><span className="text-[var(--muted-foreground)]">حالة إشعار التحويل</span><strong>{order.payment.manualProof.status}</strong></div>
+              <p className="text-xs text-[var(--muted-foreground)]">{order.payment.manualProof.accountLabel} · {order.payment.manualProof.transactionRef}</p>
+              <a href={`/api/order-payments/${order.payment.id}/proof`} target="_blank" rel="noreferrer" className="block rounded-lg border border-[var(--border)] px-3 py-2 text-center text-sm font-semibold">عرض الإشعار الخاص</a>
+              {order.payment.manualProof.status === 'PENDING' && <div className="space-y-2"><button disabled={isPending} onClick={() => handlePaymentReview('VERIFY')} className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">مطابقة التحويل</button><div className="flex gap-2"><input value={paymentReason} onChange={event => setPaymentReason(event.target.value)} maxLength={500} placeholder="سبب الرفض" className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm"/><button disabled={isPending || !paymentReason.trim()} onClick={() => handlePaymentReview('REJECT')} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">رفض</button></div></div>}
+              {order.payment.manualProof.rejectionReason && <p className="rounded-lg bg-red-50 p-2 text-xs text-red-700">{order.payment.manualProof.rejectionReason}</p>}
+            </div>}
           </div>
 
           {/* Notes */}

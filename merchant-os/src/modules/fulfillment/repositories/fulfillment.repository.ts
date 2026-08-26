@@ -8,6 +8,7 @@ const orderIncludes = {
   items: true,
   customer: true,
   branch: true,
+  payment: { include: { manualProof: { select: { id: true, paymentId: true, accountLabel: true, transactionRef: true, senderName: true, transferredAt: true, status: true, reviewedAt: true, rejectionReason: true, createdAt: true, updatedAt: true } } } },
   statusHistory: { orderBy: { createdAt: 'desc' as const } },
 } as const;
 
@@ -31,7 +32,6 @@ export async function findOrderById(merchantId: string, id: string) {
       ...orderIncludes,
       statusHistory: { orderBy: { createdAt: 'asc' as const } },
       delivery: true,
-      payment: true,
     },
   });
   return serializePrismaObject(order);

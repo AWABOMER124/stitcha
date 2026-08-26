@@ -194,6 +194,10 @@ export async function updateOrderStatus(
     );
   }
 
+  if (newStatus === 'ACCEPTED' && order.paymentMethod === 'MANUAL_TRANSFER' && order.payment?.status !== 'COMPLETED') {
+    throw new BusinessRuleError('Transfer receipt must be verified before accepting the order');
+  }
+
   const updated = await ordersRepo.updateStatus(merchantId, id, newStatus, note, userId, order.status);
 
   // Hybrid driver assignment: automation's first attempt is the nearest

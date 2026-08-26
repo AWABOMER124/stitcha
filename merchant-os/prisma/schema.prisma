@@ -123,6 +123,7 @@ enum PaymentMethod {
   CARD
   ONLINE
   WALLET
+  MANUAL_TRANSFER
 }
 
 enum PaymentStatus {
@@ -722,6 +723,8 @@ model Merchant {
   subscription             MerchantSubscription?
   planChangeRequests       MerchantPlanChangeRequest[]
   subscriptionPayments     MerchantSubscriptionPayment[]
+  storePaymentAccounts     MerchantPaymentAccount[]
+  orderPaymentProofs       OrderPaymentProof[]
 
   @@index([slug])
   @@index([status])
@@ -1452,9 +1455,64 @@ model Payment {
   updatedAt DateTime @updatedAt
 
   // Relations
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  manualProof OrderPaymentProof?
 
   @@map("payments")
+}
+
+/// A merchant-owned transfer destination displayed only on that merchant's checkout.
+model MerchantPaymentAccount {
+  id            String               @id @default(cuid())
+  merchantId    String
+  channel       ManualPaymentChannel
+  label         String
+  accountName   String
+  accountNumber String
+  instructions  String?
+  isActive      Boolean              @default(true)
+  sortOrder     Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  merchant Merchant            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  proofs   OrderPaymentProof[]
+
+  @@index([merchantId, isActive, sortOrder])
+  @@map("merchant_payment_accounts")
+}
+
+/// Private transfer evidence attached to a storefront order payment.
+model OrderPaymentProof {
+  id                       String                    @id @default(cuid())
+  merchantId               String
+  paymentId                String                    @unique
+  merchantPaymentAccountId String?
+  channel                  ManualPaymentChannel
+  accountLabel             String
+  accountNumber            String
+  transactionRef           String
+  senderName               String?
+  transferredAt            DateTime?
+  proofStorageKey          String
+  proofMimeType            String
+  proofSize                Int
+  proofSha256              String
+  status                   ManualPaymentReviewStatus @default(PENDING)
+  reviewedById             String?
+  reviewedAt               DateTime?
+  rejectionReason          String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  merchant       Merchant                @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  payment        Payment                 @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentAccount MerchantPaymentAccount? @relation(fields: [merchantPaymentAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([merchantPaymentAccountId, transactionRef])
+  @@unique([merchantId, proofSha256])
+  @@index([merchantId, status, createdAt])
+  @@map("order_payment_proofs")
 }
 
 // ============================================================================
