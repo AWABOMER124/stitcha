@@ -46,7 +46,7 @@ dependencies:
   json_annotation: ^4.8.1
   
   # Theming & Fonts
-  google_fonts: ^6.1.0
+  google_fonts: ^8.2.1
 
 dev_dependencies:
   flutter_test:
