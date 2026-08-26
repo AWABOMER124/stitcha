@@ -1,5 +1,13 @@
 # Implementation log
 
+## 2026-08-26 — Public/private storage boundary
+
+- Preserved the existing public image storage API and added a separate private storage service for receipts, payment evidence, and proof of delivery.
+- Added local and S3-compatible private providers; private objects never expose public/CDN URLs.
+- Added file-type, size, scope, and traversal validation plus focused tests.
+- Prepared both Docker images with a writable private local-development directory.
+- Documented the two-bucket DigitalOcean Spaces deployment model in `merchant-os/docs/STORAGE_ARCHITECTURE.md`.
+
 ## 2026-08-26 — Visual storefront builder
 
 - Replaced URL-only storefront branding fields with direct, authenticated image upload.

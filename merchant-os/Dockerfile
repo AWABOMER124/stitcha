@@ -42,7 +42,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma        ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --chown=nextjs:nodejs package.json   ./
 COPY --chown=nextjs:nodejs entrypoint.sh  ./
-RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
+RUN mkdir -p storage/private && chown -R nextjs:nodejs storage && \
+    sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
