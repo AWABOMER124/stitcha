@@ -49,6 +49,9 @@ export async function createPendingMerchantWithInvite(input: CreatePendingMercha
         distributorId: input.distributorId,
         registrationToken,
         registrationTokenExpiresAt: new Date(Date.now() + REGISTRATION_LINK_TTL_MS),
+        subscription: {
+          create: { plan: { connect: { code: 'FREE' } } },
+        },
       },
     });
 

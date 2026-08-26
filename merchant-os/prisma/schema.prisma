@@ -428,6 +428,7 @@ model Merchant {
   conversations            Conversation[]
   whatsappConfig           WhatsAppConfig?
   featuredPlacements       FeaturedPlacement[]
+  subscription             MerchantSubscription?
 
   @@index([slug])
   @@index([status])
@@ -463,6 +464,55 @@ model MerchantUser {
   @@index([userId])
   @@index([branchId])
   @@map("merchant_users")
+}
+
+/// Platform-owned SaaS plan. This replaces distributor-owned commission plans
+/// as the source of product access for direct merchants.
+model MerchantPlan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String?
+  monthlyPrice Decimal  @default(0) @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  entitlements Json
+  isPublic     Boolean  @default(true)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions MerchantSubscription[]
+
+  @@index([isActive, sortOrder])
+  @@map("merchant_plans")
+}
+
+/// Current SaaS subscription for a merchant. One row per merchant keeps plan
+/// checks cheap while preserving a safe path to direct platform billing.
+model MerchantSubscription {
+  id                    String                     @id @default(cuid())
+  merchantId            String                     @unique
+  planId                String
+  status                MerchantSubscriptionStatus @default(ACTIVE)
+  startsAt              DateTime                   @default(now())
+  currentPeriodStartsAt DateTime?
+  currentPeriodEndsAt   DateTime?
+  graceEndsAt           DateTime?
+  cancelAtPeriodEnd     Boolean                    @default(false)
+  cancelledAt           DateTime?
+  priceOverride         Decimal?                   @db.Decimal(10, 2)
+  currencyOverride      String?
+  isGrandfathered       Boolean                    @default(false)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  plan     MerchantPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId, status])
+  @@index([status, currentPeriodEndsAt])
+  @@map("merchant_subscriptions")
 }
 
 /// Custom role definition — merchant-scoped or system-wide
@@ -786,6 +836,13 @@ enum CustomerSubscriptionStatus {
   CANCELLED
 }
 
+enum MerchantSubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  GRACE_PERIOD
+  CANCELLED
+}
+
 /// Platform-wide delivery-perk subscription for a Flutter-app CustomerAccount
 /// (spans every merchant, unlike the per-merchant Customer/LoyaltyAccount
 /// records) — e.g. a paid "delivery pass". No payment gateway is integrated
@@ -1019,8 +1076,8 @@ model NotificationLog {
   title     String
   body      String
 
-  isRead   Boolean @default(false)
-  metadata Json?
+  isRead         Boolean @default(false)
+  metadata       Json?
   idempotencyKey String? @unique
 
   createdAt DateTime @default(now())
@@ -1250,10 +1307,10 @@ model Settlement {
   merchant     Merchant               @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   transactions FinancialTransaction[]
 
+  @@unique([merchantId, periodFrom, periodTo])
   @@index([distributorId])
   @@index([merchantId])
   @@index([status])
-  @@unique([merchantId, periodFrom, periodTo])
   @@map("settlements")
 }
 

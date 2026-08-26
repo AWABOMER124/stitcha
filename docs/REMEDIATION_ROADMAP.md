@@ -1,6 +1,23 @@
 # Remediation and delivery roadmap
 
-Updated: 2026-08-25
+Updated: 2026-08-26
+
+## 2026-08-26 product-model transition
+
+- [x] Approve direct merchant SaaS: Basic free and Pro at a USD 10/month
+      reference price, billed in a clearly locked local-currency amount.
+- [x] Add platform-owned merchant plans, subscription state, typed
+      entitlements, and a safe migration for existing merchants.
+- [x] Assign every new merchant to Basic while grandfathering existing
+      merchants on zero-charge Pro during the transition.
+- [ ] Add current-plan, comparison, and upgrade-request UI.
+- [ ] Add platform-owned delivery partners, service areas, quotes, shipments,
+      COD custody, and delivery settlements.
+- [ ] Backfill verified delivery operators, then retire distributor signup,
+      routes, roles, session context, and finally database tables.
+
+The detailed target and cutover rules are in
+[`DIRECT_MERCHANT_STRATEGY.md`](DIRECT_MERCHANT_STRATEGY.md).
 
 This roadmap converts the technical, security, UX, and business review into
 release gates. A phase is complete only when its acceptance criteria are
@@ -89,7 +106,7 @@ verified in CI and in staging.
 - [ ] Pilot one vertical in one city with 5–10 merchants.
 - [ ] Instrument activation, first-order time, weekly fulfilled orders per active
       merchant, cancellation, four-week retention, support load, CAC, and margin.
-- [ ] Package Starter, Growth, and Distributor tiers.
+- [x] Define the initial Basic and Pro merchant tiers; validate pricing in the pilot.
 - [ ] Launch featured placement only with explicit “Sponsored” disclosure.
 - [ ] Defer consumer delivery subscriptions until coverage, payment, and delivery
       reliability are proven.

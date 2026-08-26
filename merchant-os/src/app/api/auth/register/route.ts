@@ -45,6 +45,9 @@ export async function POST(req: Request) {
         phone,
         businessType: businessType || 'RESTAURANT',
         status: 'ACTIVE',
+        subscription: {
+          create: { plan: { connect: { code: 'FREE' } } },
+        },
       },
     });
 

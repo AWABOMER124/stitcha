@@ -120,6 +120,16 @@ describe('database-backed order lifecycle', () => {
     ]);
   });
 
+  it('seeds the direct merchant Basic and Pro plans', async () => {
+    const plans = await prisma.merchantPlan.findMany({
+      where: { code: { in: ['FREE', 'PRO'] } },
+      orderBy: { sortOrder: 'asc' },
+    });
+    expect(plans).toHaveLength(2);
+    expect(plans.map((plan) => ({ code: plan.code, price: Number(plan.monthlyPrice) })))
+      .toEqual([{ code: 'FREE', price: 0 }, { code: 'PRO', price: 10 }]);
+  });
+
   it('creates, fulfills, audits, and archives a real order', async () => {
     const created = await createOrder(merchantId, {
       customerId,

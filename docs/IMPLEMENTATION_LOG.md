@@ -1,5 +1,24 @@
 # Implementation log
 
+## 2026-08-26 — Direct merchant SaaS transition batch 1
+
+- Added platform-owned Basic and Pro plan records and one current subscription
+  boundary per merchant, independent of distributor commission plans.
+- Basic is free with conservative operational limits. Pro uses a USD 10/month
+  reference price so a local-currency invoice can be explicitly locked later.
+- Existing merchants are backfilled as grandfathered zero-charge Pro to avoid
+  silently removing current access during the migration.
+- All merchant creation paths now assign Basic atomically with store creation.
+- Added typed, fail-safe entitlement parsing and current-plan lookup services.
+- Documented the target delivery-partner architecture and the staged,
+  reversible distributor retirement sequence.
+
+### Verification
+
+- Prisma formatting, schema validation, and client generation passed.
+- Merchant OS ESLint passed and all 214 unit tests passed.
+- Next.js production build and TypeScript validation passed.
+
 ## 2026-08-25 — P1 durable jobs and delivery batch 2
 
 - Added a PostgreSQL outbox with idempotency keys, atomic claim using

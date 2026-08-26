@@ -1,4 +1,9 @@
 # Wassalk Platform — Product & Technical Roadmap
+
+> Transition notice (2026-08-26): distributor-led product work in this legacy
+> roadmap is superseded by `../docs/DIRECT_MERCHANT_STRATEGY.md`. Existing
+> distributor components remain temporarily for data migration and must not be
+> expanded with new product features.
 **وصلك · نظام التوصيل والإتمام الشامل**
 
 Version: 1.0 · Last updated: 2026-06-27  
