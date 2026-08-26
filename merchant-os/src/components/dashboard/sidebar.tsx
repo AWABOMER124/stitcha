@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useLocale } from "@/lib/i18n/context";
 import type { Dictionary } from "@/lib/i18n/translations";
 import { useMobileNav } from "@/components/ui/mobile-nav-context";
+import { WaslaMark } from '@/components/brand/wasla-logo';
 
 /**
  * Dashboard sidebar navigation component
@@ -81,12 +82,10 @@ export function DashboardSidebar({
       >
         {/* Logo */}
         <div className="flex h-16 items-center gap-3 border-b border-[var(--sidebar-border)] px-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] text-lg font-bold">
-            و
-          </div>
+          <WaslaMark />
           <div>
             <h2 className="text-sm font-bold text-[var(--sidebar-foreground)]">
-              Waslak
+              WASLA | وصلة
             </h2>
             <p className="text-[10px] text-[var(--muted-foreground)] leading-tight">
               Merchant OS

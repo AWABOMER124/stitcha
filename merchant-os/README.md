@@ -1,4 +1,4 @@
-# Waslak Merchant OS
+# WASLA Commerce OS
 
 > SaaS operating system for merchants, restaurants, cafes, stores, pharmacies, and groceries.
 
@@ -245,4 +245,4 @@ This product is a **Merchant SaaS + generated storefront**. Marketplace discover
 
 ## 📝 License
 
-Private — Waslak © 2024–2026
+Private — WASLA © 2024–2026

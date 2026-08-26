@@ -1,6 +1,6 @@
-# Waslak Commerce Platform
+# WASLA Commerce Platform
 
-Waslak is an Arabic-first commerce and delivery platform for merchants,
+WASLA is an Arabic-first commerce and delivery platform for merchants,
 distributors, drivers, and customers. This repository contains the merchant
 operating system and the Flutter customer application.
 

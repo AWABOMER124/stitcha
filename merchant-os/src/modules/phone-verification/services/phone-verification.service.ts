@@ -31,7 +31,7 @@ export async function sendOtp(userId: string) {
       type: 'SYSTEM',
       channel: 'WHATSAPP',
       recipient: user.phone,
-      title: 'رمز تأكيد الحساب — وصلك',
+      title: 'رمز تأكيد الحساب — وصلة',
       body: `رمز التحقق الخاص بك هو: ${code}\nصالح لمدة 10 دقائق. لا تشارك هذا الرمز مع أي شخص.`,
     }, `phone-otp:${userId}:${codeHash}`);
   } catch (err) {

@@ -5,7 +5,7 @@ import { getCategoriesAction } from '@/modules/categories/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { ProductForm } from '../../_components/product-form';
 
-export const metadata = { title: 'Edit Product — Wassalk OS' };
+export const metadata = { title: 'Edit Product — WASLA Commerce OS' };
 
 interface PageProps {
   params: Promise<{ id: string }>;

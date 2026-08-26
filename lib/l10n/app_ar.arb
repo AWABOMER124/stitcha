@@ -1,9 +1,9 @@
 {
   "@@locale": "ar",
-  "appName": "وصلك",
+  "appName": "وصلة",
 
   "loginTitle": "تسجيل الدخول",
-  "loginSubtitle": "أهلاً بك مجدداً في عائلة وصلك",
+  "loginSubtitle": "أهلاً بك مجدداً في عائلة وصلة",
   "phoneNumber": "رقم الهاتف",
   "password": "كلمة المرور",
   "forgotPassword": "نسيت كلمة المرور؟",

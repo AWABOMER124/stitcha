@@ -109,8 +109,8 @@ export async function createPendingMerchantWithInvite(input: CreatePendingMercha
       type: 'SYSTEM',
       channel: 'WHATSAPP',
       recipient: input.phone,
-      title: 'أكمل تسجيل متجرك في وصلك',
-      body: `مرحبًا، تمت إضافة متجر "${input.name}" على منصة وصلك. أكمل بياناتك من الرابط التالي (صالح لمدة 7 أيام):\n${registrationUrl}`,
+      title: 'أكمل تسجيل متجرك في وصلة',
+      body: `مرحبًا، تمت إضافة متجر "${input.name}" على منصة وصلة. أكمل بياناتك من الرابط التالي (صالح لمدة 7 أيام):\n${registrationUrl}`,
     }, `merchant-invite:${merchant.id}:${createHash('sha256').update(registrationToken).digest('hex')}`);
   } catch (err) {
     console.error('[merchant-invite] Failed to send registration link:', err);

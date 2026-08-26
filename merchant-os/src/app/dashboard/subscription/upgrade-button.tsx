@@ -12,7 +12,7 @@ export function UpgradeButton({ locale }: { locale: 'ar' | 'en' }) {
     startTransition(async () => {
       const result = await requestPlanChangeAction({ targetPlanCode: 'PRO' });
       setMessage(result.success
-        ? (locale === 'ar' ? 'تم إرسال طلب الترقية. سيتواصل معك فريق وصلك.' : 'Upgrade request sent. The Waslak team will contact you.')
+        ? (locale === 'ar' ? 'تم إرسال طلب الترقية. سيتواصل معك فريق وصلة.' : 'Upgrade request sent. The WASLA team will contact you.')
         : result.error);
     });
   }

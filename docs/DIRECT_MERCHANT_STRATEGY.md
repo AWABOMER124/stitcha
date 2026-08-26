@@ -4,7 +4,7 @@ Updated: 2026-08-26
 
 ## Product decision
 
-Waslak is transitioning from a distributor-led commerce model to a direct
+WASLA is transitioning from a distributor-led commerce model to a direct
 merchant SaaS. A merchant can publish a useful store for free, pay monthly for
 professional growth tools, and request delivery from platform-contracted
 partners without needing a distributor intermediary.

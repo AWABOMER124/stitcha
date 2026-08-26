@@ -52,8 +52,8 @@ async function sendSetPasswordInvite(userId: string, email: string, name: string
       type: 'SYSTEM',
       channel: 'EMAIL',
       recipient: email,
-      title: 'You have been invited to Waslak',
-      body: `Hi ${name}, you've been invited to join Waslak. Set your password here (expires in 1 hour): ${resetUrl}`,
+      title: 'You have been invited to WASLA',
+      body: `Hi ${name}, you've been invited to join WASLA. Set your password here (expires in 1 hour): ${resetUrl}`,
     }, `user-invite:${tokenHash}`);
   } catch (err) {
     console.error('[users] Failed to send invite email:', err);

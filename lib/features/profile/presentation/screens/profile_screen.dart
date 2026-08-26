@@ -160,7 +160,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(user.name ?? 'مستخدم وصلك',
+                  Text(user.name ?? 'مستخدم وصلة',
                       style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,

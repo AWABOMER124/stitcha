@@ -1,10 +1,10 @@
-# Wassalk Platform — Product & Technical Roadmap
+# WASLA Commerce OS — Product & Technical Roadmap
 
 > Transition notice (2026-08-26): distributor-led product work in this legacy
 > roadmap is superseded by `../docs/DIRECT_MERCHANT_STRATEGY.md`. Existing
 > distributor components remain temporarily for data migration and must not be
 > expanded with new product features.
-**وصلك · نظام التوصيل والإتمام الشامل**
+**وصلة · نظام التوصيل والإتمام الشامل**
 
 Version: 1.0 · Last updated: 2026-06-27  
 Status: In Development · Platform: Next.js 16 + Flutter + PostgreSQL
@@ -30,7 +30,7 @@ Status: In Development · Platform: Next.js 16 + Flutter + PostgreSQL
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     WASSALK PLATFORM                           │
+│                     WASLA COMMERCE OS                           │
 │                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐ │
 │  │  Flutter App  │  │ Merchant OS  │  │  Distributor Portal  │ │
@@ -515,7 +515,7 @@ Metrics to show:
 
 ```
                     ┌─────────────────────────┐
-                    │   Wassalk Platform       │
+                    │   WASLA Commerce OS       │
                     │                          │
                     │  ┌────────────────────┐ │
                     │  │ DeliveryProvider   │ │
@@ -537,7 +537,7 @@ Metrics to show:
 // src/services/delivery-providers/base.adapter.ts
 
 export interface DeliveryOrder {
-  externalRef?: string         // Wassalk order ID
+  externalRef?: string         // WASLA order ID
   customerName: string
   customerPhone: string
   customerAddress: string
@@ -898,7 +898,7 @@ const SMS_TEMPLATES = {
   DRIVER_ASSIGNED: (driverName: string, phone: string) =>
     `المندوب ${driverName} في طريقه إليك. للتواصل: ${phone}`,
   ORDER_DELIVERED: (orderNum: string) =>
-    `تم توصيل طلبك ${orderNum}. شكراً لاختياركم وصلك!`,
+    `تم توصيل طلبك ${orderNum}. شكراً لاختياركم وصلة!`,
 }
 ```
 
@@ -1091,7 +1091,7 @@ Network:
 
 ## 8. API Reference — Delivery Integrations
 
-### 8.1 Wassalk Internal API (for Flutter App)
+### 8.1 WASLA Internal API (for Flutter App)
 
 **Base URL:** `https://api.wassalk.com/v1`
 
@@ -1286,5 +1286,5 @@ Sprint 8 (Week 15+):   Loyalty program + Advanced features
 
 ---
 
-*Wassalk Platform Roadmap · Built for Sudan's delivery ecosystem*
-*اللهم يسّر · وصلك — نوصّل في كل مكان*
+*WASLA Commerce OS Roadmap · Built for Sudan's delivery ecosystem*
+*اللهم يسّر · وصلة — نوصّل في كل مكان*

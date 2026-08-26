@@ -45,7 +45,7 @@ export default async function SubscriptionPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p id="current-plan-title" className="text-sm text-[var(--muted-foreground)]">{ar ? 'باقتك الحالية' : 'Current plan'}</p>
-            <p className="mt-1 text-xl font-black text-[var(--foreground)]">{current.name}</p>
+            <p className="mt-1 text-xl font-black text-[var(--foreground)]">{displayPlanName(current.code, current.name, ar)}</p>
           </div>
           <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-800">
             {current.isGrandfathered ? (ar ? 'محفوظة دون رسوم مؤقتاً' : 'Grandfathered at no charge') : (ar ? 'نشطة' : 'Active')}
@@ -53,7 +53,9 @@ export default async function SubscriptionPage() {
         </div>
         {pending && (
           <p role="status" className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-            {ar ? `طلب الترقية إلى ${pending.targetPlan.name} قيد المراجعة.` : `Your ${pending.targetPlan.name} upgrade request is under review.`}
+            {ar
+              ? `طلب الترقية إلى ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} قيد المراجعة.`
+              : `Your ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} upgrade request is under review.`}
           </p>
         )}
       </section>
@@ -65,7 +67,7 @@ export default async function SubscriptionPage() {
             <section key={plan.code} className={`rounded-2xl border bg-[var(--card)] p-6 ${plan.code === 'PRO' ? 'border-[var(--primary)] shadow-sm' : 'border-[var(--border)]'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-black text-[var(--foreground)]">{plan.name}</h2>
+                  <h2 className="text-xl font-black text-[var(--foreground)]">{displayPlanName(plan.code, plan.name, ar)}</h2>
                   <p className="mt-1 text-sm text-[var(--muted-foreground)]">{plan.description}</p>
                 </div>
                 {selected && <span className="rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-bold">{ar ? 'الحالية' : 'Current'}</span>}
@@ -90,8 +92,8 @@ export default async function SubscriptionPage() {
 
       <p className="text-xs leading-6 text-[var(--muted-foreground)]">
         {ar
-          ? 'سعر Pro مرجعي بالدولار. سيعرض فريق وصلك مبلغ الجنيه السوداني المثبّت قبل أي تحصيل، ولن تتغير باقتك بمجرد إرسال الطلب.'
-          : 'Pro uses a USD reference price. Waslak will confirm a locked local-currency amount before collection; submitting a request does not change your plan.'}
+          ? 'سعر Pro مرجعي بالدولار. سيعرض فريق وصلة مبلغ الجنيه السوداني المثبّت قبل أي تحصيل، ولن تتغير باقتك بمجرد إرسال الطلب.'
+          : 'Pro uses a USD reference price. WASLA will confirm a locked local-currency amount before collection; submitting a request does not change your plan.'}
       </p>
     </div>
   );
@@ -101,4 +103,12 @@ function formatFeature(value: number | boolean, ar: boolean): string {
   if (typeof value === 'boolean') return value ? '✓' : '—';
   if (value === -1) return ar ? 'غير محدود' : 'Unlimited';
   return String(value);
+}
+
+function displayPlanName(code: string, fallback: string, ar: boolean): string {
+  if (code === 'FREE') return ar ? 'مجاني' : 'Free';
+  if (code === 'GROWTH') return ar ? 'نمو' : 'Growth';
+  if (code === 'PRO') return ar ? 'احترافي' : 'Pro';
+  if (code === 'BUSINESS') return ar ? 'أعمال' : 'Business';
+  return fallback;
 }

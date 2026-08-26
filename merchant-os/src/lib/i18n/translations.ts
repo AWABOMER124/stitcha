@@ -1697,7 +1697,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     login: {
       welcomeBack: 'Welcome back',
-      subtitle: 'Sign in to your Waslak Merchant OS account',
+      subtitle: 'Sign in to your WASLA Commerce OS account',
       forgotPassword: 'Forgot password?',
       invalidCredentials: 'Invalid email/phone or password',
       noAccount: "Don't have an account?",
@@ -1706,8 +1706,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       registerHere: 'Register here',
     },
     register: {
-      title: 'Create your store',
-      subtitle: 'Start selling online in minutes with Waslak',
+      title: 'Start selling online for free.',
+      subtitle: 'Create your store, manage orders and connect delivery from one place.',
       businessType: 'Business Type',
       businessName: 'Business Name',
       businessNamePlaceholder: 'Your Store Name',
@@ -1871,7 +1871,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminHome: {
       title: 'Platform Dashboard',
-      subtitle: "A full overview of Waslak's performance",
+      subtitle: "A full overview of WASLA's performance",
       distributors: 'Distributors',
       active: 'active',
       pendingApproval: 'pending approval',
@@ -2795,7 +2795,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminSettingsPage: {
       title: 'Platform Settings',
-      subtitle: 'General settings for the Waslak platform',
+      subtitle: 'General settings for the WASLA platform',
       platformName: 'Platform name',
       defaultCurrency: 'Default currency',
       timezone: 'Timezone',
@@ -3298,7 +3298,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deliveryMethods: {
         PICKUP: 'Branch pickup',
         MERCHANT_DELIVERY: 'Merchant delivery',
-        WASLAK_DELIVERY: 'Waslak delivery',
+        WASLAK_DELIVERY: 'WASLA delivery',
         EXTERNAL_DELIVERY: 'External delivery',
       },
       paymentMethods: {
@@ -3357,7 +3357,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     login: {
       welcomeBack: 'أهلاً بعودتك',
-      subtitle: 'سجّل دخولك لحساب وصلك',
+      subtitle: 'سجّل دخولك لحساب وصلة',
       forgotPassword: 'نسيت كلمة المرور؟',
       invalidCredentials: 'البريد/رقم الهاتف أو كلمة المرور غير صحيحة',
       noAccount: 'ليس لديك حساب؟',
@@ -3366,8 +3366,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       registerHere: 'سجّل من هنا',
     },
     register: {
-      title: 'أنشئ متجرك',
-      subtitle: 'ابدأ البيع أونلاين خلال دقائق مع وصلك',
+      title: 'ابدأ تجارتك الإلكترونية مجاناً.',
+      subtitle: 'أنشئ متجرك، أدر طلباتك واربط التوصيل من مكان واحد.',
       businessType: 'نوع النشاط',
       businessName: 'اسم النشاط التجاري',
       businessNamePlaceholder: 'اسم متجرك',
@@ -3531,7 +3531,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminHome: {
       title: 'لوحة تحكم المنصة',
-      subtitle: 'نظرة شاملة على أداء منصة وصلك',
+      subtitle: 'نظرة شاملة على أداء منصة وصلة',
       distributors: 'الموزعون',
       active: 'نشط',
       pendingApproval: 'بانتظار الموافقة',
@@ -4455,7 +4455,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     adminSettingsPage: {
       title: 'إعدادات المنصة',
-      subtitle: 'إعدادات عامة لمنصة وصلك',
+      subtitle: 'إعدادات عامة لمنصة وصلة',
       platformName: 'اسم المنصة',
       defaultCurrency: 'العملة الافتراضية',
       timezone: 'المنطقة الزمنية',
@@ -4958,7 +4958,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deliveryMethods: {
         PICKUP: 'استلام من الفرع',
         MERCHANT_DELIVERY: 'توصيل المطعم',
-        WASLAK_DELIVERY: 'توصيل وصلك',
+        WASLAK_DELIVERY: 'توصيل وصلة',
         EXTERNAL_DELIVERY: 'توصيل خارجي',
       },
       paymentMethods: {

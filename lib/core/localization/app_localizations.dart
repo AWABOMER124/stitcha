@@ -11,9 +11,9 @@ class AppLocalizations {
   static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   // --- Localized Strings ---
-  String get appName => 'وصلك';
+  String get appName => 'وصلة';
   String get loginTitle => locale.languageCode == 'en' ? 'Login' : 'تسجيل الدخول';
-  String get loginSubtitle => locale.languageCode == 'en' ? 'Welcome back to Wassalk' : 'أهلاً بك مجدداً في عائلة وصلك';
+  String get loginSubtitle => locale.languageCode == 'en' ? 'Welcome back to WASLA' : 'أهلاً بك مجدداً في عائلة وصلة';
   String get phoneNumber => locale.languageCode == 'en' ? 'Phone Number' : 'رقم الهاتف';
   String get password => locale.languageCode == 'en' ? 'Password' : 'كلمة المرور';
   String get forgotPassword => locale.languageCode == 'en' ? 'Forgot Password?' : 'نسيت كلمة المرور؟';

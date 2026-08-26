@@ -6,7 +6,7 @@ import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
 
 /**
- * Merchant registration page for Waslak Merchant OS
+ * Merchant registration page for WASLA Commerce OS
  */
 export default function RegisterPage() {
   const { dict } = useLocale();

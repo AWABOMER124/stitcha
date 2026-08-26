@@ -2,7 +2,7 @@
 
 ## System context
 
-Waslak is a B2B2C platform with five main actors:
+WASLA is a B2B2C platform with five main actors:
 
 1. Platform administrators manage distributors, global settings, and oversight.
 2. Distributors onboard merchants and coordinate finance and delivery capacity.

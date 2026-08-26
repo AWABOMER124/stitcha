@@ -8,6 +8,7 @@ import 'core/localization/locale_provider.dart';
 import 'core/notifications/fcm_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/ui_constants.dart';
+import 'core/brand/brand_config.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -16,11 +17,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(const ProviderScope(child: WassalkApp()));
+  runApp(const ProviderScope(child: WaslaApp()));
 }
 
-class WassalkApp extends ConsumerWidget {
-  const WassalkApp({super.key});
+class WaslaApp extends ConsumerWidget {
+  const WaslaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,11 +34,9 @@ class WassalkApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
 
     return MaterialApp.router(
-      title: 'Wassalk - وصلك',
+      title: WaslaBrand.displayName,
       debugShowCheckedModeBanner: false,
-
       routerConfig: router,
-
       locale: locale,
       supportedLocales: const [
         Locale('ar'),
@@ -49,7 +48,6 @@ class WassalkApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-
       theme: ThemeData(
         useMaterial3: true,
         primaryColor: AppColors.primary,
@@ -62,7 +60,7 @@ class WassalkApp extends ConsumerWidget {
           error: AppColors.error,
         ),
         textTheme: (locale.languageCode == 'ar'
-                ? GoogleFonts.notoKufiArabicTextTheme(Theme.of(context).textTheme)
+                ? GoogleFonts.alexandriaTextTheme(Theme.of(context).textTheme)
                 : GoogleFonts.interTextTheme(Theme.of(context).textTheme))
             .apply(
           bodyColor: AppColors.textPrimary,
@@ -85,7 +83,7 @@ class WassalkApp extends ConsumerWidget {
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.pill),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             padding: const EdgeInsets.symmetric(vertical: 16),
             textStyle: const TextStyle(

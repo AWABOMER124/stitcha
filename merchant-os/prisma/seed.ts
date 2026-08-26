@@ -54,7 +54,7 @@ async function main() {
     data: {
       email: 'admin@waslak.com',
       passwordHash: hashedPassword,
-      name: 'Waslak Admin',
+      name: 'WASLA Admin',
       phone: '+249912000000',
       role: 'PLATFORM_OWNER',
     },

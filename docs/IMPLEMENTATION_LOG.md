@@ -1,5 +1,27 @@
 # Implementation log
 
+## 2026-08-26 — WASLA identity system
+
+- Rebranded the public product from Waslak/وصلك to `WASLA | وصلة` without
+  changing commerce, tenancy, delivery, finance, authentication, or API logic.
+- Added central web and Flutter brand configuration and a connected-path mark
+  shared conceptually across React SVG and Flutter CustomPaint.
+- Rebuilt semantic light/dark theme mappings with Midnight, Teal, Blue, Cloud,
+  Slate, border, and status tokens; Arabic uses Alexandria and English Inter.
+- Updated metadata, PWA manifests, storefront attribution, auth, portals,
+  settings, plan copy, emails, notifications, localized mobile copy, native
+  display names, and Android/iOS/Web icon sets.
+- Added a reproducible Sharp-based icon generator and a complete retained-
+  identifier classification in `docs/BRAND_AUDIT.md`.
+
+### Verification
+
+- Merchant OS: 220 tests passed, lint passed, and the production build passed
+  with locally bundled Alexandria and Inter fonts.
+- Flutter: analysis reported no issues and all 11 tests passed.
+- The old-brand search is classified in `docs/BRAND_AUDIT.md`; remaining
+  matches are internal identifiers, immutable history, or external contracts.
+
 ## 2026-08-26 — Direct merchant and delivery transition batch 4
 
 - Added expiring delivery quotes, platform shipments, immutable events, proof

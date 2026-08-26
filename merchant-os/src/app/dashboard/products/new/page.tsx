@@ -3,7 +3,7 @@ import { getCategoriesAction } from '@/modules/categories/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { ProductForm } from '../_components/product-form';
 
-export const metadata = { title: 'Add Product — Wassalk OS' };
+export const metadata = { title: 'Add Product — WASLA Commerce OS' };
 
 export default async function NewProductPage() {
   const [result, cookieStore] = await Promise.all([getCategoriesAction(), cookies()]);

@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       type: 'SYSTEM',
       channel: 'EMAIL',
       recipient: user.email,
-      title: 'Reset your Waslak password',
+      title: 'Reset your WASLA password',
       body: `We received a request to reset your password. This link expires in 1 hour: ${resetUrl}\n\nIf you didn't request this, you can ignore this email.`,
     }, `password-reset:${tokenHash}`);
   } catch (err) {

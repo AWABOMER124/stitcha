@@ -32,7 +32,7 @@ describe('external notification providers', () => {
 
   it('sends email through Resend', async () => {
     process.env.RESEND_API_KEY = 'resend-key';
-    process.env.EMAIL_FROM = 'Waslak <notify@example.com>';
+    process.env.EMAIL_FROM = 'WASLA <notify@example.com>';
     vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 200 }));
     await new EmailProvider().send(payload);
     expect(fetch).toHaveBeenCalledWith('https://api.resend.com/emails', expect.objectContaining({

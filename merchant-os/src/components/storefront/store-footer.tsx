@@ -7,15 +7,15 @@ export function StoreFooter() {
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-700 text-white text-xs font-bold">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--primary)] text-white text-xs font-bold">
               و
             </div>
             <span className="text-sm font-medium text-stone-600 dark:text-stone-400">
-              Powered by Waslak
+              Powered by WASLA
             </span>
           </div>
           <p className="text-xs text-stone-500 dark:text-stone-500">
-            © {new Date().getFullYear()} Waslak Merchant OS. All rights reserved.
+            © {new Date().getFullYear()} WASLA Commerce OS. All rights reserved.
           </p>
         </div>
       </div>

@@ -5,6 +5,8 @@ import 'package:wassalk_app/core/localization/app_localizations.dart';
 import 'package:wassalk_app/core/network/user_facing_error.dart';
 import 'package:wassalk_app/core/theme/app_colors.dart';
 import 'package:wassalk_app/core/theme/ui_constants.dart';
+import 'package:wassalk_app/core/brand/brand_config.dart';
+import 'package:wassalk_app/core/brand/wasla_mark.dart';
 import '../providers/auth_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -122,18 +124,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               )
                             ],
                           ),
-                          child: const Icon(
-                            Icons.delivery_dining_rounded,
-                            size: 56,
-                            color: AppColors.primary,
-                          ),
+                          child: const WaslaMark(size: 72),
                         ),
                       ),
 
                       const SizedBox(height: 32),
 
                       Text(
-                        'وصـلـك',
+                        WaslaBrand.displayName,
                         style: AppTextStyles.displayMedium.copyWith(
                           color: AppColors.primary,
                           letterSpacing: 1.5,

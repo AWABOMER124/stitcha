@@ -135,7 +135,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'انضم إلى مجتمع وصلك واحصل على مزايا حصرية',
+                        'انضم إلى مجتمع وصلة واحصل على مزايا حصرية',
                         style: AppTextStyles.bodySm
                             .copyWith(color: AppColors.textSecondary),
                       ),

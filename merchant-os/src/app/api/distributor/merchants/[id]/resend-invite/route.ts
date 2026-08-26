@@ -38,8 +38,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       type: 'SYSTEM',
       channel: 'WHATSAPP',
       recipient: merchant.phone,
-      title: 'أكمل تسجيل متجرك في وصلك',
-      body: `مرحبًا، هذا رابط جديد لإكمال تسجيل متجر "${merchant.name}" على منصة وصلك (صالح لمدة 7 أيام):\n${registrationUrl}`,
+      title: 'أكمل تسجيل متجرك في وصلة',
+      body: `مرحبًا، هذا رابط جديد لإكمال تسجيل متجر "${merchant.name}" على منصة وصلة (صالح لمدة 7 أيام):\n${registrationUrl}`,
     }, `merchant-invite:${merchant.id}:${crypto.createHash('sha256').update(registrationToken).digest('hex')}`);
   } catch (err) {
     console.error('[resend-invite] Failed to send registration link:', err);
