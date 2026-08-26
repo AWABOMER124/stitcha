@@ -1,5 +1,32 @@
 # Implementation log
 
+## 2026-08-26 — Direct merchant SaaS transition batch 3
+
+- Added platform-owned delivery partners, integration configuration, service
+  areas, pricing rules, and couriers as a shadow foundation independent of
+  distributors.
+- Added a reversible data migration that preserves legacy records while
+  copying delivery companies, encrypted provider configuration, and only
+  couriers whose company ownership is already explicit.
+- Left ambiguous distributor-fleet drivers in the legacy model for manual
+  classification rather than guessing ownership.
+- Added a deterministic delivery fee calculator with minimum/maximum caps and
+  distance eligibility. It is not yet connected to checkout or dispatch.
+
+### Release boundary
+
+No live fulfillment route was changed. Quotes, shipments, delivery events,
+proof of delivery, COD custody, partner settlements, operational reconciliation,
+and a rollback-controlled cutover remain required.
+
+### Verification
+
+- Prisma formatting, schema validation, and client generation passed.
+- ESLint completed with no errors or warnings.
+- All 219 Merchant OS unit tests and the production build passed.
+- The database-backed suite covers the new relationships and fail-safe COD
+  default; hosted CI applies the full migration chain against PostgreSQL.
+
 ## 2026-08-26 — Direct merchant SaaS transition batch 2
 
 - Added a bilingual, responsive plan-and-billing page to the merchant dashboard

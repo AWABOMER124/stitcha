@@ -139,6 +139,58 @@ describe('database-backed order lifecycle', () => {
     expect(request).toMatchObject({ status: 'PENDING', merchantId });
   });
 
+  it('persists the platform delivery-partner foundation and safety defaults', async () => {
+    const partner = await prisma.deliveryPartner.create({
+      data: {
+        name: 'E2E Delivery Partner',
+        slug: `e2e-delivery-${suffix}`,
+        status: 'ACTIVE',
+        serviceAreas: {
+          create: {
+            code: 'central',
+            name: 'Central service area',
+            city: 'Khartoum',
+            radiusKm: 10,
+            pricingRules: {
+              create: {
+                baseFee: 500,
+                perKmFee: 100,
+                minimumFee: 700,
+                maximumFee: 1500,
+                maxDistanceKm: 10,
+              },
+            },
+          },
+        },
+        couriers: {
+          create: {
+            name: 'E2E Courier',
+            phone: `courier-${suffix}`,
+            isVerified: true,
+          },
+        },
+      },
+      include: {
+        serviceAreas: { include: { pricingRules: true } },
+        couriers: true,
+      },
+    });
+
+    try {
+      expect(partner.supportsCod).toBe(false);
+      expect(partner.serviceAreas[0].pricingRules[0]).toMatchObject({
+        currency: 'SDG',
+        isActive: true,
+      });
+      expect(partner.couriers[0]).toMatchObject({
+        vehicleType: 'MOTORCYCLE',
+        partnerId: partner.id,
+      });
+    } finally {
+      await prisma.deliveryPartner.delete({ where: { id: partner.id } });
+    }
+  });
+
   it('creates, fulfills, audits, and archives a real order', async () => {
     const created = await createOrder(merchantId, {
       customerId,

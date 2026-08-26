@@ -46,6 +46,12 @@ enum DistributorStatus {
   SUSPENDED
 }
 
+enum DeliveryPartnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
 enum UserRole {
   PLATFORM_OWNER
   DISTRIBUTOR_OWNER
@@ -340,6 +346,127 @@ model DeliveryProviderConfig {
   deliveryCompany DeliveryCompany @relation(fields: [deliveryCompanyId], references: [id], onDelete: Cascade)
 
   @@map("delivery_provider_configs")
+}
+
+/// Platform-contracted delivery operator. This is intentionally independent
+/// from Distributor and becomes the ownership boundary for delivery supply.
+model DeliveryPartner {
+  id                      String                @id @default(cuid())
+  legacyDeliveryCompanyId String?               @unique
+  name                    String
+  slug                    String                @unique
+  contactName             String?
+  phone                   String?
+  email                   String?
+  status                  DeliveryPartnerStatus @default(PENDING)
+  supportsCod             Boolean               @default(false)
+  isActive                Boolean               @default(true)
+  rating                  Decimal               @default(5) @db.Decimal(3, 2)
+  completedDeliveries     Int                   @default(0)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  providerConfig DeliveryPartnerProviderConfig?
+  serviceAreas   DeliveryPartnerServiceArea[]
+  pricingRules   DeliveryPartnerPricingRule[]
+  couriers       DeliveryCourier[]
+
+  @@index([status, isActive])
+  @@map("delivery_partners")
+}
+
+model DeliveryPartnerProviderConfig {
+  id           String   @id @default(cuid())
+  partnerId    String   @unique
+  providerKey  String
+  apiBaseUrl   String?
+  credentials  String?
+  webhookToken String   @unique @default(cuid())
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  partner DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_partner_provider_configs")
+}
+
+model DeliveryPartnerServiceArea {
+  id                  String   @id @default(cuid())
+  partnerId           String
+  code                String
+  name                String
+  city                String?
+  centerLat           Float?
+  centerLng           Float?
+  radiusKm            Float?
+  estimatedMinutesMin Int?
+  estimatedMinutesMax Int?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  partner      DeliveryPartner              @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  pricingRules DeliveryPartnerPricingRule[]
+
+  @@unique([partnerId, code])
+  @@index([city, isActive])
+  @@map("delivery_partner_service_areas")
+}
+
+model DeliveryPartnerPricingRule {
+  id            String       @id @default(cuid())
+  partnerId     String
+  serviceAreaId String?
+  vehicleType   VehicleType?
+  baseFee       Decimal      @db.Decimal(10, 2)
+  perKmFee      Decimal      @default(0) @db.Decimal(10, 2)
+  minimumFee    Decimal      @default(0) @db.Decimal(10, 2)
+  maximumFee    Decimal?     @db.Decimal(10, 2)
+  maxDistanceKm Float?
+  currency      String       @default("SDG")
+  priority      Int          @default(0)
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  partner     DeliveryPartner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  serviceArea DeliveryPartnerServiceArea? @relation(fields: [serviceAreaId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId, isActive, priority])
+  @@index([serviceAreaId])
+  @@map("delivery_partner_pricing_rules")
+}
+
+/// Courier supply owned by a delivery partner or directly contracted by the
+/// platform. Legacy drivers are copied only when they belonged to a verified
+/// DeliveryCompany; distributor-fleet drivers require manual classification.
+model DeliveryCourier {
+  id             String       @id @default(cuid())
+  partnerId      String?
+  legacyDriverId String?      @unique
+  name           String
+  phone          String
+  nationalId     String?
+  photo          String?
+  vehicleType    VehicleType  @default(MOTORCYCLE)
+  vehiclePlate   String?
+  status         DriverStatus @default(OFFLINE)
+  isIndependent  Boolean      @default(false)
+  isActive       Boolean      @default(true)
+  isVerified     Boolean      @default(false)
+  rating         Decimal      @default(5) @db.Decimal(3, 2)
+  currentLat     Float?
+  currentLng     Float?
+  lastSeenAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  partner DeliveryPartner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, status])
+  @@index([phone])
+  @@map("delivery_couriers")
 }
 
 /// Staff members of a distributor

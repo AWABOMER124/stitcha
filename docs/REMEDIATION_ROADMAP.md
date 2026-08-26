@@ -12,9 +12,13 @@ Updated: 2026-08-26
       merchants on zero-charge Pro during the transition.
 - [x] Add current-plan, comparison, and idempotent upgrade-request UI without
       granting paid access before operational review/payment.
-- [ ] Add platform-owned delivery partners, service areas, quotes, shipments,
-      COD custody, and delivery settlements.
-- [ ] Backfill verified delivery operators, then retire distributor signup,
+- [x] Add the platform-owned delivery-partner, provider-config, service-area,
+      pricing-rule, and courier foundation without changing live dispatch.
+- [x] Safely shadow-copy existing delivery companies, integrations, and only
+      company-linked couriers; leave ambiguous distributor fleets untouched.
+- [ ] Add expiring quotes, shipments, event history, COD custody, and delivery
+      settlements, then cut over live fulfillment behind a release flag.
+- [ ] Verify migrated delivery ownership, then retire distributor signup,
       routes, roles, session context, and finally database tables.
 
 The detailed target and cutover rules are in

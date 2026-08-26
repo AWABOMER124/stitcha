@@ -45,6 +45,22 @@ Provider selection starts as an auditable rules engine based on coverage,
 vehicle, capacity, price, ETA, success rate, and SLA. AI may optimize later but
 must not fabricate availability, price, or ETA.
 
+### Implementation status
+
+The first delivery-separation migration now creates platform-owned partners,
+provider configuration, service areas, pricing rules, and couriers. It copies
+legacy delivery companies and their integration credentials into shadow
+records, but does not alter the live dispatch path. Only drivers already linked
+to a delivery company are copied automatically; distributor-fleet drivers stay
+unclassified until operations confirms their contractual owner. Migrated active
+companies remain pending and COD support stays disabled until platform review.
+A deterministic fee calculator is available for future quotes and rejects
+uncovered distances.
+
+The next release must add immutable quote, shipment, event, proof, COD, and
+partner-settlement records before any live route is switched. Cutover requires
+record-count reconciliation and a rollback flag; legacy tables remain intact.
+
 ## Delivery roadmap
 
 ### Phase 1 — SaaS foundation
