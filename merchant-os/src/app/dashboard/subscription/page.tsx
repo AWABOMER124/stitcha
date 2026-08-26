@@ -8,6 +8,8 @@ import {
   listPublicPlans,
 } from '@/modules/merchant-subscriptions';
 import { UpgradeButton } from './upgrade-button';
+import { ManualPaymentForm } from './manual-payment-form';
+import { listActivePaymentAccounts, listMerchantPayments } from '@/modules/subscription-payments/subscription-payments.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,10 +27,12 @@ export default async function SubscriptionPage() {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
   const locale = (await cookies()).get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'ar';
-  const [current, plans, pending] = await Promise.all([
+  const [current, plans, pending, paymentAccounts, payments] = await Promise.all([
     getMerchantPlanSnapshot(session.user.merchantId),
     listPublicPlans(),
     getPendingPlanChangeRequest(session.user.merchantId),
+    listActivePaymentAccounts(),
+    listMerchantPayments(session.user.merchantId),
   ]);
   const ar = locale === 'ar';
 
@@ -89,6 +93,10 @@ export default async function SubscriptionPage() {
           );
         })}
       </div>
+
+      {pending && !payments.some(payment => payment.status === 'PENDING' || payment.status === 'VERIFIED') && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} locale={locale}/></section>}
+
+      {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount.label} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
 
       <p className="text-xs leading-6 text-[var(--muted-foreground)]">
         {ar
