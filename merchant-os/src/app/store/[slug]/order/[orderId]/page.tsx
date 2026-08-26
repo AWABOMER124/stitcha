@@ -26,6 +26,7 @@ export default async function OrderPage({ params }: { params: Promise<{ slug: st
               status: order.status,
               createdAt: order.createdAt,
               total: Number(order.total),
+              payment: order.payment,
               items: order.items.map((item) => ({ ...item, total: Number(item.total) })),
             }}
           />

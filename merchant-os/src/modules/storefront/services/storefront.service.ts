@@ -6,6 +6,8 @@ import { nanoid } from 'nanoid';
 import { serializePrismaObject } from '@/lib/serialization';
 import type { CustomerAccount, OrderStatus, Prisma } from '@prisma/client';
 import * as ordersRepo from '@/modules/orders/repositories/orders.repository';
+import type { PrivateEvidence } from '@/services/storage/private-evidence-input';
+import { privateStorageService } from '@/services/storage';
 
 /**
  * Storefront service — public-facing operations.
@@ -53,7 +55,7 @@ export async function getStoreProduct(slug: string, productSlug: string) {
 }
 
 /** Place order from public storefront */
-export async function placeOrder(slug: string, data: PlaceOrderInput) {
+export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?: PrivateEvidence) {
   const merchant = await storefrontRepo.getMerchantBySlug(slug);
   if (!merchant) throw new NotFoundError('Store');
 
@@ -106,20 +108,51 @@ export async function placeOrder(slug: string, data: PlaceOrderInput) {
 
   const orderNumber = `ORD-${nanoid(8).toUpperCase()}`;
 
-  const order = await ordersRepo.create(merchant.id, {
-    orderNumber,
-    customerId: customer.id,
-    subtotal,
-    deliveryFee: 0,
-    total: subtotal,
-    deliveryMethod: data.deliveryMethod,
-    paymentMethod: 'CASH',
-    notes: data.notes,
-    customerName: data.customerName,
-    customerPhone: data.customerPhone,
-    customerAddress: data.customerAddress,
-    items: orderItems,
-  });
+  let manualPayment: Parameters<typeof ordersRepo.create>[1]['manualPayment'];
+  let uploadedStorageKey: string | undefined;
+  if (data.paymentMethod === 'MANUAL_TRANSFER') {
+    if (!evidence || !data.paymentAccountId || !data.transactionRef) throw new ValidationError('Transfer receipt is required');
+    const paymentAccount = await prisma.merchantPaymentAccount.findFirst({ where: { id: data.paymentAccountId, merchantId: merchant.id, isActive: true } });
+    if (!paymentAccount) throw new NotFoundError('Payment account');
+    const transactionRef = data.transactionRef.trim().toUpperCase();
+    uploadedStorageKey = await privateStorageService.upload(evidence.buffer, evidence.filename, evidence.mimeType, `${merchant.id}-order-payments`);
+    manualPayment = {
+      merchantPaymentAccountId: paymentAccount.id,
+      channel: paymentAccount.channel,
+      accountLabel: paymentAccount.label,
+      accountNumber: paymentAccount.accountNumber,
+      transactionRef,
+      senderName: data.senderName?.trim() || undefined,
+      transferredAt: data.transferredAt,
+      proofStorageKey: uploadedStorageKey,
+      proofMimeType: evidence.mimeType,
+      proofSize: evidence.buffer.byteLength,
+      proofSha256: evidence.sha256,
+    };
+  }
+
+  let order;
+  try {
+    order = await ordersRepo.create(merchant.id, {
+      orderNumber,
+      customerId: customer.id,
+      subtotal,
+      deliveryFee: 0,
+      total: subtotal,
+      deliveryMethod: data.deliveryMethod,
+      paymentMethod: data.paymentMethod,
+      notes: data.notes,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      customerAddress: data.customerAddress,
+      items: orderItems,
+      manualPayment,
+    });
+  } catch (error) {
+    if (uploadedStorageKey) await privateStorageService.delete(uploadedStorageKey).catch(() => undefined);
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') throw new ValidationError('This transaction reference or receipt was already submitted');
+    throw error;
+  }
 
   return { orderId: order.id, orderNumber: order.orderNumber };
 }
@@ -131,6 +164,7 @@ export async function getOrderStatus(orderId: string) {
     select: {
       id: true, orderNumber: true, status: true, total: true, subtotal: true,
       deliveryFee: true, deliveryMethod: true, createdAt: true,
+      payment: { select: { method: true, status: true, manualProof: { select: { status: true, rejectionReason: true } } } },
       items: {
         select: { productSnapshot: true, quantity: true, unitPrice: true, total: true },
       },

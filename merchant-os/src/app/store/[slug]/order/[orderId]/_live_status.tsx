@@ -13,6 +13,7 @@ export interface LiveOrder {
   createdAt: Date;
   total: number;
   items: { productSnapshot: unknown; quantity: number; total: number }[];
+  payment: { method: string; status: string; manualProof: { status: string; rejectionReason: string | null } | null } | null;
 }
 
 export function LiveOrderStatus({ slug, orderId, initialOrder }: { slug: string; orderId: string; initialOrder: LiveOrder }) {
@@ -71,6 +72,8 @@ export function LiveOrderStatus({ slug, orderId, initialOrder }: { slug: string;
           </div>
         </div>
       )}
+
+      {initialOrder.payment?.method === 'MANUAL_TRANSFER' && <div className={`rounded-2xl border p-4 ${initialOrder.payment.status === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50' : initialOrder.payment.status === 'FAILED' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}><h2 className="font-bold text-stone-900">{locale === 'ar' ? 'حالة التحويل' : 'Transfer status'}</h2><p className="mt-1 text-sm text-stone-700">{initialOrder.payment.status === 'COMPLETED' ? (locale === 'ar' ? 'تمت مطابقة التحويل وسيتم تأكيد الطلب.' : 'Transfer verified. The store can now confirm the order.') : initialOrder.payment.status === 'FAILED' ? (locale === 'ar' ? 'لم تتم مطابقة التحويل. تواصل مع المتجر.' : 'Transfer was not verified. Contact the store.') : (locale === 'ar' ? 'الإشعار قيد مراجعة المتجر.' : 'The receipt is awaiting store review.')}</p>{initialOrder.payment.manualProof?.rejectionReason && <p className="mt-2 text-sm text-red-700">{initialOrder.payment.manualProof.rejectionReason}</p>}</div>}
 
       <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
         <div className="px-4 py-3 border-b border-stone-100 font-bold text-stone-900">{t.orderDetailsTitle}</div>

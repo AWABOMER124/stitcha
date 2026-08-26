@@ -32,6 +32,10 @@ export async function advanceStatus(
     throw new Error(`لا يمكن الانتقال من ${current} إلى ${newStatus}`);
   }
 
+  if (newStatus === 'ACCEPTED' && order.paymentMethod === 'MANUAL_TRANSFER' && order.payment?.status !== 'COMPLETED') {
+    throw new Error('يجب مطابقة إشعار التحويل قبل قبول الطلب');
+  }
+
   return repo.advanceOrderStatus(merchantId, orderId, newStatus, note, changedById);
 }
 

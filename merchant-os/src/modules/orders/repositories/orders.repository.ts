@@ -15,7 +15,7 @@ const orderIncludes = {
   statusHistory: { orderBy: { createdAt: 'desc' as const } },
   customer: true,
   delivery: true,
-  payment: true,
+  payment: { include: { manualProof: { select: { id: true, paymentId: true, accountLabel: true, transactionRef: true, senderName: true, transferredAt: true, status: true, reviewedAt: true, rejectionReason: true, createdAt: true, updatedAt: true } } } },
   branch: true,
   merchant: { select: { name: true } },
 };
@@ -73,7 +73,7 @@ export async function findAll(merchantId: string, filters: OrderFilterInput) {
         items: true,
         customer: true,
         delivery: true,
-        payment: true,
+        payment: { include: { manualProof: { select: { id: true, paymentId: true, accountLabel: true, transactionRef: true, senderName: true, transferredAt: true, status: true, reviewedAt: true, rejectionReason: true, createdAt: true, updatedAt: true } } } },
       },
     }),
     prisma.order.count({ where }),
@@ -110,6 +110,19 @@ export async function create(
       modifiers?: object;
       notes?: string;
     }[];
+    manualPayment?: {
+      merchantPaymentAccountId: string;
+      channel: 'BANKAK' | 'MYCASHY' | 'OTHER';
+      accountLabel: string;
+      accountNumber: string;
+      transactionRef: string;
+      senderName?: string;
+      transferredAt?: Date;
+      proofStorageKey: string;
+      proofMimeType: string;
+      proofSize: number;
+      proofSha256: string;
+    };
   }
 ) {
   const order = await prisma.$transaction(async (tx) => {
@@ -199,6 +212,28 @@ export async function create(
           create: {
             method: data.paymentMethod as PaymentMethod,
             amount: data.total,
+            transactionRef: data.manualPayment?.transactionRef,
+            metadata: data.manualPayment ? {
+              channel: data.manualPayment.channel,
+              accountLabel: data.manualPayment.accountLabel,
+              accountNumber: data.manualPayment.accountNumber,
+            } : undefined,
+            manualProof: data.manualPayment ? {
+              create: {
+                merchantId,
+                merchantPaymentAccountId: data.manualPayment.merchantPaymentAccountId,
+                channel: data.manualPayment.channel,
+                accountLabel: data.manualPayment.accountLabel,
+                accountNumber: data.manualPayment.accountNumber,
+                transactionRef: data.manualPayment.transactionRef,
+                senderName: data.manualPayment.senderName,
+                transferredAt: data.manualPayment.transferredAt,
+                proofStorageKey: data.manualPayment.proofStorageKey,
+                proofMimeType: data.manualPayment.proofMimeType,
+                proofSize: data.manualPayment.proofSize,
+                proofSha256: data.manualPayment.proofSha256,
+              },
+            } : undefined,
           },
         },
       },

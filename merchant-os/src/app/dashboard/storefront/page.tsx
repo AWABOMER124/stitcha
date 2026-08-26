@@ -26,6 +26,7 @@ export default async function StorefrontPage() {
   const links = [
     { href: '/dashboard/storefront/customize', icon: '🎨', title: t.linkCustomizeTitle, desc: t.linkCustomizeDesc },
     { href: '/dashboard/storefront/ai', icon: '🤖', title: t.linkAiTitle, desc: t.linkAiDesc },
+    { href: '/dashboard/storefront/payments', icon: '🏦', title: locale === 'ar' ? 'طرق دفع المتجر' : 'Store payment methods', desc: locale === 'ar' ? 'فعّل بنكك وماي كاشي وراجع إشعارات العملاء.' : 'Enable transfer accounts and review customer receipts.' },
     { href: '/dashboard/products', icon: '📦', title: t.linkProductsTitle, desc: t.linkProductsDesc },
     { href: '/dashboard/inbox', icon: '💬', title: t.linkInboxTitle, desc: t.linkInboxDesc },
   ];

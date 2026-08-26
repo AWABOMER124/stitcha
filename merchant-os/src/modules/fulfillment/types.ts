@@ -1,4 +1,4 @@
-import type { Order, OrderItem, OrderStatusHistory, Customer, Branch } from '@prisma/client';
+import type { Order, OrderItem, OrderStatusHistory, Customer, Branch, Payment, OrderPaymentProof } from '@prisma/client';
 
 export type OrderStatus =
   | 'NEW'
@@ -108,6 +108,7 @@ export type ActiveOrder = Order & {
   statusHistory: OrderStatusHistory[];
   customer: Customer;
   branch: Branch | null;
+  payment: (Payment & { manualProof: (Pick<OrderPaymentProof, 'id' | 'paymentId' | 'accountLabel' | 'transactionRef' | 'senderName' | 'transferredAt' | 'status' | 'reviewedAt' | 'rejectionReason' | 'createdAt' | 'updatedAt'>) | null }) | null;
 };
 
 export interface FulfillmentStats {

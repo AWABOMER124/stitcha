@@ -12,6 +12,11 @@ export async function getMerchantBySlug(slug: string) {
       id: true, name: true, slug: true, description: true, logo: true,
       coverImage: true, phone: true, businessType: true,
       storefrontSettings: true,
+      storePaymentAccounts: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+        select: { id: true, channel: true, label: true, accountName: true, accountNumber: true, instructions: true },
+      },
     },
   });
   return serializePrismaObject(merchant);
