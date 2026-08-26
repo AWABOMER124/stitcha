@@ -16,10 +16,12 @@ Updated: 2026-08-26
       pricing-rule, and courier foundation without changing live dispatch.
 - [x] Safely shadow-copy existing delivery companies, integrations, and only
       company-linked couriers; leave ambiguous distributor fleets untouched.
-- [ ] Add expiring quotes, shipments, event history, COD custody, and delivery
-      settlements, then cut over live fulfillment behind a release flag.
-- [ ] Verify migrated delivery ownership, then retire distributor signup,
-      routes, roles, session context, and finally database tables.
+- [x] Add expiring quotes, shipments, event history, proof, COD custody, and
+      delivery settlements behind a fail-closed release flag.
+- [x] Add platform review controls and retire distributor signup; keep the
+      legacy portal disabled by default for audited migration support only.
+- [ ] Reconcile production ownership and balances, pilot live delivery, then
+      archive distributor roles, session context, and database tables.
 
 The detailed target and cutover rules are in
 [`DIRECT_MERCHANT_STRATEGY.md`](DIRECT_MERCHANT_STRATEGY.md).

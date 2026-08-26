@@ -156,15 +156,6 @@ export default function LoginPage() {
           {dict.login.createMerchantAccount}
         </Link>
       </p>
-      <p className="text-center text-sm text-[var(--muted-foreground)]">
-        {dict.login.areYouDistributor}{" "}
-        <Link
-          href="/register-distributor"
-          className="font-medium text-[var(--primary)] hover:underline"
-        >
-          {dict.login.registerHere}
-        </Link>
-      </p>
     </div>
   );
 }

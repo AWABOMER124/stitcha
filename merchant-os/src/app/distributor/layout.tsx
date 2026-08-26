@@ -14,6 +14,7 @@ export default async function DistributorLayout({
 }: {
   children: React.ReactNode;
 }) {
+  if (process.env.DISTRIBUTOR_PORTAL_ENABLED !== 'true') redirect('/dashboard');
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
 

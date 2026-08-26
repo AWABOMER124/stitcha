@@ -192,7 +192,48 @@ describe('database-backed order lifecycle', () => {
         vehicleType: 'MOTORCYCLE',
         partnerId: partner.id,
       });
+
+      const deliveryOrder = await prisma.order.create({
+        data: {
+          merchantId,
+          customerId,
+          orderNumber: `DEL-${suffix}`,
+          subtotal: 1000,
+          total: 1000,
+          deliveryMethod: 'WASLAK_DELIVERY',
+          paymentMethod: 'CASH',
+        },
+      });
+      const quote = await prisma.deliveryQuote.create({
+        data: {
+          orderId: deliveryOrder.id,
+          partnerId: partner.id,
+          pricingRuleId: persisted.serviceAreas[0].pricingRules[0].id,
+          distanceKm: 3,
+          fee: 800,
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+      const shipment = await prisma.platformShipment.create({
+        data: {
+          orderId: deliveryOrder.id,
+          quoteId: quote.id,
+          partnerId: partner.id,
+          courierId: persisted.couriers[0].id,
+          trackingCode: `E2E-${suffix}`,
+          fee: quote.fee,
+          events: { create: { status: 'REQUESTED', actorType: 'SYSTEM' } },
+          codCollection: { create: { expectedAmount: 1800 } },
+          proof: { create: { courierId: persisted.couriers[0].id, recipientName: 'Recipient', otpVerified: true } },
+        },
+        include: { events: true, codCollection: true, proof: true },
+      });
+      expect(shipment.events).toHaveLength(1);
+      expect(shipment.codCollection).toMatchObject({ status: 'PENDING' });
+      expect(shipment.proof).toMatchObject({ otpVerified: true });
+      await prisma.order.delete({ where: { id: deliveryOrder.id } });
     } finally {
+      await prisma.order.deleteMany({ where: { merchantId, orderNumber: `DEL-${suffix}` } });
       await prisma.deliveryPartner.delete({ where: { id: partner.id } });
     }
   });

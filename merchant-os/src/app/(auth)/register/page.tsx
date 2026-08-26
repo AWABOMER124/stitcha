@@ -234,12 +234,6 @@ export default function RegisterPage() {
           {dict.register.signIn}
         </Link>
       </p>
-      <p className="text-center text-sm text-[var(--muted-foreground)]">
-        {dict.login.areYouDistributor}{" "}
-        <Link href="/register-distributor" className="font-medium text-[var(--primary)] hover:underline">
-          {dict.login.registerHere}
-        </Link>
-      </p>
     </div>
   );
 }

@@ -57,9 +57,14 @@ companies remain pending and COD support stays disabled until platform review.
 A deterministic fee calculator is available for future quotes and rejects
 uncovered distances.
 
-The next release must add immutable quote, shipment, event, proof, COD, and
-partner-settlement records before any live route is switched. Cutover requires
-record-count reconciliation and a rollback flag; legacy tables remain intact.
+The operational layer now includes expiring quotes, shipments, immutable
+events, proof, COD custody, and partner settlements. Customer quote APIs derive
+distance from stored pickup and destination coordinates, require ownership,
+and remain fail-closed until `PLATFORM_DELIVERY_ENABLED=true`. Platform owners
+can approve or suspend partners and explicitly enable COD. Distributor signup
+is retired and the legacy portal defaults off. Production cutover still requires
+record-count and balance reconciliation, a city pilot, and verified external
+provider credentials; legacy tables remain intact as the rollback boundary.
 
 ## Delivery roadmap
 

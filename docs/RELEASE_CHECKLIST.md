@@ -47,6 +47,18 @@
 
 ## Product and operations
 
+- [ ] Keep `PLATFORM_DELIVERY_ENABLED=false` until the delivery cutover review.
+- [ ] Reconcile legacy delivery-company/courier counts and manually classify
+      every distributor-fleet driver with an explicit contractual owner.
+- [ ] Approve at least two partners, verify service-area coordinates/prices,
+      COD contracts, webhook signatures, dispatch fallback, and support SLA.
+- [ ] Run quote expiry, duplicate acceptance, failed delivery, proof, COD
+      collection/remittance, settlement, dispute, and rollback scenarios.
+- [ ] Keep `DISTRIBUTOR_PORTAL_ENABLED=false`; enable it temporarily only for
+      named migration-support users and record an audit/expiry date.
+- [ ] Archive legacy distributor balances and access only after signed finance
+      and ownership reconciliation. Do not drop legacy tables in the pilot.
+
 - [ ] One complete order was verified in staging and a production canary.
 - [ ] Cancellation, refund, stock race, payment failure, and delivery failure were tested.
 - [ ] Concurrent checkout verification confirms tracked stock cannot become

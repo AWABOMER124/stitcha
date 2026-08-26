@@ -1,5 +1,38 @@
 # Implementation log
 
+## 2026-08-26 — Direct merchant and delivery transition batch 4
+
+- Added expiring delivery quotes, platform shipments, immutable events, proof
+  of delivery, COD custody, and partner-only settlement records with database
+  constraints and separate financial boundaries.
+- Added authenticated, ownership-scoped quote and acceptance APIs behind the
+  fail-closed `PLATFORM_DELIVERY_ENABLED` flag.
+- Delivery distance is calculated server-side from stored pickup/destination
+  coordinates. Rules are ranked by coverage, active area, priority, partner
+  rating, and price; the client cannot submit a cheaper distance.
+- Quote acceptance is atomic: it consumes one quote, cancels alternatives,
+  updates the order, creates the shipment and first event, and establishes COD
+  custody only for an approved COD-capable partner.
+- Added a platform operations screen for partner approval, suspension, and COD
+  capability review.
+- Retired distributor registration and removed acquisition links. The legacy
+  distributor portal is disabled by default while data remains recoverable.
+
+### External release boundary
+
+Keep platform delivery disabled until production coordinates and partner rules
+are reconciled, at least two partners are approved, provider credentials and
+webhooks are verified, and a rollback rehearsal succeeds. Legacy distributor
+tables must not be dropped before balances and ownership reconcile.
+
+### Verification
+
+- Prisma schema validation and client generation passed.
+- ESLint completed with no errors or warnings.
+- All 220 Merchant OS unit tests and the production build passed locally.
+- The PostgreSQL integration suite now exercises quote, shipment, event, proof,
+  and COD relationships after the complete migration chain.
+
 ## 2026-08-26 — Direct merchant SaaS transition batch 3
 
 - Added platform-owned delivery partners, integration configuration, service

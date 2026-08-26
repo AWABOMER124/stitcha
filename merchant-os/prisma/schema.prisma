@@ -52,6 +52,31 @@ enum DeliveryPartnerStatus {
   SUSPENDED
 }
 
+enum DeliveryQuoteStatus {
+  OFFERED
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum PlatformShipmentStatus {
+  REQUESTED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum CodCollectionStatus {
+  PENDING
+  COLLECTED
+  REMITTED
+  DISPUTED
+  WRITTEN_OFF
+}
+
 enum UserRole {
   PLATFORM_OWNER
   DISTRIBUTOR_OWNER
@@ -370,6 +395,9 @@ model DeliveryPartner {
   serviceAreas   DeliveryPartnerServiceArea[]
   pricingRules   DeliveryPartnerPricingRule[]
   couriers       DeliveryCourier[]
+  quotes         DeliveryQuote[]
+  shipments      PlatformShipment[]
+  settlements    DeliveryPartnerSettlement[]
 
   @@index([status, isActive])
   @@map("delivery_partners")
@@ -432,6 +460,7 @@ model DeliveryPartnerPricingRule {
 
   partner     DeliveryPartner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   serviceArea DeliveryPartnerServiceArea? @relation(fields: [serviceAreaId], references: [id], onDelete: Cascade)
+  quotes      DeliveryQuote[]
 
   @@index([partnerId, isActive, priority])
   @@index([serviceAreaId])
@@ -462,11 +491,146 @@ model DeliveryCourier {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  partner DeliveryPartner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partner   DeliveryPartner?          @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  shipments PlatformShipment[]
+  proofs    PlatformProofOfDelivery[]
 
   @@index([partnerId, status])
   @@index([phone])
   @@map("delivery_couriers")
+}
+
+model DeliveryQuote {
+  id            String              @id @default(cuid())
+  orderId       String
+  partnerId     String
+  pricingRuleId String?
+  status        DeliveryQuoteStatus @default(OFFERED)
+  distanceKm    Float
+  fee           Decimal             @db.Decimal(10, 2)
+  currency      String              @default("SDG")
+  etaMinutesMin Int?
+  etaMinutesMax Int?
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime            @default(now())
+
+  order       Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  partner     DeliveryPartner             @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  pricingRule DeliveryPartnerPricingRule? @relation(fields: [pricingRuleId], references: [id], onDelete: SetNull)
+  shipment    PlatformShipment?
+
+  @@index([orderId, status])
+  @@index([partnerId, expiresAt])
+  @@map("delivery_quotes")
+}
+
+model PlatformShipment {
+  id                String                 @id @default(cuid())
+  orderId           String                 @unique
+  quoteId           String?                @unique
+  partnerId         String
+  courierId         String?
+  trackingCode      String                 @unique
+  providerReference String?
+  status            PlatformShipmentStatus @default(REQUESTED)
+  fee               Decimal                @db.Decimal(10, 2)
+  currency          String                 @default("SDG")
+  assignedAt        DateTime?
+  pickedUpAt        DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  quote         DeliveryQuote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  partner       DeliveryPartner          @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  courier       DeliveryCourier?         @relation(fields: [courierId], references: [id], onDelete: SetNull)
+  events        DeliveryEvent[]
+  proof         PlatformProofOfDelivery?
+  codCollection CodCollection?
+
+  @@index([partnerId, status])
+  @@index([courierId, status])
+  @@map("platform_shipments")
+}
+
+model DeliveryEvent {
+  id         String                 @id @default(cuid())
+  shipmentId String
+  status     PlatformShipmentStatus
+  note       String?
+  actorType  String?
+  actorId    String?
+  metadata   Json?
+  occurredAt DateTime               @default(now())
+
+  shipment PlatformShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, occurredAt])
+  @@map("delivery_events")
+}
+
+model PlatformProofOfDelivery {
+  id            String   @id @default(cuid())
+  shipmentId    String   @unique
+  courierId     String?
+  recipientName String?
+  photoUrl      String?
+  signatureUrl  String?
+  otpVerified   Boolean  @default(false)
+  notes         String?
+  lat           Float?
+  lng           Float?
+  deliveredAt   DateTime @default(now())
+
+  shipment PlatformShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  courier  DeliveryCourier? @relation(fields: [courierId], references: [id], onDelete: SetNull)
+
+  @@map("platform_proofs_of_delivery")
+}
+
+model CodCollection {
+  id              String              @id @default(cuid())
+  shipmentId      String              @unique
+  status          CodCollectionStatus @default(PENDING)
+  expectedAmount  Decimal             @db.Decimal(10, 2)
+  collectedAmount Decimal?            @db.Decimal(10, 2)
+  remittedAmount  Decimal?            @db.Decimal(10, 2)
+  currency        String              @default("SDG")
+  collectedAt     DateTime?
+  remittedAt      DateTime?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  shipment PlatformShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("cod_collections")
+}
+
+model DeliveryPartnerSettlement {
+  id            String           @id @default(cuid())
+  partnerId     String
+  status        SettlementStatus @default(PENDING)
+  periodFrom    DateTime
+  periodTo      DateTime
+  shipmentCount Int              @default(0)
+  deliveryFees  Decimal          @default(0) @db.Decimal(12, 2)
+  codCollected  Decimal          @default(0) @db.Decimal(12, 2)
+  codRemitted   Decimal          @default(0) @db.Decimal(12, 2)
+  netPayable    Decimal          @default(0) @db.Decimal(12, 2)
+  currency      String           @default("SDG")
+  paidAt        DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  partner DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+
+  @@unique([partnerId, periodFrom, periodTo])
+  @@index([status, periodTo])
+  @@map("delivery_partner_settlements")
 }
 
 /// Staff members of a distributor
@@ -1088,14 +1252,16 @@ model Order {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant        Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  customer        Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  branch          Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  items           OrderItem[]
-  statusHistory   OrderStatusHistory[]
-  delivery        Delivery?
-  payment         Payment?
-  proofOfDelivery ProofOfDelivery?
+  merchant         Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer         Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch           Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  items            OrderItem[]
+  statusHistory    OrderStatusHistory[]
+  delivery         Delivery?
+  payment          Payment?
+  proofOfDelivery  ProofOfDelivery?
+  deliveryQuotes   DeliveryQuote[]
+  platformShipment PlatformShipment?
 
   @@unique([merchantId, orderNumber])
   @@index([merchantId])
