@@ -12,5 +12,12 @@ export default async function CustomizePage() {
     include: { storefrontSettings: true },
   });
 
-  return <CustomizeClient settings={(merchant?.storefrontSettings as unknown as Settings) ?? null} slug={merchant?.slug ?? ''} />;
+  return (
+    <CustomizeClient
+      settings={(merchant?.storefrontSettings as unknown as Settings) ?? null}
+      slug={merchant?.slug ?? ''}
+      merchantName={merchant?.name ?? ''}
+      initialLogo={merchant?.logo ?? ''}
+    />
+  );
 }

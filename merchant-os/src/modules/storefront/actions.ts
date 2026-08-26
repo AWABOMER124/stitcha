@@ -43,8 +43,9 @@ export async function placeOrderAction(
 /** Save storefront customization settings */
 export async function saveStorefrontSettingsAction(data: {
   theme?: Prisma.InputJsonValue;
-  bannerImage?: string;
-  welcomeText?: string;
+  logoImage?: string;
+  bannerImage?: string | null;
+  welcomeText?: string | null;
   isOpen?: boolean;
   deliveryEnabled?: boolean;
   pickupEnabled?: boolean;
@@ -54,12 +55,22 @@ export async function saveStorefrontSettingsAction(data: {
   try {
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
-    await prisma.storefrontSettings.upsert({
-      where: { merchantId: session.user.merchantId },
-      update: data,
-      create: { merchantId: session.user.merchantId, ...data },
-    });
+    const { logoImage, ...settingsData } = data;
+    await prisma.$transaction([
+      prisma.storefrontSettings.upsert({
+        where: { merchantId: session.user.merchantId },
+        update: settingsData,
+        create: { merchantId: session.user.merchantId, ...settingsData },
+      }),
+      ...(logoImage !== undefined
+        ? [prisma.merchant.update({
+            where: { id: session.user.merchantId },
+            data: { logo: logoImage || null },
+          })]
+        : []),
+    ]);
     revalidatePath('/dashboard/storefront');
+    revalidatePath('/store', 'layout');
     return { success: true };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'حدث خطأ' };
