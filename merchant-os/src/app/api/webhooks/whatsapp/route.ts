@@ -75,7 +75,13 @@ interface WhatsAppWebhookPayload {
       value?: {
         metadata?: { phone_number_id?: string };
         contacts?: Array<{ profile?: { name?: string }; wa_id?: string }>;
-        messages?: Array<{ from: string; id: string; type: string; text?: { body?: string } }>;
+        messages?: Array<{
+          from: string;
+          id: string;
+          type: string;
+          text?: { body?: string };
+          location?: { latitude?: number; longitude?: number; name?: string; address?: string };
+        }>;
       };
     }>;
   }>;
@@ -96,8 +102,14 @@ async function processPayload(payload: WhatsAppWebhookPayload) {
       }
 
       for (const msg of messages) {
-        if (msg.type !== 'text' || !msg.text?.body) continue; // other types (media, etc.) not yet handled
+        const isText = msg.type === 'text' && Boolean(msg.text?.body);
+        const isLocation = msg.type === 'location' && Number.isFinite(msg.location?.latitude) && Number.isFinite(msg.location?.longitude);
+        if (!isText && !isLocation) continue; // media/voice need a separate reviewed ingestion path
         if (await prisma.inboxMessage.findUnique({ where: { externalId: msg.id }, select: { id: true } })) continue;
+
+        const inboundText = isText
+          ? msg.text!.body!
+          : [msg.location?.name, msg.location?.address].filter(Boolean).join('، ') || 'موقع العميل المرسل عبر واتساب';
 
         const contactName = value?.contacts?.find((c) => c.wa_id === msg.from)?.profile?.name ?? null;
 
@@ -122,7 +134,7 @@ async function processPayload(payload: WhatsAppWebhookPayload) {
             });
 
         try {
-          await prisma.inboxMessage.create({ data: { conversationId: conversation.id, content: msg.text.body, isFromCustomer: true, senderName: contactName, externalId: msg.id } });
+          await prisma.inboxMessage.create({ data: { conversationId: conversation.id, content: isLocation ? `📍 ${inboundText}` : inboundText, isFromCustomer: true, senderName: contactName, externalId: msg.id } });
         } catch (error) {
           if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') continue;
           throw error;
@@ -135,10 +147,11 @@ async function processPayload(payload: WhatsAppWebhookPayload) {
           conversationId: conversation.id,
           customerName: contactName,
           customerPhone: msg.from,
-          text: msg.text.body,
+          text: inboundText,
+          ...(isLocation ? { deliveryLocation: { lat: msg.location!.latitude!, lng: msg.location!.longitude! } } : {}),
         }).catch((err) => { console.error('[whatsapp-webhook] ordering bot failed:', err); return false; });
-        if (!handledByOrdering) {
-          await handleInboundAiAgent({ merchantId: owner.merchantId, conversationId: conversation.id, customerPhone: msg.from, text: msg.text.body })
+        if (!handledByOrdering && isText) {
+          await handleInboundAiAgent({ merchantId: owner.merchantId, conversationId: conversation.id, customerPhone: msg.from, text: inboundText })
             .catch((err) => console.error('[whatsapp-webhook] AI agent failed:', err));
         }
       }

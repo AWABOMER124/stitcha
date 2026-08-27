@@ -117,11 +117,20 @@ async function showProducts(
   await reply(merchantId, customerPhone, formatProductMenu(products.map((p) => ({ name: p.name, price: Number(p.price) })), cart));
 }
 
-async function createOrderFromCart(merchantId: string, phone: string, name: string, address: string, cart: CartLine[]) {
+async function createOrderFromCart(
+  merchantId: string,
+  phone: string,
+  name: string,
+  address: string,
+  cart: CartLine[],
+  deliveryLocation?: { lat: number; lng: number },
+) {
   return ordersService.createOrder(merchantId, {
     customerName: name,
     customerPhone: phone,
     customerAddress: address,
+    deliveryLat: deliveryLocation?.lat,
+    deliveryLng: deliveryLocation?.lng,
     deliveryMethod: 'MERCHANT_DELIVERY',
     paymentMethod: 'CASH',
     notes: 'Order placed via WhatsApp bot',
@@ -135,6 +144,7 @@ export interface InboundMessageParams {
   customerName: string | null;
   customerPhone: string;
   text: string;
+  deliveryLocation?: { lat: number; lng: number };
 }
 
 export async function handleInboundMessage(params: InboundMessageParams): Promise<boolean> {
@@ -184,7 +194,7 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
       }
       await setContext(conversationId, { state: 'AWAITING_ADDRESS', cart: context.cart });
       const total = context.cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
-      await reply(merchantId, customerPhone, `الإجمالي: ${total.toLocaleString('en-US')} SDG\n\nمن فضلك أرسل عنوان التوصيل الكامل:`);
+      await reply(merchantId, customerPhone, `الإجمالي المبدئي: ${total.toLocaleString('en-US')} SDG\n\nمن فضلك أرسل موقعك من زر الموقع في واتساب للتوصيل الدقيق، أو اكتب عنوان التوصيل الكامل:`);
       return true;
     }
 
@@ -217,7 +227,7 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
       return true;
     }
     try {
-      const order = await createOrderFromCart(merchantId, customerPhone, params.customerName ?? customerPhone, text, context.cart);
+      const order = await createOrderFromCart(merchantId, customerPhone, params.customerName ?? customerPhone, text, context.cart, params.deliveryLocation);
       await setContext(conversationId, null);
       await reply(
         merchantId,

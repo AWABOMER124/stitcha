@@ -167,6 +167,8 @@ export async function createOrder(merchantId: string, data: CreateOrderInput) {
     customerName: data.customerName,
     customerPhone: data.customerPhone,
     customerAddress: data.customerAddress,
+    deliveryLat: data.deliveryLat,
+    deliveryLng: data.deliveryLng,
     items: orderItems,
   });
 

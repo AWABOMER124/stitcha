@@ -245,6 +245,21 @@ describe('whatsapp-ordering.service — handleInboundMessage state machine', () 
     expect(ordersServiceMock.createOrder).not.toHaveBeenCalled();
   });
 
+  it('passes a WhatsApp location pin into the canonical delivery record', async () => {
+    prismaMock.conversation.findUnique.mockResolvedValue({
+      orderContext: { state: 'AWAITING_ADDRESS', cart: [{ productId: 'prod_1', name: 'كلاسيك برجر', price: 100, quantity: 1 }] },
+    });
+    ordersServiceMock.createOrder.mockResolvedValue({ id: 'order_2', orderNumber: 'ORD-LOCATION', total: 100 });
+
+    await handleInboundMessage({ ...baseParams, text: 'موقعي الحالي', deliveryLocation: { lat: 15.5007, lng: 32.5599 } });
+
+    expect(ordersServiceMock.createOrder).toHaveBeenCalledWith('merch_1', expect.objectContaining({
+      customerAddress: 'موقعي الحالي',
+      deliveryLat: 15.5007,
+      deliveryLng: 32.5599,
+    }));
+  });
+
   it('cancels an in-progress flow and clears its context', async () => {
     prismaMock.conversation.findUnique.mockResolvedValue({
       orderContext: { state: 'AWAITING_CATEGORY', categoryIds: ['cat_1'], cart: [] },

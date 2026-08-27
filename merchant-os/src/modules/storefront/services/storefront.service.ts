@@ -145,6 +145,8 @@ export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?:
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerAddress: data.customerAddress,
+      deliveryLat: data.deliveryLat,
+      deliveryLng: data.deliveryLng,
       items: orderItems,
       manualPayment,
     });
@@ -303,6 +305,8 @@ function mapOrderForApp(order: OrderForApp) {
 export interface MobileOrderInput {
   items: { productId: string; quantity: number }[];
   address?: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
   paymentMethod?: string;
   notes?: string;
 }
@@ -312,6 +316,10 @@ export interface MobileOrderInput {
  * belong to one merchant, matching the existing single-slug placeOrder(). */
 export async function placeOrderForAccount(account: CustomerAccount, data: MobileOrderInput) {
   if (data.items.length === 0) throw new ValidationError('السلة فارغة');
+
+  if ((data.deliveryLat == null) !== (data.deliveryLng == null)) throw new ValidationError('إحداثيات التوصيل غير مكتملة');
+  if (data.deliveryLat != null && (!Number.isFinite(data.deliveryLat) || data.deliveryLat < -90 || data.deliveryLat > 90)) throw new ValidationError('خط العرض غير صالح');
+  if (data.deliveryLng != null && (!Number.isFinite(data.deliveryLng) || data.deliveryLng < -180 || data.deliveryLng > 180)) throw new ValidationError('خط الطول غير صالح');
 
   if (data.paymentMethod && data.paymentMethod.toUpperCase() !== 'CASH') {
     throw new ValidationError('طريقة الدفع غير مدعومة حالياً — الدفع نقداً عند الاستلام فقط');
@@ -383,6 +391,8 @@ export async function placeOrderForAccount(account: CustomerAccount, data: Mobil
     customerName: account.name,
     customerPhone: account.phone,
     customerAddress: data.address,
+    deliveryLat: data.deliveryLat,
+    deliveryLng: data.deliveryLng,
     items: orderItems,
   });
 

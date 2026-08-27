@@ -32,6 +32,14 @@ export async function findOrderById(merchantId: string, id: string) {
       ...orderIncludes,
       statusHistory: { orderBy: { createdAt: 'asc' as const } },
       delivery: true,
+      platformShipment: {
+        include: {
+          partner: { select: { name: true, phone: true } },
+          courier: { select: { name: true, phone: true, vehicleType: true } },
+          events: { orderBy: { occurredAt: 'asc' } },
+          codCollection: true,
+        },
+      },
     },
   });
   return serializePrismaObject(order);

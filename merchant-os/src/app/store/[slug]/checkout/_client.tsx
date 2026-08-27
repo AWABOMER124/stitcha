@@ -22,6 +22,8 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
   const [phone, setPhone] = useState('');
   const [method, setMethod] = useState<'PICKUP' | 'MERCHANT_DELIVERY'>('PICKUP');
   const [address, setAddress] = useState('');
+  const [deliveryLocation, setDeliveryLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MANUAL_TRANSFER'>('CASH');
   const [paymentAccountId, setPaymentAccountId] = useState(merchant.storePaymentAccounts[0]?.id ?? '');
@@ -46,6 +48,26 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
   const subtotal = cart.reduce((s, i) => s + i.totalPrice, 0);
   const minOrder = Number(settings?.minimumOrderAmount ?? 0);
 
+  function captureLocation() {
+    if (!navigator.geolocation) {
+      setError(ar ? 'المتصفح لا يدعم تحديد الموقع.' : 'Your browser does not support location access.');
+      return;
+    }
+    setLocating(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setDeliveryLocation({ lat: coords.latitude, lng: coords.longitude });
+        setLocating(false);
+      },
+      () => {
+        setError(ar ? 'تعذر تحديد موقعك. اسمح بالوصول للموقع ثم حاول مرة أخرى.' : 'Could not get your location. Allow location access and try again.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 },
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) { setError(t.errNameRequired); return; }
@@ -56,7 +78,13 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
     setError('');
     const form = new FormData();
     form.set('customerName', name); form.set('customerPhone', phone); form.set('deliveryMethod', method);
-    if (method === 'MERCHANT_DELIVERY') form.set('customerAddress', address);
+    if (method === 'MERCHANT_DELIVERY') {
+      form.set('customerAddress', address);
+      if (deliveryLocation) {
+        form.set('deliveryLat', String(deliveryLocation.lat));
+        form.set('deliveryLng', String(deliveryLocation.lng));
+      }
+    }
     if (notes) form.set('notes', notes);
     form.set('items', JSON.stringify(cart.map(i => ({ productId: i.productId, quantity: i.quantity }))));
     form.set('paymentMethod', paymentMethod);
@@ -138,7 +166,13 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
             )}
           </div>
           {method === 'MERCHANT_DELIVERY' && (
-            <input value={address} onChange={e => setAddress(e.target.value)} required placeholder={t.addressPlaceholder} className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--sp)]" />
+            <div className="space-y-2">
+              <input value={address} onChange={e => setAddress(e.target.value)} required placeholder={t.addressPlaceholder} className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--sp)]" />
+              <button type="button" onClick={captureLocation} disabled={locating} className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700 disabled:opacity-50">
+                {locating ? (ar ? 'جارٍ تحديد الموقع…' : 'Getting location…') : deliveryLocation ? (ar ? '✓ تم حفظ موقع التوصيل' : '✓ Delivery location saved') : (ar ? '📍 تحديد موقعي للتوصيل الدقيق' : '📍 Use my precise delivery location')}
+              </button>
+              <p className="text-xs text-stone-500">{ar ? 'الموقع الدقيق اختياري الآن، ومطلوب عند طلب عروض شركات التوصيل.' : 'Precise location is optional now and required for delivery-partner quotes.'}</p>
+            </div>
           )}
         </div>
 

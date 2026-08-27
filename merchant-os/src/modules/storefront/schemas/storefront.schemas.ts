@@ -10,6 +10,8 @@ export const placeOrderSchema = z.object({
   })).min(1, 'At least one item is required'),
   deliveryMethod: z.enum(['PICKUP', 'MERCHANT_DELIVERY']).default('PICKUP'),
   customerAddress: z.string().optional(),
+  deliveryLat: z.number().min(-90).max(90).optional(),
+  deliveryLng: z.number().min(-180).max(180).optional(),
   notes: z.string().optional(),
   paymentMethod: z.enum(['CASH', 'MANUAL_TRANSFER']).default('CASH'),
   paymentAccountId: z.string().optional(),
@@ -22,6 +24,9 @@ export const placeOrderSchema = z.object({
   }
   if (data.transferredAt && data.transferredAt.getTime() > Date.now() + 10 * 60_000) {
     context.addIssue({ code: 'custom', message: 'Transfer date cannot be in the future', path: ['transferredAt'] });
+  }
+  if ((data.deliveryLat == null) !== (data.deliveryLng == null)) {
+    context.addIssue({ code: 'custom', message: 'Delivery latitude and longitude must be provided together', path: ['deliveryLat'] });
   }
 });
 

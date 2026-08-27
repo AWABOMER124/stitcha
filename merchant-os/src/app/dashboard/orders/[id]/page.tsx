@@ -28,7 +28,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
       >
         {t.backToOrders}
       </Link>
-      <OrderDetailClient order={result.data} />
+      <OrderDetailClient key={String(result.data.updatedAt)} order={result.data} platformDeliveryEnabled={process.env.PLATFORM_DELIVERY_ENABLED === 'true'} />
     </div>
   );
 }

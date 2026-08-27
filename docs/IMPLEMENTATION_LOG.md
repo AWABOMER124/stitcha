@@ -1,5 +1,13 @@
 # Implementation log
 
+## 2026-08-27 — Practical delivery readiness
+
+- Closed the missing-coordinate gap: public storefront checkout can capture a customer location with browser permission, mobile order input accepts a validated coordinate pair, and WhatsApp ordering accepts Meta location messages.
+- Added merchant-side quote request and acceptance to the order detail screen, with feature-flag, ownership, order-state, location, payment, COD, expiry, and duplicate-shipment guards.
+- Deduplicated overlapping partner pricing rules by keeping the cheapest eligible offer per partner.
+- Corrected quote acceptance so order total, payment amount, and COD expected amount share one final server-calculated value.
+- Documented the remaining external partner, credential, webhook, settlement, retry, and city-pilot gates in `merchant-os/docs/PLATFORM_DELIVERY.md`.
+
 ## 2026-08-26 — Public/private storage boundary
 
 - Preserved the existing public image storage API and added a separate private storage service for receipts, payment evidence, and proof of delivery.
