@@ -11,3 +11,10 @@ export const saveWhatsAppConfigSchema = z.object({
 });
 
 export type SaveWhatsAppConfigInput = z.infer<typeof saveWhatsAppConfigSchema>;
+
+export const saveWhatsAppAiAgentSchema = z.object({
+  enabled: z.boolean(),
+  prompt: z.string().trim().max(1500, 'تعليمات الوكيل طويلة جداً').optional(),
+});
+
+export type SaveWhatsAppAiAgentInput = z.infer<typeof saveWhatsAppAiAgentSchema>;

@@ -725,6 +725,7 @@ model Merchant {
   subscriptionPayments     MerchantSubscriptionPayment[]
   storePaymentAccounts     MerchantPaymentAccount[]
   orderPaymentProofs       OrderPaymentProof[]
+  whatsappAiUsage          WhatsAppAiUsage[]
 
   @@index([slug])
   @@index([status])
@@ -2045,6 +2046,8 @@ model Conversation {
   /// in which case the conversation behaves exactly like a normal support
   /// thread. Never touched by non-WhatsApp channels.
   orderContext  Json?
+  /// True when a customer or staff member requested human ownership.
+  aiAgentPaused Boolean        @default(false)
   messages      InboxMessage[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -2061,6 +2064,8 @@ model InboxMessage {
   content        String
   isFromCustomer Boolean      @default(true)
   senderName     String?
+  /// Provider message ID; null for web/manual messages. Prevents webhook retries from duplicating replies.
+  externalId     String?      @unique
   sentAt         DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -2073,13 +2078,15 @@ model InboxMessage {
 /// at rest — see src/lib/crypto/secret.ts. phoneNumberId is how inbound Meta
 /// webhooks are routed back to the owning merchant.
 model WhatsAppConfig {
-  id            String  @id @default(cuid())
-  merchantId    String  @unique
-  phoneNumberId String  @unique
-  wabaId        String?
-  displayPhone  String?
-  accessToken   String // encrypted
-  isActive      Boolean @default(true)
+  id             String  @id @default(cuid())
+  merchantId     String  @unique
+  phoneNumberId  String  @unique
+  wabaId         String?
+  displayPhone   String?
+  accessToken    String // encrypted
+  isActive       Boolean @default(true)
+  aiAgentEnabled Boolean @default(false)
+  aiAgentPrompt  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2088,4 +2095,20 @@ model WhatsAppConfig {
 
   @@index([phoneNumberId])
   @@map("whatsapp_configs")
+}
+
+/// Monthly usage claim for the opt-in WhatsApp AI customer-service agent.
+model WhatsAppAiUsage {
+  id         String @id @default(cuid())
+  merchantId String
+  periodKey  String
+  count      Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant  Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, periodKey])
+  @@index([periodKey])
+  @@map("whatsapp_ai_usage")
 }

@@ -45,3 +45,10 @@ export async function deactivate(merchantId: string) {
     data: { isActive: false },
   });
 }
+
+export async function updateAiAgent(merchantId: string, data: { enabled: boolean; prompt: string | null }) {
+  return prisma.whatsAppConfig.update({
+    where: { merchantId },
+    data: { aiAgentEnabled: data.enabled, aiAgentPrompt: data.prompt },
+  });
+}

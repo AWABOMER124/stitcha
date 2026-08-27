@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { updateMerchantSettingsAction, updateStorefrontSettingsAction } from '@/modules/settings/actions';
-import { saveWhatsAppConfigAction, removeWhatsAppConfigAction } from '@/modules/whatsapp-channel/actions';
+import { saveWhatsAppConfigAction, removeWhatsAppConfigAction, saveWhatsAppAiAgentAction } from '@/modules/whatsapp-channel/actions';
 import { useLocale } from '@/lib/i18n/context';
 
 export interface MerchantSettings {
@@ -29,6 +29,9 @@ export interface WhatsAppConfig {
   displayPhone?: string | null;
   isActive?: boolean;
   accessTokenPreview?: string;
+  aiAgentEnabled?: boolean;
+  aiAgentPrompt?: string | null;
+  aiProviderConfigured?: boolean;
 }
 
 export function SettingsClient({
@@ -74,6 +77,8 @@ export function SettingsClient({
   const [waSaved, setWaSaved] = useState(false);
   const [waError, setWaError] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [aiAgentEnabled, setAiAgentEnabled] = useState(initialWhatsApp.aiAgentEnabled ?? false);
+  const [aiAgentPrompt, setAiAgentPrompt] = useState(initialWhatsApp.aiAgentPrompt ?? '');
 
   useEffect(() => {
     // window is unavailable during SSR, so this can't be a lazy useState initializer.
@@ -108,6 +113,15 @@ export function SettingsClient({
         setWhatsapp({ isConfigured: false });
         setWaForm({ phoneNumberId: '', wabaId: '', displayPhone: '', accessToken: '' });
       } else setWaError(res.error);
+    });
+  }
+
+  function saveAiAgent(e: React.FormEvent) {
+    e.preventDefault(); setWaError(''); setWaSaved(false);
+    startTransition(async () => {
+      const res = await saveWhatsAppAiAgentAction({ enabled: aiAgentEnabled, prompt: aiAgentPrompt || undefined });
+      if (res.success) { setWhatsapp(res.data as WhatsAppConfig); setWaSaved(true); }
+      else setWaError(res.error);
     });
   }
 
@@ -301,6 +315,7 @@ export function SettingsClient({
         <p className="mt-3 text-xs text-[var(--muted-foreground)]">
           {t.whatsappNote}
         </p>
+        {whatsapp.isConfigured && <form onSubmit={saveAiAgent} className="mt-5 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4"><div className="flex items-center justify-between gap-4"><div><h4 className="text-sm font-bold">وكيل خدمة العملاء بالذكاء الاصطناعي</h4><p className="text-xs text-[var(--muted-foreground)]">يرد تلقائياً من معلومات المتجر، ويتوقف عند طلب موظف أو عند رد فريقك.</p></div><input type="checkbox" checked={aiAgentEnabled} onChange={event => setAiAgentEnabled(event.target.checked)}/></div><textarea value={aiAgentPrompt} onChange={event => setAiAgentPrompt(event.target.value)} maxLength={1500} rows={3} placeholder="تعليمات اختيارية: أسلوب الرد، سياسة الاستبدال، أوقات الدعم…" className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"/><div className="flex items-center justify-between gap-3"><p className={`text-xs ${whatsapp.aiProviderConfigured ? 'text-emerald-700' : 'text-amber-700'}`}>{whatsapp.aiProviderConfigured ? 'مزود الذكاء الاصطناعي جاهز' : 'يلزم إعداد مزود الذكاء الاصطناعي على الخادم'}</p><button disabled={isPending} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">حفظ إعدادات الوكيل</button></div></form>}
       </div>
     </div>
   );

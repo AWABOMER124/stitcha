@@ -1,7 +1,8 @@
-import { ConflictError, ValidationError } from '@/lib/errors';
+import { BusinessRuleError, ConflictError, ValidationError } from '@/lib/errors';
 import { encryptSecret, decryptSecret, maskSecret } from '@/lib/crypto/secret';
 import * as repo from '../repositories/whatsapp-channel.repository';
-import type { SaveWhatsAppConfigInput } from '../schemas/whatsapp-channel.schemas';
+import type { SaveWhatsAppAiAgentInput, SaveWhatsAppConfigInput } from '../schemas/whatsapp-channel.schemas';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 
 const GRAPH_API_VERSION = 'v21.0';
 
@@ -21,6 +22,9 @@ export async function getConfig(merchantId: string) {
     wabaId: config.wabaId,
     displayPhone: config.displayPhone,
     isActive: config.isActive,
+    aiAgentEnabled: config.aiAgentEnabled,
+    aiAgentPrompt: config.aiAgentPrompt,
+    aiProviderConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
     accessTokenPreview: maskSecret(decryptSecret(config.accessToken)),
     updatedAt: config.updatedAt,
   };
@@ -52,6 +56,18 @@ export async function saveConfig(merchantId: string, input: SaveWhatsAppConfigIn
 
 export async function removeConfig(merchantId: string) {
   await repo.deactivate(merchantId);
+}
+
+export async function saveAiAgentSettings(merchantId: string, input: SaveWhatsAppAiAgentInput) {
+  const config = await repo.findByMerchant(merchantId);
+  if (!config?.isActive) throw new ValidationError('اربط قناة واتساب أولاً');
+  if (input.enabled) {
+    const plan = await getMerchantPlanSnapshot(merchantId);
+    if (!plan.entitlements.whatsappAiAgent) throw new BusinessRuleError('وكيل واتساب الذكي متاح في باقة Pro');
+    if (!process.env.ANTHROPIC_API_KEY) throw new BusinessRuleError('مزود الذكاء الاصطناعي غير مُعد بعد');
+  }
+  await repo.updateAiAgent(merchantId, { enabled: input.enabled, prompt: input.prompt?.trim() || null });
+  return getConfig(merchantId);
 }
 
 /** Internal: decrypted credentials for sending, never exposed to the client. */

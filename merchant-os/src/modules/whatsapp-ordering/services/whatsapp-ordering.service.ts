@@ -180,10 +180,10 @@ export interface InboundMessageParams {
   text: string;
 }
 
-export async function handleInboundMessage(params: InboundMessageParams): Promise<void> {
+export async function handleInboundMessage(params: InboundMessageParams): Promise<boolean> {
   const { merchantId, conversationId, customerPhone } = params;
   const text = params.text.trim();
-  if (!text) return;
+  if (!text) return false;
 
   const conv = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { orderContext: true } });
   const context = (conv?.orderContext as unknown as OrderFlowContext | null) ?? null;
@@ -193,14 +193,15 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
       await setContext(conversationId, null);
       await reply(merchantId, customerPhone, 'تم إلغاء الطلب. اكتب "قائمة" لبدء طلب جديد في أي وقت.');
     }
-    return;
+    return Boolean(context);
   }
 
   if (!context) {
     if (isMenuTrigger(text)) {
       await showCategories(merchantId, conversationId, customerPhone, []);
+      return true;
     }
-    return; // Not an ordering interaction — leave for a human, exactly as before this module existed.
+    return false; // Not an ordering interaction — leave for a human or the opt-in AI agent.
   }
 
   if (context.state === 'AWAITING_CATEGORY') {
@@ -208,40 +209,40 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
     const categoryIds = context.categoryIds ?? [];
     if (n === null || n < 1 || n > categoryIds.length) {
       await reply(merchantId, customerPhone, `رد برقم صحيح من 1 إلى ${categoryIds.length}، أو "إلغاء" للخروج.`);
-      return;
+      return true;
     }
     await showProducts(merchantId, conversationId, customerPhone, categoryIds[n - 1], context.cart);
-    return;
+    return true;
   }
 
   if (context.state === 'AWAITING_PRODUCT') {
     if (isMenuTrigger(text)) {
       await showCategories(merchantId, conversationId, customerPhone, context.cart);
-      return;
+      return true;
     }
     if (isDoneCommand(text)) {
       if (context.cart.length === 0) {
         await reply(merchantId, customerPhone, 'سلتك فارغة — رد برقم منتج لإضافته أولاً.');
-        return;
+        return true;
       }
       await setContext(conversationId, { state: 'AWAITING_ADDRESS', cart: context.cart });
       const total = context.cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
       await reply(merchantId, customerPhone, `الإجمالي: ${total.toLocaleString('en-US')} SDG\n\nمن فضلك أرسل عنوان التوصيل الكامل:`);
-      return;
+      return true;
     }
 
     const n = parseNumberChoice(text);
     const productIds = context.productIds ?? [];
     if (n === null || n < 1 || n > productIds.length) {
       await reply(merchantId, customerPhone, `رد برقم صحيح من 1 إلى ${productIds.length}، "قائمة" للفئات، أو "إنهاء" لإتمام الطلب.`);
-      return;
+      return true;
     }
 
     const productId = productIds[n - 1];
     const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true, name: true, price: true } });
     if (!product) {
       await reply(merchantId, customerPhone, 'هذا المنتج لم يعد متاحاً. رد "قائمة" للرجوع.');
-      return;
+      return true;
     }
 
     const cart = [...context.cart];
@@ -250,13 +251,13 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
     else cart.push({ productId: product.id, name: product.name, price: Number(product.price), quantity: 1 });
 
     await showProducts(merchantId, conversationId, customerPhone, context.categoryId!, cart);
-    return;
+    return true;
   }
 
   if (context.state === 'AWAITING_ADDRESS') {
     if (text.length < 3) {
       await reply(merchantId, customerPhone, 'من فضلك أرسل عنواناً تفصيلياً صحيحاً.');
-      return;
+      return true;
     }
     try {
       const order = await createOrderFromCart(merchantId, customerPhone, params.customerName ?? customerPhone, text, context.cart);
@@ -266,5 +267,7 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
       console.error('[whatsapp-ordering] order creation failed:', err);
       await reply(merchantId, customerPhone, 'حدث خطأ أثناء إنشاء طلبك — حاول مرة أخرى أو تواصل معنا مباشرة.');
     }
+    return true;
   }
+  return false;
 }

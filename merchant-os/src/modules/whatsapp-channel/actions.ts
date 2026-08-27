@@ -2,7 +2,7 @@
 
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import * as whatsappChannelService from './services/whatsapp-channel.service';
-import { saveWhatsAppConfigSchema } from './schemas/whatsapp-channel.schemas';
+import { saveWhatsAppAiAgentSchema, saveWhatsAppConfigSchema } from './schemas/whatsapp-channel.schemas';
 import type { ActionResult } from '@/lib/types';
 
 // ============================================================================
@@ -40,5 +40,17 @@ export async function removeWhatsAppConfigAction(): Promise<ActionResult<null>> 
     return { success: true, data: null };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to remove WhatsApp config' };
+  }
+}
+
+export async function saveWhatsAppAiAgentAction(input: unknown): Promise<ActionResult<unknown>> {
+  try {
+    const auth = await getAuthContext();
+    requirePermission(auth, 'settings:update');
+    const parsed = saveWhatsAppAiAgentSchema.parse(input);
+    const config = await whatsappChannelService.saveAiAgentSettings(auth.merchantId, parsed);
+    return { success: true, data: config };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to save WhatsApp AI agent' };
   }
 }
