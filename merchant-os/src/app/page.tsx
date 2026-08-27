@@ -62,7 +62,7 @@ export default async function HomePage() {
   const [session, cookieStore] = await Promise.all([auth(), cookies()]);
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = content[locale];
-  const accountHref = session?.user ? (session.user.role === 'PLATFORM_OWNER' ? '/admin' : '/dashboard') : '/register';
+  const accountHref = !session?.user ? '/register' : session.user.role === 'PLATFORM_OWNER' ? '/admin' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
 
   return <LocaleProvider initialLocale={locale}><div className="min-h-screen overflow-hidden bg-white text-[#07111f] dark:bg-[#07111f] dark:text-white">
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-[#07111f]/90">

@@ -21,7 +21,9 @@ export default async function DashboardLayout({
 
   const role = session.user.role;
   if (role === 'PLATFORM_OWNER') redirect('/admin');
-  if (role === 'DISTRIBUTOR_OWNER' || role === 'DISTRIBUTOR_ADMIN') redirect('/distributor/dashboard');
+  if (role === 'DISTRIBUTOR_OWNER' || role === 'DISTRIBUTOR_ADMIN') {
+    redirect(process.env.DISTRIBUTOR_PORTAL_ENABLED === 'true' ? '/distributor/dashboard' : '/');
+  }
   if (!isMerchantRole(role) || !session.user.merchantId) redirect('/login');
 
   const [cookieStore, merchant] = await Promise.all([

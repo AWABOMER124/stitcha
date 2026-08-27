@@ -20,7 +20,6 @@ function buildNavItems(nav: Dictionary['navAdmin']): NavItem[] {
     { type: 'link', label: nav.dashboard, href: '/admin', icon: '🏛️' },
     { type: 'divider' },
     { type: 'section', label: nav.entitiesSection },
-    { type: 'link', label: nav.distributors, href: '/admin/distributors', icon: '🏢' },
     { type: 'link', label: nav.merchants, href: '/admin/merchants', icon: '🏪' },
     { type: 'divider' },
     { type: 'link', label: 'Delivery partners', href: '/admin/delivery-partners', icon: '🚚' },
