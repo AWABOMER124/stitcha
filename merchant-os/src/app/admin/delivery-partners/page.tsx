@@ -1,14 +1,12 @@
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth/config';
 import prisma from '@/lib/db/prisma';
+import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
 export const dynamic = 'force-dynamic';
 
 async function updatePartner(formData: FormData) {
   'use server';
-  const session = await auth();
-  if (session?.user?.role !== 'PLATFORM_OWNER') redirect('/login');
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.DELIVERY_MANAGE);
   const id = String(formData.get('id') ?? '');
   const intent = String(formData.get('intent') ?? '');
   if (!id) return;
@@ -20,6 +18,7 @@ async function updatePartner(formData: FormData) {
 }
 
 export default async function DeliveryPartnersPage() {
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.DELIVERY_MANAGE);
   const partners = await prisma.deliveryPartner.findMany({
     include: { _count: { select: { serviceAreas: true, couriers: true, shipments: true } } },
     orderBy: [{ status: 'asc' }, { name: 'asc' }],

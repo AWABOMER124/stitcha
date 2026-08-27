@@ -76,6 +76,10 @@ export const ALL_PERMISSIONS: string[] = Object.values(PERMISSIONS).flatMap((mod
 /** Maps each UserRole to the permissions it grants. */
 export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
   PLATFORM_OWNER: ALL_PERMISSIONS,
+  PLATFORM_ADMIN: [],
+  PLATFORM_OPERATIONS: [],
+  PLATFORM_FINANCE: [],
+  PLATFORM_SUPPORT: [],
 
   DISTRIBUTOR_OWNER: ALL_PERMISSIONS,
 

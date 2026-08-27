@@ -1,8 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth/config';
 import { handleActionError } from '@/lib/errors/handler';
 import type { ActionResult } from '@/lib/types';
 import { z } from 'zod';
@@ -11,6 +9,7 @@ import {
   reviewSubscriptionPayment,
   setPlatformPaymentAccountActive,
 } from './subscription-payments.service';
+import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
 const paymentAccountSchema = z.object({
   channel: z.enum(['BANKAK', 'MYCASHY', 'OTHER']),
@@ -23,14 +22,8 @@ const paymentAccountSchema = z.object({
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
 });
 
-async function requirePlatformOwner() {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== 'PLATFORM_OWNER') redirect('/login');
-  return session.user;
-}
-
 export async function createPaymentAccountAction(formData: FormData) {
-  await requirePlatformOwner();
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.SETTINGS_MANAGE);
   const parsed = paymentAccountSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
   await createPlatformPaymentAccount(parsed.data);
@@ -38,7 +31,7 @@ export async function createPaymentAccountAction(formData: FormData) {
 }
 
 export async function togglePaymentAccountAction(formData: FormData) {
-  await requirePlatformOwner();
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.SETTINGS_MANAGE);
   const id = String(formData.get('id') ?? '');
   const isActive = String(formData.get('isActive')) === 'true';
   if (!id) return;
@@ -48,7 +41,7 @@ export async function togglePaymentAccountAction(formData: FormData) {
 }
 
 export async function reviewSubscriptionPaymentFormAction(formData: FormData) {
-  const user = await requirePlatformOwner();
+  const user = await requirePlatformPermission(PLATFORM_PERMISSIONS.PAYMENTS_REVIEW);
   const paymentId = String(formData.get('paymentId') ?? '');
   const decision = String(formData.get('decision'));
   const reason = String(formData.get('reason') ?? '');
@@ -60,7 +53,7 @@ export async function reviewSubscriptionPaymentFormAction(formData: FormData) {
 
 export async function reviewSubscriptionPaymentAction(input: { paymentId: string; decision: 'VERIFY' | 'REJECT'; reason?: string }): Promise<ActionResult<{ success: true }>> {
   try {
-    const user = await requirePlatformOwner();
+    const user = await requirePlatformPermission(PLATFORM_PERMISSIONS.PAYMENTS_REVIEW);
     await reviewSubscriptionPayment(input.paymentId, user.id, input.decision, input.reason);
     revalidatePath('/admin/subscription-payments');
     revalidatePath('/dashboard/subscription');

@@ -8,13 +8,18 @@ import { useLocale } from '@/lib/i18n/context';
 import type { Dictionary } from '@/lib/i18n/translations';
 import { useMobileNav } from '@/components/ui/mobile-nav-context';
 import { WaslaMark } from '@/components/brand/wasla-logo';
+import type { UserRole } from '@prisma/client';
 
 type NavItem =
   | { type: 'link'; label: string; href: string; icon: string }
   | { type: 'section'; label: string }
   | { type: 'divider' };
 
-function buildNavItems(nav: Dictionary['navAdmin']): NavItem[] {
+function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
+  const isOwner = role === 'PLATFORM_OWNER';
+  const isAdmin = role === 'PLATFORM_ADMIN';
+  const isOperations = role === 'PLATFORM_OPERATIONS';
+  const isFinance = role === 'PLATFORM_FINANCE';
   return [
     { type: 'section', label: nav.generalSection },
     { type: 'link', label: nav.dashboard, href: '/admin', icon: '🏛️' },
@@ -22,23 +27,25 @@ function buildNavItems(nav: Dictionary['navAdmin']): NavItem[] {
     { type: 'section', label: nav.entitiesSection },
     { type: 'link', label: nav.merchants, href: '/admin/merchants', icon: '🏪' },
     { type: 'divider' },
-    { type: 'link', label: 'Delivery partners', href: '/admin/delivery-partners', icon: '🚚' },
+    ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'Delivery partners', href: '/admin/delivery-partners', icon: '🚚' }] : []),
     { type: 'section', label: nav.financeReportsSection },
-    { type: 'link', label: nav.finance, href: '/admin/finance', icon: '💰' },
-    { type: 'link', label: nav.customerSubscriptions, href: '/admin/customer-subscriptions', icon: '⭐' },
-    { type: 'link', label: 'Subscription payments', href: '/admin/subscription-payments', icon: '🧾' },
+    ...(isOwner || isAdmin || isFinance ? [
+      { type: 'link' as const, label: nav.finance, href: '/admin/finance', icon: '💰' },
+      { type: 'link' as const, label: nav.customerSubscriptions, href: '/admin/customer-subscriptions', icon: '⭐' },
+      { type: 'link' as const, label: 'Subscription payments', href: '/admin/subscription-payments', icon: '🧾' },
+    ] : []),
     { type: 'divider' },
     { type: 'section', label: nav.systemSection },
-    { type: 'link', label: nav.users, href: '/admin/users', icon: '👤' },
-    { type: 'link', label: nav.settings, href: '/admin/settings', icon: '⚙️' },
+    ...(isOwner ? [{ type: 'link' as const, label: nav.users, href: '/admin/users', icon: '👤' }] : []),
+    ...(isOwner || isAdmin ? [{ type: 'link' as const, label: nav.settings, href: '/admin/settings', icon: '⚙️' }] : []),
   ];
 }
 
-export function AdminSidebar() {
+export function AdminSidebar({ role }: { role: UserRole }) {
   const pathname = usePathname();
   const { dict } = useLocale();
   const { open, close } = useMobileNav();
-  const navItems = buildNavItems(dict.navAdmin);
+  const navItems = buildNavItems(dict.navAdmin, role);
 
   useEffect(() => {
     close();
@@ -113,7 +120,7 @@ export function AdminSidebar() {
         {/* Footer */}
         <div className="border-t border-[var(--sidebar-border)] p-3 space-y-2">
           <div className="rounded-lg bg-[var(--primary)]/5 border border-[var(--primary)]/20 px-3 py-2 text-xs text-[var(--primary)] font-medium text-center">
-            {dict.topbar.platformOwner}
+            {role === 'PLATFORM_OWNER' ? dict.topbar.platformOwner : role.replace('PLATFORM_', '').replace('_', ' ')}
           </div>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}

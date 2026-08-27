@@ -72,5 +72,5 @@ export function isDistributorRole(role: UserRole): boolean {
 }
 
 export function isMerchantRole(role: UserRole): boolean {
-  return !isDistributorRole(role) && role !== 'PLATFORM_OWNER';
+  return !isDistributorRole(role) && !role.startsWith('PLATFORM_');
 }

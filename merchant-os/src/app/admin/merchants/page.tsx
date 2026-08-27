@@ -103,7 +103,7 @@ export default async function AdminMerchantsPage({
                   return (
                     <tr key={m.id} className="hover:bg-[var(--muted)]/20 transition-colors">
                       <td className="py-3.5 px-4">
-                        <p className="font-semibold text-[var(--foreground)]">{m.name}</p>
+                        <Link href={`/admin/merchants/${m.id}`} className="font-semibold text-[var(--foreground)] hover:text-[var(--primary)] hover:underline">{m.name}</Link>
                         <p className="text-xs font-mono text-[var(--muted-foreground)]">{m.slug}</p>
                       </td>
                       <td className="py-3.5 px-4 text-[var(--muted-foreground)]">

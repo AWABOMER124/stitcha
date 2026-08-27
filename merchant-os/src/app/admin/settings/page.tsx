@@ -1,7 +1,9 @@
 import { cookies } from 'next/headers';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
+import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
 export default async function AdminSettingsPage() {
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.SETTINGS_MANAGE);
   const cookieStore = await cookies();
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = dictionaries[locale].adminSettingsPage;

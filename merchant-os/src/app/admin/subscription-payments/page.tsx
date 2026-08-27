@@ -7,6 +7,7 @@ import {
   listAllPaymentAccounts,
   listPaymentsForReview,
 } from '@/modules/subscription-payments/subscription-payments.service';
+import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,8 @@ const statusStyles: Record<string, string> = {
 };
 
 export default async function SubscriptionPaymentsAdminPage() {
+  const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.PAYMENTS_REVIEW);
+  const canManageAccounts = actor.role === 'PLATFORM_OWNER' || actor.role === 'PLATFORM_ADMIN';
   const [accounts, payments] = await Promise.all([listAllPaymentAccounts(), listPaymentsForReview()]);
 
   return <div className="space-y-8">
@@ -28,7 +31,7 @@ export default async function SubscriptionPaymentsAdminPage() {
 
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
       <h2 className="font-bold">إضافة حساب تحصيل</h2>
-      <form action={createPaymentAccountAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {canManageAccounts && <form action={createPaymentAccountAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label className="text-sm">القناة<select name="channel" required className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"><option value="BANKAK">بنكك</option><option value="MYCASHY">ماي كاشي</option><option value="OTHER">أخرى</option></select></label>
         <label className="text-sm">اسم العرض<input name="label" required minLength={2} maxLength={80} placeholder="بنكك — وصلة" className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
         <label className="text-sm">اسم صاحب الحساب<input name="accountName" required minLength={2} maxLength={120} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
@@ -38,12 +41,12 @@ export default async function SubscriptionPaymentsAdminPage() {
         <label className="text-sm">الترتيب<input name="sortOrder" type="number" min="0" max="999" defaultValue="0" className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
         <label className="text-sm md:col-span-2 xl:col-span-1">تعليمات التحويل<input name="instructions" maxLength={500} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
         <button className="rounded-lg bg-[var(--primary)] px-4 py-2.5 font-semibold text-white md:col-span-2 xl:col-span-4">حفظ حساب التحصيل</button>
-      </form>
+      </form>}
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         {accounts.map(account => <article key={account.id} className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] p-4">
           <div><strong>{account.label}</strong><p className="text-sm text-[var(--muted-foreground)]">{account.accountName} · {account.accountNumber}</p><p className="text-sm font-semibold">{account.monthlyAmount.toLocaleString()} {account.currency}</p></div>
-          <form action={togglePaymentAccountAction}><input type="hidden" name="id" value={account.id}/><input type="hidden" name="isActive" value={account.isActive ? 'false' : 'true'}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">{account.isActive ? 'إيقاف' : 'تفعيل'}</button></form>
+          {canManageAccounts && <form action={togglePaymentAccountAction}><input type="hidden" name="id" value={account.id}/><input type="hidden" name="isActive" value={account.isActive ? 'false' : 'true'}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">{account.isActive ? 'إيقاف' : 'تفعيل'}</button></form>}
         </article>)}
         {accounts.length === 0 && <p className="rounded-xl border border-dashed p-6 text-center text-sm text-[var(--muted-foreground)] lg:col-span-2">لم تتم إضافة حسابات تحصيل بعد.</p>}
       </div>

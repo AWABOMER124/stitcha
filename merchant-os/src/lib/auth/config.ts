@@ -50,13 +50,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
 
         if (!user || !user.passwordHash) return null;
+        if (user.role.startsWith('PLATFORM_') && !user.platformAccessEnabled) return null;
 
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;
 
         const merchantUser = user.merchantUsers[0] ?? null;
         const distributorUser = user.distributorUsers[0] ?? null;
-        const effectiveRole = user.role === 'PLATFORM_OWNER'
+        const effectiveRole = user.role.startsWith('PLATFORM_')
           ? user.role
           : merchantUser?.role ?? distributorUser?.role ?? user.role;
         const customPermissions = merchantUser?.assignedRole?.permissions.map((entry) => entry.permission.name) ?? [];

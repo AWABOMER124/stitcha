@@ -5,9 +5,6 @@ import { z } from 'zod';
 // ============================================================================
 
 const userRoleEnum = z.enum([
-  'PLATFORM_OWNER',
-  'DISTRIBUTOR_OWNER',
-  'DISTRIBUTOR_ADMIN',
   'MERCHANT_OWNER',
   'MERCHANT_ADMIN',
   'BRANCH_MANAGER',

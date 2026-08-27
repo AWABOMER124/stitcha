@@ -15,7 +15,7 @@ Cross-project documentation lives in the repository root: see
 |---|---|---|
 | Merchant Dashboard | `/dashboard/*` | `MERCHANT_OWNER`, `MERCHANT_ADMIN`, and other merchant-scoped roles |
 | Distributor Portal | `/distributor/*` | `DISTRIBUTOR_OWNER`, `DISTRIBUTOR_ADMIN` |
-| Platform Admin | `/admin/*` | `PLATFORM_OWNER` |
+| Platform Admin | `/admin/*` | `PLATFORM_OWNER`, `PLATFORM_ADMIN`, `PLATFORM_OPERATIONS`, `PLATFORM_FINANCE`, `PLATFORM_SUPPORT` with server-enforced permissions |
 | Public Storefront | `/store/[slug]/*` | Anyone — no auth required |
 
 ```
@@ -220,7 +220,7 @@ Both need a placeholder `DATABASE_URL` set as a build-stage `ENV` — `prisma.co
 
 Automated unit and PostgreSQL integration suites run in CI. Supplement them with these manual checks before shipping:
 
-- `/login` → correct redirect per role (`PLATFORM_OWNER` → `/admin`, distributor roles → `/distributor/dashboard`, merchant roles → `/dashboard`)
+- `/login` → correct redirect per role (all `PLATFORM_*` roles → `/admin`, merchant roles → `/dashboard`; the retired distributor portal stays disabled unless explicitly enabled for migration support)
 - `/forgot-password` → `/reset-password?token=...` → new password works on next login
 - `/dashboard` as a non-merchant role → rejected and redirected correctly
 - `/dashboard/products`, `/dashboard/categories`, `/dashboard/inventory` → create/edit/delete, no crash

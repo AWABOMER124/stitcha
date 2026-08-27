@@ -33,7 +33,7 @@ export default function LoginPage() {
         const res = await fetch("/api/auth/session");
         const session = await res.json();
         const role = session?.user?.role as string | undefined;
-        if (role === "PLATFORM_OWNER") {
+        if (role?.startsWith("PLATFORM_")) {
           router.replace("/admin");
         } else if (role === "DISTRIBUTOR_OWNER" || role === "DISTRIBUTOR_ADMIN") {
           router.replace("/distributor/dashboard");

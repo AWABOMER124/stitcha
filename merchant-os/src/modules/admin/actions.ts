@@ -5,6 +5,15 @@ import { redirect } from 'next/navigation';
 import * as repo from './repository';
 import type { ActionResult } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
+import { z } from 'zod';
+import { invitePlatformUser, PLATFORM_STAFF_ROLES, setPlatformUserAccess, updatePlatformUserRole } from './platform-users.service';
+
+const platformUserSchema = z.object({
+  email: z.string().trim().email().max(254),
+  name: z.string().trim().min(2).max(120),
+  role: z.enum(PLATFORM_STAFF_ROLES),
+});
 
 async function assertPlatformOwner() {
   const session = await auth();
@@ -14,7 +23,7 @@ async function assertPlatformOwner() {
 
 export async function getPlatformStatsAction(): Promise<ActionResult<unknown>> {
   try {
-    await assertPlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.DASHBOARD);
     return { success: true, data: await repo.getPlatformStats() };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed' };
@@ -23,7 +32,7 @@ export async function getPlatformStatsAction(): Promise<ActionResult<unknown>> {
 
 export async function getRecentActivityAction(): Promise<ActionResult<unknown>> {
   try {
-    await assertPlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.DASHBOARD);
     return { success: true, data: await repo.getRecentActivity() };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed' };
@@ -108,7 +117,7 @@ export async function getAllMerchantsAction(
   status?: string,
 ): Promise<ActionResult<unknown>> {
   try {
-    await assertPlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_READ);
     return { success: true, data: await repo.getAllMerchants(page, limit, search, status) };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed' };
@@ -117,7 +126,7 @@ export async function getAllMerchantsAction(
 
 export async function getPlatformFinanceStatsAction(): Promise<ActionResult<unknown>> {
   try {
-    await assertPlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.FINANCE_READ);
     return { success: true, data: await repo.getPlatformFinanceStats() };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed' };
@@ -126,9 +135,50 @@ export async function getPlatformFinanceStatsAction(): Promise<ActionResult<unkn
 
 export async function getPlatformUsersAction(): Promise<ActionResult<unknown>> {
   try {
-    await assertPlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.USERS_MANAGE);
     return { success: true, data: await repo.getPlatformUsers() };
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Failed' };
   }
+}
+
+export async function getMerchantByIdAction(id: string): Promise<ActionResult<unknown>> {
+  try {
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_READ);
+    const merchant = await repo.getMerchantById(id);
+    return merchant ? { success: true, data: merchant } : { success: false, error: 'Merchant not found' };
+  } catch (e) { return { success: false, error: e instanceof Error ? e.message : 'Failed' }; }
+}
+
+export async function updateMerchantStatusAction(formData: FormData): Promise<void> {
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_MANAGE);
+  const parsed = z.object({ merchantId: z.string().min(1), status: z.enum(['ACTIVE', 'SUSPENDED', 'CLOSED']) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  await repo.updateMerchantStatus(parsed.data.merchantId, parsed.data.status);
+  revalidatePath('/admin/merchants');
+  revalidatePath(`/admin/merchants/${parsed.data.merchantId}`);
+}
+
+export async function invitePlatformUserAction(formData: FormData): Promise<void> {
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.USERS_MANAGE);
+  const parsed = platformUserSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  await invitePlatformUser(parsed.data);
+  revalidatePath('/admin/users');
+}
+
+export async function updatePlatformUserRoleAction(formData: FormData): Promise<void> {
+  const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.USERS_MANAGE);
+  const parsed = z.object({ userId: z.string().min(1), role: z.enum(PLATFORM_STAFF_ROLES) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  await updatePlatformUserRole(actor.id, parsed.data.userId, parsed.data.role);
+  revalidatePath('/admin/users');
+}
+
+export async function setPlatformUserAccessAction(formData: FormData): Promise<void> {
+  const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.USERS_MANAGE);
+  const parsed = z.object({ userId: z.string().min(1), enabled: z.enum(['true', 'false']) }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  await setPlatformUserAccess(actor.id, parsed.data.userId, parsed.data.enabled === 'true');
+  revalidatePath('/admin/users');
 }
