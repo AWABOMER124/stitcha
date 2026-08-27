@@ -7,7 +7,7 @@ export async function GET() {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return Response.json(
-      { status: 'ok' },
+      { status: 'ok', release: process.env.APP_RELEASE ?? 'unknown' },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch {

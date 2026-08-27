@@ -21,7 +21,9 @@ ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholde
 RUN npx prisma generate
 
 ARG NEXT_PUBLIC_APP_URL="http://localhost:3000"
+ARG APP_RELEASE="unknown"
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV APP_RELEASE=$APP_RELEASE
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -31,6 +33,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG APP_RELEASE="unknown"
+ENV APP_RELEASE=$APP_RELEASE
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs

@@ -15,6 +15,8 @@ Dockerfile under `merchant-os/` is for local Compose only.
   object storage are configured.
 - Build argument: set `NEXT_PUBLIC_APP_URL` to the final HTTPS origin. This
   value is compiled into browser-visible links and metadata.
+- Build argument: set `APP_RELEASE` to the Git commit SHA being deployed. The
+  same value is returned by `/api/health` so production can be matched to GitHub.
 - Recommended minimum builder capacity: 1 vCPU and 2 GB RAM (or swap). The
   Next.js build is intentionally constrained to one worker for small VPS hosts.
 
@@ -33,6 +35,7 @@ AUTH_SECRET=<at least 32 random bytes>
 AUTH_TRUST_HOST=true
 NEXTAUTH_URL=https://your-domain.example
 NEXT_PUBLIC_APP_URL=https://your-domain.example
+APP_RELEASE=<deployed Git commit SHA>
 SECRETS_ENCRYPTION_KEY=<long independent random value>
 JOB_RUNNER_SECRET=<independent random value>
 PLATFORM_DELIVERY_ENABLED=false
@@ -62,6 +65,14 @@ in the public storefront. If local storage is used instead, attach a persistent
 Dokploy volume to `/app/public/uploads` and make it writable by UID/GID `1001`.
 Without S3 or that volume, uploaded images disappear on container replacement.
 
+## Private receipt storage
+
+Payment receipts are private and must not use the public image bucket. Configure
+`PRIVATE_S3_BUCKET` and its optional private credentials/endpoint, or attach a
+persistent Dokploy volume to `/app/storage/private` writable by UID/GID `1001`.
+If neither is configured, receipts stored on the container filesystem disappear
+on replacement. Never expose this directory through the public reverse proxy.
+
 ## AI configuration
 
 Store generation requires `ANTHROPIC_API_KEY`. Product-image enhancement
@@ -74,10 +85,11 @@ acceptance tests pass.
 
 1. Take and verify a PostgreSQL backup/snapshot.
 2. Record the currently deployed image/commit for rollback.
-3. Deploy one application replica with all feature flags still disabled.
+3. Set `APP_RELEASE` to the exact commit SHA, then deploy one application replica
+   with all feature flags still disabled.
 4. Watch startup logs until `prisma migrate deploy` and application start both
    succeed. Never use `prisma db push` or `prisma db seed` in production.
-5. Verify `/api/health`, `/login`, `/register`, one public storefront, merchant
+5. Verify `/api/health` returns that exact `APP_RELEASE`, then verify `/login`, `/register`, one public storefront, merchant
    login, product creation, original image upload, and an order read/write flow.
 6. Verify an uploaded image remains available after a container restart.
 7. Configure provider keys and test AI store generation without applying the
@@ -89,6 +101,7 @@ acceptance tests pass.
 
 Disable `AI_IMAGE_ENHANCEMENT_ENABLED` first if the image provider or storage
 fails. Roll back to the recorded application image/commit and keep the database
-backup untouched. This release adds no new database migration, so reverting the
-application image does not require a schema rollback. Investigate logs and
-health checks before retrying the rollout.
+backup untouched. This release contains additive migrations for subscriptions,
+private payment proofs, Stripe event safety, and the WhatsApp AI agent. Do not
+manually reverse them during an application rollback; the older application can
+ignore the added tables and columns. Investigate logs and health checks before retrying.
