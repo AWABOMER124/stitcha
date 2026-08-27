@@ -65,6 +65,13 @@ in the public storefront. If local storage is used instead, attach a persistent
 Dokploy volume to `/app/public/uploads` and make it writable by UID/GID `1001`.
 Without S3 or that volume, uploaded images disappear on container replacement.
 
+For a single-server pilot, use named volumes (not host bind mounts) so Dokploy
+can recreate the application task without losing files. The production baseline
+uses `wassla-public-uploads` mounted at `/app/public/uploads` and
+`wassla-private-storage` mounted at `/app/storage/private`. Verify both paths are
+writable from the unprivileged application container after every infrastructure
+change and restart.
+
 ## Private receipt storage
 
 Payment receipts are private and must not use the public image bucket. Configure
@@ -96,6 +103,11 @@ acceptance tests pass.
    draft, then apply a small test draft.
 8. Enable image AI, improve one disposable product image, verify the stored
    result and public storefront, then monitor provider cost and application logs.
+
+An emergency `pg_dump` stored on the PostgreSQL data volume is useful before an
+immediate application change, but it is not an independent backup. Before public
+launch, configure a Dokploy S3 destination, schedule encrypted database backups,
+and complete one restore test into a separate disposable database.
 
 ## Rollback
 
