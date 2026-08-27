@@ -189,6 +189,7 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `AUTH_SECRET` | Yes | NextAuth session secret |
 | `NEXTAUTH_URL` | Yes | Public app URL, used by NextAuth |
 | `NEXT_PUBLIC_APP_URL` | Yes | Public app URL, used in emails/links (e.g. password reset) |
+| `APP_RELEASE` | Production | Deployed Git SHA returned by `/api/health` for release verification |
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | Durable public product uploads; if unset, attach a persistent volume to `/app/public/uploads` |
 | `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | Provider-specific | S3-compatible endpoint options for MinIO, Spaces, and similar services; a custom endpoint also requires `S3_CDN_URL` |
 | `ANTHROPIC_API_KEY`, `WHATSAPP_AI_MODEL` | No | Powers store generation and the opt-in WhatsApp AI agent; both fail closed if the key is unset |
