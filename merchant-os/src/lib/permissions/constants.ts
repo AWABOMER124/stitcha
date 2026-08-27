@@ -26,6 +26,14 @@ export const PERMISSIONS = {
     DELETE: 'orders:delete',
     MANAGE_STATUS: 'orders:manage_status',
   },
+  INVOICES: {
+    CREATE: 'invoices:create',
+    READ: 'invoices:read',
+    UPDATE: 'invoices:update',
+  },
+  EXPORTS: {
+    DOWNLOAD: 'exports:download',
+  },
   INVENTORY: {
     READ: 'inventory:read',
     UPDATE: 'inventory:update',
@@ -109,6 +117,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     PERMISSIONS.DELIVERY.READ,
     PERMISSIONS.BRANCHES.READ,
     PERMISSIONS.REPORTS.VIEW,
+    PERMISSIONS.INVOICES.CREATE,
+    PERMISSIONS.INVOICES.READ,
     PERMISSIONS.NOTIFICATIONS.READ,
   ],
 
@@ -121,6 +131,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     PERMISSIONS.PRODUCTS.READ,
     PERMISSIONS.CATEGORIES.READ,
     PERMISSIONS.NOTIFICATIONS.READ,
+    PERMISSIONS.INVOICES.CREATE,
+    PERMISSIONS.INVOICES.READ,
   ],
 
   INVENTORY_MANAGER: [
@@ -152,5 +164,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     PERMISSIONS.ORDERS.READ,
     PERMISSIONS.NOTIFICATIONS.READ,
     PERMISSIONS.SETTINGS.READ,
+    PERMISSIONS.INVOICES.CREATE,
+    PERMISSIONS.INVOICES.READ,
+    PERMISSIONS.INVOICES.UPDATE,
+    PERMISSIONS.EXPORTS.DOWNLOAD,
   ],
 } as const;

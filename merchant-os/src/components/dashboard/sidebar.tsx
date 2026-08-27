@@ -34,6 +34,8 @@ function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
     { type: "link", label: nav.financeDashboard, href: "/dashboard/finance", icon: "💰" },
     { type: "link", label: nav.transactions, href: "/dashboard/finance/transactions", icon: "💳" },
     { type: "link", label: nav.settlements, href: "/dashboard/finance/settlements", icon: "🧾" },
+    { type: "link", label: "الفواتير", href: "/dashboard/invoices", icon: "🧮" },
+    { type: "link", label: "تصدير البيانات", href: "/dashboard/exports", icon: "📊" },
     { type: "section", label: nav.crmSection },
     { type: "link", label: nav.crm, href: "/dashboard/crm", icon: "🎯" },
     { type: "link", label: nav.promos, href: "/dashboard/crm/promos", icon: "🎟️" },

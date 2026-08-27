@@ -137,6 +137,13 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+}
+
 enum StockMovementType {
   ADJUSTMENT
   SALE
@@ -191,16 +198,16 @@ enum PromoType {
 
 /// Platform user — can be linked to distributors and/or merchants
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  passwordHash    String?
-  name            String?
-  phone           String?   @unique
-  role            UserRole  @default(CASHIER)
-  emailVerified   DateTime?
-  phoneVerifiedAt DateTime?
-  image           String?
-  platformAccessEnabled Boolean @default(false)
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String?
+  name                  String?
+  phone                 String?   @unique
+  role                  UserRole  @default(CASHIER)
+  emailVerified         DateTime?
+  phoneVerifiedAt       DateTime?
+  image                 String?
+  platformAccessEnabled Boolean   @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -731,6 +738,7 @@ model Merchant {
   storePaymentAccounts     MerchantPaymentAccount[]
   orderPaymentProofs       OrderPaymentProof[]
   whatsappAiUsage          WhatsAppAiUsage[]
+  invoices                 Invoice[]
 
   @@index([slug])
   @@index([status])
@@ -1343,6 +1351,7 @@ model Order {
   proofOfDelivery  ProofOfDelivery?
   deliveryQuotes   DeliveryQuote[]
   platformShipment PlatformShipment?
+  invoice          Invoice?
 
   @@unique([merchantId, orderNumber])
   @@index([merchantId])
@@ -1377,6 +1386,62 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@map("order_items")
+}
+
+/// Immutable commercial invoice snapshot generated from an order.
+model Invoice {
+  id            String        @id @default(cuid())
+  merchantId    String
+  orderId       String        @unique
+  invoiceNumber String
+  publicToken   String        @unique @default(uuid())
+  status        InvoiceStatus @default(DRAFT)
+  currency      String        @default("SDG")
+
+  subtotal    Decimal @db.Decimal(10, 2)
+  deliveryFee Decimal @default(0) @db.Decimal(10, 2)
+  discount    Decimal @default(0) @db.Decimal(10, 2)
+  tax         Decimal @default(0) @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  customerName   String?
+  customerPhone  String?
+  customerEmail  String?
+  billingAddress String?
+  notes          String?
+  issuedAt       DateTime?
+  paidAt         DateTime?
+  voidedAt       DateTime?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  merchant Merchant      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  order    Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  items    InvoiceItem[]
+
+  @@unique([merchantId, invoiceNumber])
+  @@index([merchantId, status])
+  @@index([merchantId, createdAt])
+  @@map("invoices")
+}
+
+/// Line-item snapshot; it remains valid even if the product is later edited.
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  orderItemId String?
+  description String
+  sku         String?
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
 }
 
 /// Immutable audit trail of order status transitions

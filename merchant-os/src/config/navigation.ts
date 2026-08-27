@@ -2,6 +2,7 @@
 export const dashboardNavItems = [
   { label: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard', permission: null },
   { label: 'Orders', href: '/dashboard/orders', icon: 'ShoppingBag', permission: 'orders:read' },
+  { label: 'Invoices', href: '/dashboard/invoices', icon: 'ReceiptText', permission: 'invoices:read' },
   { label: 'Products', href: '/dashboard/products', icon: 'Package', permission: 'products:read' },
   { label: 'Categories', href: '/dashboard/categories', icon: 'FolderOpen', permission: 'categories:read' },
   { label: 'Inventory', href: '/dashboard/inventory', icon: 'ClipboardList', permission: 'inventory:read' },
@@ -10,6 +11,7 @@ export const dashboardNavItems = [
   { label: 'Staff', href: '/dashboard/staff', icon: 'UserCog', permission: 'staff:read' },
   { label: 'Delivery', href: '/dashboard/delivery', icon: 'Truck', permission: 'delivery:read' },
   { label: 'Reports', href: '/dashboard/reports', icon: 'BarChart3', permission: 'reports:view' },
+  { label: 'Data exports', href: '/dashboard/exports', icon: 'FileSpreadsheet', permission: 'exports:download' },
   { label: 'Notifications', href: '/dashboard/notifications', icon: 'Bell', permission: 'notifications:read' },
   { label: 'Settings', href: '/dashboard/settings', icon: 'Settings', permission: 'settings:read' },
 ] as const;

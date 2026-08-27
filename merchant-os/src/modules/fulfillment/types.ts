@@ -116,6 +116,7 @@ export type ActiveOrder = Order & {
     codCollection: CodCollection | null;
   }) | null;
   payment: (Payment & { manualProof: (Pick<OrderPaymentProof, 'id' | 'paymentId' | 'accountLabel' | 'transactionRef' | 'senderName' | 'transferredAt' | 'status' | 'reviewedAt' | 'rejectionReason' | 'createdAt' | 'updatedAt'>) | null }) | null;
+  invoice: { id: string } | null;
 };
 
 export interface FulfillmentStats {
