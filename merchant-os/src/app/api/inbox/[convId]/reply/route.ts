@@ -29,8 +29,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ convId:
     const message = await prisma.inboxMessage.create({
       data: { conversationId: convId, content, isFromCustomer: false, senderName: 'المتجر' },
     });
-    await prisma.conversation.update({ where: { id: convId }, data: { updatedAt: new Date() } });
-    return NextResponse.json({ message, deliveryError });
+    await prisma.conversation.update({ where: { id: convId }, data: { updatedAt: new Date(), aiAgentPaused: true, status: 'PENDING' } });
+    return NextResponse.json({ message, deliveryError, aiAgentPaused: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Failed to send reply' }, { status: 500 });
   }

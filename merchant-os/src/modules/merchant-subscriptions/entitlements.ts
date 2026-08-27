@@ -12,6 +12,7 @@ export interface MerchantEntitlements {
   dataExport: boolean;
   apiAccess: boolean;
   aiMonthlyCredits: number;
+  whatsappAiAgent: boolean;
 }
 
 export const FREE_ENTITLEMENTS: MerchantEntitlements = Object.freeze({
@@ -25,6 +26,7 @@ export const FREE_ENTITLEMENTS: MerchantEntitlements = Object.freeze({
   dataExport: false,
   apiAccess: false,
   aiMonthlyCredits: 3,
+  whatsappAiAgent: false,
 });
 
 export function parseEntitlements(value: unknown): MerchantEntitlements {
@@ -43,6 +45,7 @@ export function parseEntitlements(value: unknown): MerchantEntitlements {
     dataExport: raw.dataExport === true,
     apiAccess: raw.apiAccess === true,
     aiMonthlyCredits: limit(raw.aiMonthlyCredits, FREE_ENTITLEMENTS.aiMonthlyCredits),
+    whatsappAiAgent: raw.whatsappAiAgent === true,
   };
 }
 

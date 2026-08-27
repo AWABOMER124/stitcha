@@ -191,7 +191,7 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `NEXT_PUBLIC_APP_URL` | Yes | Public app URL, used in emails/links (e.g. password reset) |
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | Durable public product uploads; if unset, attach a persistent volume to `/app/public/uploads` |
 | `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | Provider-specific | S3-compatible endpoint options for MinIO, Spaces, and similar services; a custom endpoint also requires `S3_CDN_URL` |
-| `ANTHROPIC_API_KEY` | No | Powers `/api/ai/generate-store`; the route returns a clean 503 if unset |
+| `ANTHROPIC_API_KEY`, `WHATSAPP_AI_MODEL` | No | Powers store generation and the opt-in WhatsApp AI agent; both fail closed if the key is unset |
 | `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`, `AI_IMAGE_ENHANCEMENT_ENABLED` | No | Product-image studio; keep the fail-closed feature flag `false` until provider, storage, and spend limits are verified |
 | `SECRETS_ENCRYPTION_KEY` | Yes for sensitive data/jobs | Encrypts tenant secrets and external-notification outbox payloads |
 | `JOB_RUNNER_SECRET` | Yes in production | Bearer secret for the scheduled internal job runner |
@@ -232,7 +232,7 @@ Automated unit and PostgreSQL integration suites run in CI. Supplement them with
 
 - **External delivery still needs production credentials and a scheduler.** The Resend, Twilio, and Meta adapters fail closed until their channel variables are set. Configure `JOB_RUNNER_SECRET` and call `/api/internal/jobs/run`; failed deliveries remain visible in `outbox_jobs`.
 - **File storage defaults to local disk** unless `S3_*` env vars are set — not durable across redeploys on ephemeral hosting.
-- **AI storefront generator is unconfigured** without `ANTHROPIC_API_KEY` (fails gracefully with a 503, doesn't crash).
+- **AI services are unconfigured** without `ANTHROPIC_API_KEY`: store generation fails gracefully and the WhatsApp agent stays inactive.
 - **Coverage is focused on critical paths.** Keep adding UI and end-to-end coverage; `scripts/check-raw-prisma-returns.sh` remains a supplementary heuristic guard.
 - Several dashboard action patterns catch errors ad hoc (`e instanceof Error ? e.message : 'Failed'`) rather than going through the centralized `handleActionError` (`src/lib/errors/handler.ts`) — functionally fine today, but a good target for consolidation so error logging and message-masking stay consistent everywhere.
 

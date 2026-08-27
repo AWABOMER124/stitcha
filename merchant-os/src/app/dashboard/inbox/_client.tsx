@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocale } from '@/lib/i18n/context';
 
 type Message = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string | Date };
-type Conversation = { id: string; customerName: string | null; customerPhone: string | null; channel: string; status: string; createdAt: string | Date; updatedAt: string | Date; messages: Message[] };
+type Conversation = { id: string; customerName: string | null; customerPhone: string | null; channel: string; status: string; aiAgentPaused: boolean; createdAt: string | Date; updatedAt: string | Date; messages: Message[] };
 
 const CHANNEL_ICONS: Record<string, string> = { WEB: '🌐', WHATSAPP: '💬', MESSENGER: '📘', INSTAGRAM: '📸' };
 const STATUS_COLORS: Record<string, string> = {
@@ -53,9 +53,19 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
         setMessages(prev => [...prev, data.message]);
         setReply('');
         if (data.deliveryError) setSuggestError(`${t.savedButFailedPrefix} ${data.deliveryError}`);
+        if (data.aiAgentPaused) setSelected(current => current ? { ...current, aiAgentPaused: true, status: 'PENDING' } : current);
       }
     } catch {}
     setSending(false);
+  }
+
+  async function toggleAiAgent() {
+    if (!selected || selected.channel !== 'WHATSAPP') return;
+    const enabled = selected.aiAgentPaused;
+    const response = await fetch(`/api/inbox/${selected.id}/ai-agent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) });
+    if (!response.ok) return;
+    setSelected(current => current ? { ...current, aiAgentPaused: !enabled, status: enabled ? 'OPEN' : 'PENDING' } : current);
+    setConversations(current => current.map(conversation => conversation.id === selected.id ? { ...conversation, aiAgentPaused: !enabled, status: enabled ? 'OPEN' : 'PENDING' } : conversation));
   }
 
   async function suggestReply() {
@@ -125,13 +135,13 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
               <p className="font-bold text-[var(--foreground)]">{selected.customerName ?? t.customer}</p>
               <p className="text-xs text-[var(--muted-foreground)]">{selected.customerPhone ?? ''} · {CHANNEL_ICONS[selected.channel]} {selected.channel}</p>
             </div>
-            <button onClick={async () => {
+            <div className="flex gap-2">{selected.channel === 'WHATSAPP' && <button onClick={toggleAiAgent} className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:bg-[var(--background)]">{selected.aiAgentPaused ? 'استئناف وكيل AI' : 'تحويل لموظف'}</button>}<button onClick={async () => {
               await fetch(`/api/inbox/${selected.id}/close`, { method: 'POST' }).catch(() => {});
               setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, status: 'CLOSED' } : c));
               setSelected(s => s ? { ...s, status: 'CLOSED' } : s);
             }} className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:bg-[var(--background)] transition-colors">
               {t.closeConversation}
-            </button>
+            </button></div>
           </div>
 
           {/* Messages */}
