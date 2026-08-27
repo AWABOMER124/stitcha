@@ -215,6 +215,12 @@ health check, upgrade sequence, and rollback, follow
 
 Both need a placeholder `DATABASE_URL` set as a build-stage `ENV` — `prisma.config.ts` resolves it eagerly via `env()` even for `prisma generate`/`next build`, which don't need a live connection, and `.env` is intentionally excluded from the build context.
 
+For the first single-server production cohort, Dokploy uses named volumes
+`wassla-public-uploads` at `/app/public/uploads` and
+`wassla-private-storage` at `/app/storage/private`. Verify both mounts and their
+UID/GID `1001` write access after deployment; replace them with durable public
+and private S3-compatible storage before adding replicas.
+
 `entrypoint.sh` runs `prisma migrate deploy` then `npm start` on every boot — it never runs `db seed`.
 
 ## 🧪 Manual test checklist
