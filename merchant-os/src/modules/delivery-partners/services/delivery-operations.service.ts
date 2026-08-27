@@ -14,9 +14,12 @@ function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: numb
 export async function quotePlatformDelivery(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { delivery: true, branch: true },
+    include: { delivery: true, branch: true, platformShipment: { select: { id: true } } },
   });
   if (!order) throw new BusinessRuleError('Order not found');
+  if (order.deliveryMethod === 'PICKUP') throw new BusinessRuleError('Pickup orders cannot request delivery quotes');
+  if (['DELIVERED', 'CANCELLED', 'REJECTED'].includes(order.status)) throw new BusinessRuleError('This order can no longer request delivery');
+  if (order.platformShipment) throw new BusinessRuleError('A delivery shipment already exists for this order');
   const origin = order.branch ?? await prisma.branch.findFirst({ where: { merchantId: order.merchantId, isMain: true } });
   if (origin?.lat == null || origin.lng == null || order.delivery?.lat == null || order.delivery.lng == null) {
     throw new BusinessRuleError('Verified pickup and delivery coordinates are required');
@@ -48,12 +51,21 @@ export async function quotePlatformDelivery(orderId: string) {
     return quote ? [{ rule, quote }] : [];
   }).sort((a, b) => a.quote.amount - b.quote.amount);
 
-  if (candidates.length === 0) return [];
+  // A partner may have overlapping rules. Return only its cheapest eligible
+  // result so the customer never sees duplicate offers from one company.
+  const seenPartners = new Set<string>();
+  const uniqueCandidates = candidates.filter((candidate) => {
+    if (seenPartners.has(candidate.rule.partnerId)) return false;
+    seenPartners.add(candidate.rule.partnerId);
+    return true;
+  });
+
+  if (uniqueCandidates.length === 0) return [];
   await prisma.deliveryQuote.updateMany({
     where: { orderId, status: 'OFFERED' },
     data: { status: 'EXPIRED' },
   });
-  return prisma.$transaction(candidates.slice(0, 3).map(({ rule, quote }) =>
+  return prisma.$transaction(uniqueCandidates.slice(0, 3).map(({ rule, quote }) =>
     prisma.deliveryQuote.create({
       data: {
         orderId,
@@ -75,7 +87,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
   return prisma.$transaction(async (tx) => {
     const quote = await tx.deliveryQuote.findFirst({
       where: { id: quoteId, orderId },
-      include: { order: true, partner: true },
+      include: { order: { include: { payment: true, platformShipment: { select: { id: true } } } }, partner: true },
     });
     if (!quote || quote.status !== 'OFFERED' || quote.expiresAt <= new Date()) {
       throw new BusinessRuleError('Delivery quote is no longer available');
@@ -83,6 +95,10 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     if (quote.order.paymentMethod === 'CASH' && !quote.partner.supportsCod) {
       throw new BusinessRuleError('This delivery partner does not support cash collection');
     }
+    if (quote.order.paymentMethod !== 'CASH') {
+      throw new BusinessRuleError('Platform delivery currently supports cash on delivery only');
+    }
+    if (quote.order.platformShipment) throw new BusinessRuleError('A delivery shipment already exists for this order');
 
     const accepted = await tx.deliveryQuote.updateMany({
       where: { id: quote.id, status: 'OFFERED', expiresAt: { gt: new Date() } },
@@ -95,13 +111,15 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     });
 
     const fee = Number(quote.fee);
+    const total = Number(quote.order.subtotal) - Number(quote.order.discount) + Number(quote.order.tax) + fee;
     await tx.order.update({
       where: { id: orderId },
       data: {
         deliveryMethod: 'WASLAK_DELIVERY',
         deliveryFee: fee,
-        total: Number(quote.order.subtotal) - Number(quote.order.discount) + Number(quote.order.tax) + fee,
+        total,
         delivery: { update: { type: 'WASLAK_DELIVERY', fee } },
+        ...(quote.order.payment ? { payment: { update: { amount: total } } } : {}),
       },
     });
     const shipment = await tx.platformShipment.create({
@@ -117,7 +135,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     });
     if (quote.order.paymentMethod === 'CASH') {
       await tx.codCollection.create({
-        data: { shipmentId: shipment.id, expectedAmount: Number(quote.order.total) + fee, currency: quote.currency },
+        data: { shipmentId: shipment.id, expectedAmount: total, currency: quote.currency },
       });
     }
     return shipment;

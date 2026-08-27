@@ -20,4 +20,10 @@ describe('storefront checkout payment validation', () => {
   it('accepts a complete manual transfer submission', () => {
     expect(placeOrderSchema.parse({ ...base, paymentMethod: 'MANUAL_TRANSFER', paymentAccountId: 'account_1', transactionRef: 'REF-123' })).toMatchObject({ paymentMethod: 'MANUAL_TRANSFER', transactionRef: 'REF-123' });
   });
+
+  it('accepts valid delivery coordinates only as a complete pair', () => {
+    expect(placeOrderSchema.parse({ ...base, deliveryLat: 15.5007, deliveryLng: 32.5599 })).toMatchObject({ deliveryLat: 15.5007, deliveryLng: 32.5599 });
+    expect(() => placeOrderSchema.parse({ ...base, deliveryLat: 15.5007 })).toThrow('must be provided together');
+    expect(() => placeOrderSchema.parse({ ...base, deliveryLat: 95, deliveryLng: 32.5599 })).toThrow();
+  });
 });

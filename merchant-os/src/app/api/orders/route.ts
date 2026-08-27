@@ -10,6 +10,8 @@ import { enforceRateLimit, getClientIp } from '@/lib/security/rate-limit';
 interface MobileOrderRequestBody {
   items?: { product_id?: string; qty?: number }[];
   address?: string;
+  latitude?: number;
+  longitude?: number;
   payment_method?: string;
   notes?: string;
 }
@@ -35,6 +37,8 @@ export async function POST(req: NextRequest) {
         return { productId: item.product_id, quantity };
       }),
       address: body.address,
+      deliveryLat: body.latitude,
+      deliveryLng: body.longitude,
       paymentMethod: body.payment_method,
       notes: body.notes,
     };

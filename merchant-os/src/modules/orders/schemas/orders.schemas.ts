@@ -29,10 +29,15 @@ export const createOrderSchema = z.object({
   paymentMethod: z.enum(['CASH', 'CARD', 'ONLINE', 'WALLET']),
   notes: z.string().max(500).optional(),
   customerAddress: z.string().optional(),
+  deliveryLat: z.number().min(-90).max(90).optional(),
+  deliveryLng: z.number().min(-180).max(180).optional(),
   branchId: z.string().cuid().optional(),
 }).refine(
   (data) => data.customerId || (data.customerName && data.customerPhone),
   { message: 'Either customerId or customerName+customerPhone is required' }
+).refine(
+  (data) => (data.deliveryLat == null) === (data.deliveryLng == null),
+  { message: 'Delivery latitude and longitude must be provided together' },
 );
 
 /** Schema for updating order status */

@@ -1,4 +1,4 @@
-import type { Order, OrderItem, OrderStatusHistory, Customer, Branch, Payment, OrderPaymentProof } from '@prisma/client';
+import type { Order, OrderItem, OrderStatusHistory, Customer, Branch, Payment, OrderPaymentProof, Delivery, PlatformShipment, DeliveryEvent, CodCollection, DeliveryCourier } from '@prisma/client';
 
 export type OrderStatus =
   | 'NEW'
@@ -108,6 +108,13 @@ export type ActiveOrder = Order & {
   statusHistory: OrderStatusHistory[];
   customer: Customer;
   branch: Branch | null;
+  delivery: Delivery | null;
+  platformShipment: (PlatformShipment & {
+    partner: { name: string; phone: string | null };
+    courier: Pick<DeliveryCourier, 'name' | 'phone' | 'vehicleType'> | null;
+    events: DeliveryEvent[];
+    codCollection: CodCollection | null;
+  }) | null;
   payment: (Payment & { manualProof: (Pick<OrderPaymentProof, 'id' | 'paymentId' | 'accountLabel' | 'transactionRef' | 'senderName' | 'transferredAt' | 'status' | 'reviewedAt' | 'rejectionReason' | 'createdAt' | 'updatedAt'>) | null }) | null;
 };
 

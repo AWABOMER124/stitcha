@@ -11,6 +11,17 @@ import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
 import { ExternalImage } from '@/components/external-image';
 import { reviewOrderPaymentAction } from '@/modules/store-payments/actions';
+import { acceptMerchantDeliveryQuoteAction, requestMerchantDeliveryQuotesAction } from '@/modules/delivery-partners/actions';
+
+type DeliveryQuoteOption = {
+  id: string;
+  fee: number | string;
+  currency: string;
+  etaMinutesMin: number | null;
+  etaMinutesMax: number | null;
+  expiresAt: string | Date;
+  partner: { name: string; rating: number | string; supportsCod: boolean };
+};
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700',
@@ -54,7 +65,7 @@ function StatusTimeline({ history }: { history: ActiveOrder['statusHistory'] }) 
   );
 }
 
-export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder }) {
+export function OrderDetailClient({ order: initialOrder, platformDeliveryEnabled }: { order: ActiveOrder; platformDeliveryEnabled: boolean }) {
   const { dict, locale } = useLocale();
   const t = dict.orderDetailPage;
   const ot = dict.ordersPage;
@@ -64,6 +75,7 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [paymentReason, setPaymentReason] = useState('');
+  const [deliveryQuotes, setDeliveryQuotes] = useState<DeliveryQuoteOption[]>([]);
   const router = useRouter();
 
   const status = order.status as OrderStatus;
@@ -100,6 +112,26 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
           manualProof: { ...previous.payment.manualProof, status: decision === 'VERIFY' ? 'VERIFIED' : 'REJECTED', rejectionReason: decision === 'REJECT' ? paymentReason : null },
         },
       } : previous);
+      router.refresh();
+    });
+  }
+
+  function requestDeliveryQuotes() {
+    setError(null);
+    startTransition(async () => {
+      const result = await requestMerchantDeliveryQuotesAction(order.id);
+      if (!result.success) { setError(result.error); return; }
+      setDeliveryQuotes(result.data as DeliveryQuoteOption[]);
+      if (result.data.length === 0) setError(locale === 'ar' ? 'لا توجد شركة تغطي هذا الموقع حالياً.' : 'No delivery partner currently covers this location.');
+    });
+  }
+
+  function acceptDeliveryQuote(quoteId: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await acceptMerchantDeliveryQuoteAction(order.id, quoteId);
+      if (!result.success) { setError(result.error); return; }
+      setDeliveryQuotes([]);
       router.refresh();
     });
   }
@@ -289,6 +321,33 @@ export function OrderDetailClient({ order: initialOrder }: { order: ActiveOrder 
               {order.payment.manualProof.rejectionReason && <p className="rounded-lg bg-red-50 p-2 text-xs text-red-700">{order.payment.manualProof.rejectionReason}</p>}
             </div>}
           </div>
+
+          {/* Platform delivery */}
+          {order.deliveryMethod !== 'PICKUP' && (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-3">
+              <h2 className="text-sm font-semibold text-[var(--foreground)]">{locale === 'ar' ? 'توصيل وصلة' : 'Wasla delivery'}</h2>
+              {order.platformShipment ? (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-[var(--muted-foreground)]">{locale === 'ar' ? 'الشركة' : 'Partner'}</span><strong>{order.platformShipment.partner.name}</strong></div>
+                  <div className="flex justify-between"><span className="text-[var(--muted-foreground)]">{locale === 'ar' ? 'الحالة' : 'Status'}</span><strong>{order.platformShipment.status}</strong></div>
+                  <div className="flex justify-between"><span className="text-[var(--muted-foreground)]">{locale === 'ar' ? 'رقم التتبع' : 'Tracking code'}</span><span className="font-mono font-semibold">{order.platformShipment.trackingCode}</span></div>
+                  {order.platformShipment.courier && <div className="rounded-lg bg-[var(--muted)]/40 p-3"><strong className="block">{order.platformShipment.courier.name}</strong><a href={`tel:${order.platformShipment.courier.phone}`} className="text-[var(--primary)]">{order.platformShipment.courier.phone}</a></div>}
+                  {order.platformShipment.codCollection && <div className="flex justify-between"><span className="text-[var(--muted-foreground)]">COD</span><strong>{order.platformShipment.codCollection.status} · {Number(order.platformShipment.codCollection.expectedAmount).toLocaleString()} {order.platformShipment.codCollection.currency}</strong></div>}
+                </div>
+              ) : !platformDeliveryEnabled ? (
+                <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{locale === 'ar' ? 'الخدمة جاهزة تقنياً لكنها متوقفة لحين اعتماد شركات التوصيل والأسعار في الإنتاج.' : 'Technically ready, but disabled until production partners and pricing are approved.'}</p>
+              ) : order.delivery?.lat == null || order.delivery.lng == null ? (
+                <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{locale === 'ar' ? 'لا يمكن طلب عرض دون موقع تسليم دقيق. اطلب من العميل مشاركة الموقع.' : 'A precise drop-off location is required. Ask the customer to share it.'}</p>
+              ) : order.paymentMethod !== 'CASH' ? (
+                <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">{locale === 'ar' ? 'المرحلة التجريبية للتوصيل تدعم الدفع عند الاستلام فقط.' : 'The delivery pilot currently supports cash on delivery only.'}</p>
+              ) : (
+                <div className="space-y-3">
+                  <button type="button" onClick={requestDeliveryQuotes} disabled={isPending} className="w-full rounded-lg bg-[var(--primary)] px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{isPending ? '...' : (locale === 'ar' ? 'طلب عروض التوصيل' : 'Request delivery quotes')}</button>
+                  {deliveryQuotes.map(quote => <div key={quote.id} className="rounded-lg border border-[var(--border)] p-3 text-sm"><div className="flex items-start justify-between gap-3"><div><strong className="block">{quote.partner.name}</strong><span className="text-xs text-[var(--muted-foreground)]">{quote.etaMinutesMin != null ? `${quote.etaMinutesMin}–${quote.etaMinutesMax ?? quote.etaMinutesMin} ${locale === 'ar' ? 'دقيقة' : 'min'}` : (locale === 'ar' ? 'المدة تؤكدها الشركة' : 'ETA confirmed by partner')}</span></div><strong>{Number(quote.fee).toLocaleString()} {quote.currency}</strong></div><button type="button" onClick={() => acceptDeliveryQuote(quote.id)} disabled={isPending} className="mt-3 w-full rounded-lg border border-[var(--primary)] px-3 py-2 text-xs font-bold text-[var(--primary)] disabled:opacity-50">{locale === 'ar' ? 'اختيار هذا العرض' : 'Select quote'}</button></div>)}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           {(order.notes || order.internalNotes) && (

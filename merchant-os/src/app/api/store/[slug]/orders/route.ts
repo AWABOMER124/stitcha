@@ -20,11 +20,15 @@ export async function POST(request: Request, context: RouteContext<'/api/store/[
     let items: unknown;
     try { items = JSON.parse(itemsRaw); } catch { items = []; }
     const transferredAtRaw = String(form.get('transferredAt') ?? '');
+    const deliveryLatRaw = String(form.get('deliveryLat') ?? '');
+    const deliveryLngRaw = String(form.get('deliveryLng') ?? '');
     const data = placeOrderSchema.parse({
       customerName: String(form.get('customerName') ?? ''),
       customerPhone: String(form.get('customerPhone') ?? ''),
       deliveryMethod: String(form.get('deliveryMethod') ?? 'PICKUP'),
       customerAddress: String(form.get('customerAddress') ?? '') || undefined,
+      deliveryLat: deliveryLatRaw ? Number(deliveryLatRaw) : undefined,
+      deliveryLng: deliveryLngRaw ? Number(deliveryLngRaw) : undefined,
       notes: String(form.get('notes') ?? '') || undefined,
       items,
       paymentMethod,
