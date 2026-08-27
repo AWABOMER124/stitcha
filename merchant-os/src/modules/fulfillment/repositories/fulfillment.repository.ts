@@ -10,6 +10,7 @@ const orderIncludes = {
   branch: true,
   payment: { include: { manualProof: { select: { id: true, paymentId: true, accountLabel: true, transactionRef: true, senderName: true, transferredAt: true, status: true, reviewedAt: true, rejectionReason: true, createdAt: true, updatedAt: true } } } },
   statusHistory: { orderBy: { createdAt: 'desc' as const } },
+  invoice: { select: { id: true } },
 } as const;
 
 export async function findActiveOrders(merchantId: string, branchId?: string) {

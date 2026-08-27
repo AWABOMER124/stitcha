@@ -24,6 +24,8 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // Clean existing data
+  await prisma.invoiceItem.deleteMany();
+  await prisma.invoice.deleteMany();
   await prisma.orderStatusHistory.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.delivery.deleteMany();

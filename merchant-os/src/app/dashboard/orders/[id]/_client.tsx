@@ -12,6 +12,7 @@ import { useLocale } from '@/lib/i18n/context';
 import { ExternalImage } from '@/components/external-image';
 import { reviewOrderPaymentAction } from '@/modules/store-payments/actions';
 import { acceptMerchantDeliveryQuoteAction, requestMerchantDeliveryQuotesAction } from '@/modules/delivery-partners/actions';
+import { createInvoiceAction } from '@/modules/invoices/actions';
 
 type DeliveryQuoteOption = {
   id: string;
@@ -136,6 +137,16 @@ export function OrderDetailClient({ order: initialOrder, platformDeliveryEnabled
     });
   }
 
+  function openInvoice() {
+    if (order.invoice) { router.push(`/dashboard/invoices/${order.invoice.id}`); return; }
+    setError(null);
+    startTransition(async () => {
+      const result = await createInvoiceAction(order.id);
+      if (!result.success) { setError(result.error); return; }
+      router.push(`/dashboard/invoices/${result.data.id}`);
+    });
+  }
+
   const snapshot = (item: ActiveOrder['items'][0]) =>
     item.productSnapshot as { name?: string; image?: string };
 
@@ -161,8 +172,11 @@ export function OrderDetailClient({ order: initialOrder, platformDeliveryEnabled
         </div>
 
         {/* Status actions */}
-        {!isTerminal && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <button disabled={isPending} onClick={openInvoice} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-bold text-[var(--foreground)] disabled:opacity-50">
+            {order.invoice ? 'عرض الفاتورة' : 'إنشاء فاتورة'}
+          </button>
+          {!isTerminal && <>
             {cancelNext && (
               <button
                 disabled={isPending}
@@ -181,8 +195,8 @@ export function OrderDetailClient({ order: initialOrder, platformDeliveryEnabled
                 {isPending ? '...' : nextLabel}
               </button>
             )}
-          </div>
-        )}
+          </>}
+        </div>
       </div>
 
       {error && (
