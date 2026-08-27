@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth/config';
 import prisma from '@/lib/db/prisma';
 import { CopyStoreLinkButton } from './copy-store-link-button';
+import { getPublicOrigin } from '@/lib/public-origin';
 
 /**
  * Real, DB-backed setup checklist for a newly registered merchant.
@@ -11,13 +12,14 @@ export async function OnboardingChecklist() {
   const merchantId = session?.user?.merchantId;
   if (!merchantId) return null;
 
-  const [merchant, categoryCount, productCount] = await Promise.all([
+  const [merchant, categoryCount, productCount, publicOrigin] = await Promise.all([
     prisma.merchant.findUnique({
       where: { id: merchantId },
       select: { slug: true, logo: true, storefrontSettings: { select: { workingHours: true } } },
     }),
     prisma.category.count({ where: { merchantId } }),
     prisma.product.count({ where: { merchantId } }),
+    getPublicOrigin(),
   ]);
 
   if (!merchant) return null;
@@ -30,7 +32,7 @@ export async function OnboardingChecklist() {
   ];
 
   const remaining = steps.filter((s) => !s.done);
-  const storeUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/store/${merchant.slug}`;
+  const storeUrl = `${publicOrigin}/store/${merchant.slug}`;
 
   // All setup steps done — just surface the share link, no checklist noise.
   if (remaining.length === 0) {

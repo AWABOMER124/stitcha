@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
 import { LanguageToggle } from '@/lib/i18n/language-toggle';
 import { ExternalImage } from '@/components/external-image';
+import { normalizeStorefrontTheme, type StorefrontSection } from '@/lib/storefront-theme';
 
 type Modifier = { id: string; name: string; required: boolean; minSelections: number; maxSelections: number; options: { name: string; price: number }[] };
 export type Product = { id: string; name: string; slug: string; description: string | null; images: string[]; price: number; compareAtPrice?: number | null; isFeatured: boolean; categoryId: string; category: { id: string; name: string; slug: string }; modifiers: Modifier[] };
@@ -21,21 +22,13 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   const { dict, dir } = useLocale();
   const t = dict.storefrontPublic;
   const settings = merchant.storefrontSettings;
-  const theme = (settings?.theme ?? {}) as Record<string, unknown>;
-  const primary = typeof theme.primaryColor === 'string' ? theme.primaryColor : '#13c4a3';
-  const logoSrc = merchant.logo ?? (typeof theme.logoUrl === 'string' ? theme.logoUrl : null);
-  const defaultSections = ['hero', 'categories', 'products'] as const;
-  type StoreSection = (typeof defaultSections)[number];
-  const configuredSections = Array.isArray(theme.sectionOrder)
-    ? theme.sectionOrder.filter((item): item is StoreSection => defaultSections.includes(item as StoreSection))
-    : [];
-  const sectionOrder = [...configuredSections, ...defaultSections.filter(item => !configuredSections.includes(item))];
-  const hiddenSections = new Set(
-    Array.isArray(theme.hiddenSections)
-      ? theme.hiddenSections.filter((item): item is StoreSection => defaultSections.includes(item as StoreSection))
-      : [],
-  );
-  const sectionStyle = (id: StoreSection): CSSProperties => ({ order: sectionOrder.indexOf(id) });
+  const rawTheme = (settings?.theme ?? {}) as Record<string, unknown>;
+  const theme = normalizeStorefrontTheme(rawTheme, merchant.name);
+  const primary = theme.primaryColor;
+  const accent = theme.accentColor;
+  const logoSrc = merchant.logo ?? (typeof rawTheme.logoUrl === 'string' ? rawTheme.logoUrl : null);
+  const hiddenSections = new Set(theme.hiddenSections);
+  const sectionStyle = (id: StorefrontSection): CSSProperties => ({ order: theme.sectionOrder.indexOf(id) });
   const isOpen = settings?.isOpen ?? true;
 
   const [activeCat, setActiveCat] = useState<string>('all');
@@ -137,6 +130,24 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
 
   const minOrder = Number(settings?.minimumOrderAmount ?? 0);
   const canCheckout = cartTotal >= minOrder;
+  const featuredProducts = filtered.filter(product => product.isFeatured).slice(0, 6);
+  const cardClass = theme.productCardStyle === 'minimal'
+    ? 'bg-white overflow-hidden text-right transition-all active:scale-95 group'
+    : theme.productCardStyle === 'bordered'
+      ? 'bg-white rounded-xl border-2 border-stone-200 overflow-hidden text-right hover:border-[var(--sp)] transition-all active:scale-95 group'
+      : 'bg-white rounded-2xl border border-stone-100 overflow-hidden text-right shadow-sm hover:shadow-md transition-all active:scale-95 group';
+
+  function productCard(product: Product) {
+    return <button key={product.id} onClick={() => openProduct(product)} className={cardClass}>
+      <div className="relative aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
+        {product.images?.[0]
+          ? <ExternalImage src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
+          : <span className="text-4xl opacity-40">{product.category.name.includes('مشروب') ? '🥤' : product.category.name.includes('حلو') ? '🍰' : '🛍️'}</span>}
+        {product.isFeatured && <span className="absolute start-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black" style={{ color: primary }}>★ مميز</span>}
+      </div>
+      <div className="p-3"><p className="font-semibold text-stone-900 text-sm leading-tight">{product.name}</p>{product.description && <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{product.description}</p>}<div className="mt-2 flex items-center justify-between"><span className="text-sm font-bold" style={{ color: primary }}>{Number(product.price).toLocaleString()} SDG</span>{product.compareAtPrice && <span className="text-xs text-stone-400 line-through">{Number(product.compareAtPrice).toLocaleString()}</span>}<span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-lg font-light" style={{ background: primary }}>+</span></div></div>
+    </button>;
+  }
 
   return (
     <div dir={dir} className="min-h-screen bg-stone-50">
@@ -166,24 +177,44 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       </header>
 
       <div className="flex flex-col">
+      {!hiddenSections.has('announcement') && theme.announcementText && (
+        <div className="px-4 py-2.5 text-center text-sm font-bold text-white" style={{ background: primary, ...sectionStyle('announcement') }}>
+          {theme.announcementText}
+        </div>
+      )}
+
       {/* Hero */}
-      {!hiddenSections.has('hero') && (settings?.welcomeText || settings?.bannerImage) && (
-        <div className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${primary}ee, ${primary}99)`, ...sectionStyle('hero') }}>
-          {settings.bannerImage && (
+      {!hiddenSections.has('hero') && (
+        <section className={`relative overflow-hidden ${theme.heroStyle === 'immersive' ? 'min-h-[430px]' : 'min-h-[310px]'}`} style={{ background: `linear-gradient(135deg, ${primary}, ${accent})`, ...sectionStyle('hero') }}>
+          {settings?.bannerImage && (
             <ExternalImage
               src={settings.bannerImage}
               alt=""
               fill
               priority
               sizes="100vw"
-              className="object-cover mix-blend-overlay opacity-30"
+              className={`object-cover ${theme.heroStyle === 'immersive' ? 'opacity-55' : 'mix-blend-overlay opacity-35'}`}
             />
           )}
-          <div className="relative px-4 py-8 text-white text-center max-w-4xl mx-auto">
-            <p className="text-lg font-medium">{settings.welcomeText}</p>
-            {!settings.deliveryEnabled && settings.pickupEnabled && <p className="mt-1 text-sm text-white/70">{t.pickupOnlyNote}</p>}
+          <div className={`relative mx-auto flex min-h-[310px] max-w-4xl items-center px-6 py-12 text-white ${theme.heroStyle === 'centered' ? 'justify-center text-center' : theme.heroStyle === 'split' ? 'md:w-2/3 md:ms-0' : 'items-end min-h-[430px]'}`}>
+            <div className="max-w-xl">
+              <h1 className="text-3xl font-black leading-tight sm:text-5xl">{theme.heroTitle}</h1>
+              <p className="mt-4 text-base leading-7 text-white/85 sm:text-lg">{theme.heroSubtitle}</p>
+              {!settings?.deliveryEnabled && settings?.pickupEnabled && <p className="mt-2 text-sm text-white/70">{t.pickupOnlyNote}</p>}
+              <button onClick={() => document.getElementById('store-products')?.scrollIntoView({ behavior: 'smooth' })} className="mt-6 rounded-xl bg-white px-6 py-3 text-sm font-black shadow-lg transition-transform hover:-translate-y-0.5" style={{ color: primary }}>
+                {theme.heroCtaLabel}
+              </button>
+            </div>
           </div>
-        </div>
+        </section>
+      )}
+
+      {!hiddenSections.has('trust') && (
+        <section className="border-b border-stone-100 px-4 py-5" style={{ background: theme.surfaceColor, ...sectionStyle('trust') }}>
+          <div className="mx-auto grid max-w-4xl grid-cols-3 gap-2">
+            {theme.trustItems.map((item, index) => <div key={`${item}-${index}`} className="rounded-xl bg-white/80 px-2 py-3 text-center text-xs font-bold text-stone-700 shadow-sm"><span className="mb-1 block text-lg">{['✓', '◇', '⚡'][index]}</span>{item}</div>)}
+          </div>
+        </section>
       )}
 
       {/* Category Tabs */}
@@ -196,8 +227,17 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
         </div>
       </div>}
 
+      {!hiddenSections.has('featured') && featuredProducts.length > 0 && (
+        <section className="px-4 py-8" style={{ background: theme.surfaceColor, ...sectionStyle('featured') }}>
+          <div className="mx-auto max-w-4xl">
+            <div className="mb-4 flex items-end justify-between"><div><p className="text-xs font-bold" style={{ color: primary }}>اختيارات المتجر</p><h2 className="text-xl font-black text-stone-900">منتجات مميزة</h2></div><span className="text-2xl">★</span></div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{featuredProducts.map(productCard)}</div>
+          </div>
+        </section>
+      )}
+
       {/* Products */}
-      {!hiddenSections.has('products') && <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6" style={sectionStyle('products')}>
+      {!hiddenSections.has('products') && <main id="store-products" className="mx-auto w-full max-w-4xl space-y-8 px-4 py-8" style={sectionStyle('products')}>
         {grouped.length === 0 && (
           <div className="text-center py-16 text-stone-400">
             <div className="text-5xl mb-3">🔍</div>
@@ -211,28 +251,23 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
               {cat.name}
             </h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {cat.products.map(p => (
-                <button key={p.id} onClick={() => openProduct(p)} className="bg-white rounded-2xl border border-stone-100 overflow-hidden text-right shadow-sm hover:shadow-md transition-all active:scale-95 group">
-                  <div className="relative aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
-                    {p.images?.[0]
-                      ? <ExternalImage src={p.images[0]} alt={p.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
-                      : <span className="text-4xl opacity-40">{p.category.name.includes('مشروب') ? '🥤' : p.category.name.includes('حلو') ? '🍰' : '🍽️'}</span>}
-                  </div>
-                  <div className="p-3">
-                    <p className="font-semibold text-stone-900 text-sm leading-tight">{p.name}</p>
-                    {p.description && <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{p.description}</p>}
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-sm font-bold" style={{ color: primary }}>{Number(p.price).toLocaleString()} SDG</span>
-                      {p.compareAtPrice && <span className="text-xs text-stone-400 line-through">{Number(p.compareAtPrice).toLocaleString()}</span>}
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-lg font-light" style={{ background: primary }}>+</div>
-                    </div>
-                  </div>
-                </button>
-              ))}
+              {cat.products.map(productCard)}
             </div>
           </section>
         ))}
       </main>}
+
+      {!hiddenSections.has('testimonials') && (
+        <section className="px-4 py-10 text-center" style={{ background: theme.surfaceColor, ...sectionStyle('testimonials') }}>
+          <div className="mx-auto max-w-2xl rounded-3xl bg-white px-6 py-8 shadow-sm"><div className="mb-3 text-3xl" style={{ color: accent }}>“</div><blockquote className="text-lg font-bold leading-8 text-stone-800">{theme.testimonialQuote}</blockquote><p className="mt-3 text-sm text-stone-500">— {theme.testimonialName}</p></div>
+        </section>
+      )}
+
+      {!hiddenSections.has('social') && (
+        <section className="border-t border-stone-100 bg-white px-4 py-10 text-center" style={sectionStyle('social')}>
+          <div className="mx-auto max-w-4xl"><h2 className="text-xl font-black text-stone-900">تواصل معنا</h2><p className="mt-2 text-sm text-stone-500">نحن قريبون منك للإجابة عن أسئلتك ومتابعة طلبك.</p><button onClick={() => setChatOpen(true)} className="mt-5 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-sm" style={{ background: primary }}>ابدأ محادثة</button><p className="mt-7 text-xs text-stone-400">متجر إلكتروني بواسطة وصلة</p></div>
+        </section>
+      )}
       </div>
 
       {/* Cart FAB */}

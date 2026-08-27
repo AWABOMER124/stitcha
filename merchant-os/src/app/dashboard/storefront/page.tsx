@@ -4,17 +4,19 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import prisma from '@/lib/db/prisma';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
+import { getPublicOrigin } from '@/lib/public-origin';
 
 export default async function StorefrontPage() {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
 
-  const [merchant, cookieStore] = await Promise.all([
+  const [merchant, cookieStore, publicOrigin] = await Promise.all([
     prisma.merchant.findUnique({
       where: { id: session.user.merchantId },
       include: { storefrontSettings: true },
     }),
     cookies(),
+    getPublicOrigin(),
   ]);
 
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
@@ -63,7 +65,7 @@ export default async function StorefrontPage() {
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
         <p className="text-sm text-[var(--muted-foreground)] mb-2">{t.storeUrlLabel}</p>
         <div className="flex items-center gap-3 bg-[var(--background)] rounded-xl px-4 py-2.5 border border-[var(--border)]">
-          <span className="text-sm text-[var(--foreground)] flex-1 font-mono break-all">{process.env.NEXTAUTH_URL ?? 'https://yourdomain.com'}{storeUrl}</span>
+          <span className="text-sm text-[var(--foreground)] flex-1 font-mono break-all">{publicOrigin}{storeUrl}</span>
           <a href={storeUrl} target="_blank" rel="noopener" className="text-[var(--primary)] text-sm font-medium whitespace-nowrap hover:underline">{t.openLink}</a>
         </div>
       </div>

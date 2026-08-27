@@ -13,6 +13,8 @@ import type { StoreContentResult } from '@/services/ai/types';
 import { storeContentSchema, storeGenerationPromptSchema } from '@/services/ai/store-content.schema';
 import * as categoriesService from '@/modules/categories/services/categories.service';
 import * as productsService from '@/modules/products/services/products.service';
+import { getAuthContext, requirePermission } from '@/lib/permissions';
+import { normalizeStorefrontTheme } from '@/lib/storefront-theme';
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -53,18 +55,30 @@ export async function saveStorefrontSettingsAction(data: {
   socialLinks?: Prisma.InputJsonValue;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const session = await auth();
-    if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
-    const { logoImage, ...settingsData } = data;
+    const authContext = await getAuthContext();
+    requirePermission(authContext, 'settings:update');
+    const merchant = await prisma.merchant.findUniqueOrThrow({
+      where: { id: authContext.merchantId },
+      select: { name: true, storefrontSettings: { select: { theme: true } } },
+    });
+    const { logoImage, theme, ...settingsData } = data;
+    const previousTheme = merchant.storefrontSettings?.theme && typeof merchant.storefrontSettings.theme === 'object'
+      ? merchant.storefrontSettings.theme as Record<string, unknown>
+      : {};
+    const incomingTheme = theme && typeof theme === 'object' ? theme as Record<string, unknown> : {};
+    const normalizedTheme = theme === undefined
+      ? undefined
+      : normalizeStorefrontTheme({ ...previousTheme, ...incomingTheme }, merchant.name) as unknown as Prisma.InputJsonValue;
+    const safeSettingsData = normalizedTheme === undefined ? settingsData : { ...settingsData, theme: normalizedTheme };
     await prisma.$transaction([
       prisma.storefrontSettings.upsert({
-        where: { merchantId: session.user.merchantId },
-        update: settingsData,
-        create: { merchantId: session.user.merchantId, ...settingsData },
+        where: { merchantId: authContext.merchantId },
+        update: safeSettingsData,
+        create: { merchantId: authContext.merchantId, ...safeSettingsData },
       }),
       ...(logoImage !== undefined
         ? [prisma.merchant.update({
-            where: { id: session.user.merchantId },
+            where: { id: authContext.merchantId },
             data: { logo: logoImage || null },
           })]
         : []),

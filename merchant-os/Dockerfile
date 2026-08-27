@@ -20,7 +20,7 @@ COPY . .
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npx prisma generate
 
-ARG NEXT_PUBLIC_APP_URL="http://localhost:3000"
+ARG NEXT_PUBLIC_APP_URL="https://wassla-sd.shop"
 ARG APP_RELEASE="unknown"
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV APP_RELEASE=$APP_RELEASE
@@ -33,6 +33,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_APP_URL="https://wassla-sd.shop"
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ARG APP_RELEASE="unknown"
 ENV APP_RELEASE=$APP_RELEASE
 
@@ -46,7 +48,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma        ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --chown=nextjs:nodejs package.json   ./
 COPY --chown=nextjs:nodejs entrypoint.sh  ./
-RUN mkdir -p storage/private && chown -R nextjs:nodejs storage && \
+RUN mkdir -p public/uploads storage/private && chown -R nextjs:nodejs public/uploads storage && \
     sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 USER nextjs
