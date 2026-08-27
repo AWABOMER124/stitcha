@@ -200,6 +200,7 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM` | Per channel | SMS delivery through Twilio |
 | `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_GRAPH_API_VERSION` | Per channel | WhatsApp delivery through Meta Cloud API |
 | `ALLOW_SEED` | No | Must be `true` to run `db seed` when `NODE_ENV=production` |
+| `PLATFORM_DELIVERY_ENABLED` | No | Keep `false` until the shipping P0 checklist and partner UAT are complete |
 
 ## 🐳 Deployment
 
@@ -231,7 +232,7 @@ Automated unit and PostgreSQL integration suites run in CI. Supplement them with
 
 ## ⚠️ Known Limitations
 
-- **External delivery still needs production credentials and a scheduler.** The Resend, Twilio, and Meta adapters fail closed until their channel variables are set. Configure `JOB_RUNNER_SECRET` and call `/api/internal/jobs/run`; failed deliveries remain visible in `outbox_jobs`.
+- **External delivery still needs a partner adapter and production credentials.** Follow [`docs/SHIPPING_INTEGRATION_API.md`](docs/SHIPPING_INTEGRATION_API.md); keep `PLATFORM_DELIVERY_ENABLED=false` until P0, contract tests, and partner UAT pass. Configure `JOB_RUNNER_SECRET` and call `/api/internal/jobs/run`; failed background work remains visible in `outbox_jobs`.
 - **File storage defaults to local disk** unless `S3_*` env vars are set — not durable across redeploys on ephemeral hosting.
 - **AI services are unconfigured** without `ANTHROPIC_API_KEY`: store generation fails gracefully and the WhatsApp agent stays inactive.
 - **Coverage is focused on critical paths.** Keep adding UI and end-to-end coverage; `scripts/check-raw-prisma-returns.sh` remains a supplementary heuristic guard.

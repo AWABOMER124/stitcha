@@ -96,6 +96,7 @@ mode keeps the map unavailable without fabricating one.
 - [Direct merchant, freemium, and delivery strategy](docs/DIRECT_MERCHANT_STRATEGY.md)
 - [Storefront and AI product-image audit](docs/STOREFRONT_AI_AUDIT.md)
 - [Merchant OS detailed reference](merchant-os/docs/SYSTEM_REFERENCE.md)
+- [Shipping-company integration and API contract](merchant-os/docs/SHIPPING_INTEGRATION_API.md)
 
 ## Security
 
