@@ -22,6 +22,15 @@ Configure a separate private bucket with:
 
 Without a private bucket, development files are written outside the public web root at `storage/private`. This local fallback is not a production durability guarantee.
 
+## Single-server pilot mounts
+
+Until S3 is configured, the Dokploy production application uses two named
+volumes: `wassla-public-uploads` at `/app/public/uploads` and
+`wassla-private-storage` at `/app/storage/private`. Both mounts must remain
+writable by the application UID/GID `1001`, and a restart persistence test is
+required before onboarding merchants. These volumes protect container
+replacements, but they do not replace an off-server backup.
+
 ## Production rules
 
 - Use separate public and private DigitalOcean Spaces buckets.
