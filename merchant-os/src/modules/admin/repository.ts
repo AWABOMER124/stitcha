@@ -5,52 +5,47 @@ import type { Prisma } from '@prisma/client';
 
 export async function getPlatformStats() {
   const [
-    totalDistributors,
-    activeDistributors,
-    pendingDistributors,
     totalMerchants,
     activeMerchants,
+    pendingMerchants,
+    suspendedMerchants,
     totalOrders,
     deliveredOrders,
     revenueAgg,
-    newDistributorsThisMonth,
     newMerchantsThisMonth,
+    pendingSubscriptionPayments,
+    activeSubscriptions,
   ] = await Promise.all([
-    prisma.distributor.count(),
-    prisma.distributor.count({ where: { status: 'ACTIVE' } }),
-    prisma.distributor.count({ where: { status: 'PENDING' } }),
     prisma.merchant.count(),
     prisma.merchant.count({ where: { status: 'ACTIVE' } }),
+    prisma.merchant.count({ where: { status: 'PENDING' } }),
+    prisma.merchant.count({ where: { status: 'SUSPENDED' } }),
     prisma.order.count(),
     prisma.order.count({ where: { status: 'DELIVERED' } }),
     prisma.order.aggregate({
       where: { status: 'DELIVERED' },
       _sum: { total: true },
     }),
-    prisma.distributor.count({
-      where: {
-        createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-      },
-    }),
     prisma.merchant.count({
       where: {
         createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
       },
     }),
+    prisma.merchantSubscriptionPayment.count({ where: { status: 'PENDING' } }),
+    prisma.merchantSubscription.count({ where: { status: 'ACTIVE' } }),
   ]);
 
   return {
-    totalDistributors,
-    activeDistributors,
-    pendingDistributors,
-    suspendedDistributors: totalDistributors - activeDistributors - pendingDistributors,
     totalMerchants,
     activeMerchants,
+    pendingMerchants,
+    suspendedMerchants,
     totalOrders,
     deliveredOrders,
     totalRevenue: Number(revenueAgg._sum.total ?? 0),
-    newDistributorsThisMonth,
     newMerchantsThisMonth,
+    pendingSubscriptionPayments,
+    activeSubscriptions,
   };
 }
 
@@ -164,8 +159,8 @@ export async function getAllMerchants(page = 1, limit = 25, search?: string, sta
 
 export async function getPlatformUsers() {
   return prisma.user.findMany({
-    where: { role: 'PLATFORM_OWNER' },
-    select: { id: true, name: true, email: true, role: true, createdAt: true, emailVerified: true },
+    where: { role: { in: ['PLATFORM_OWNER', 'PLATFORM_ADMIN', 'PLATFORM_OPERATIONS', 'PLATFORM_FINANCE', 'PLATFORM_SUPPORT'] } },
+    select: { id: true, name: true, email: true, role: true, platformAccessEnabled: true, createdAt: true, emailVerified: true },
     orderBy: { createdAt: 'asc' },
   });
 }
@@ -176,33 +171,45 @@ export async function getPlatformFinanceStats() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [totalRevenue, monthRevenue, totalSettlements, pendingSettlements, completedSettlements] =
+  const [platformRevenue, monthPlatformRevenue, pendingPayments, activeSubscriptions, gmv, deliveredOrders] =
     await Promise.all([
+      prisma.merchantSubscriptionPayment.aggregate({ where: { status: 'VERIFIED' }, _sum: { amount: true } }),
+      prisma.merchantSubscriptionPayment.aggregate({ where: { status: 'VERIFIED', reviewedAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+      prisma.merchantSubscriptionPayment.count({ where: { status: 'PENDING' } }),
+      prisma.merchantSubscription.count({ where: { status: 'ACTIVE' } }),
       prisma.order.aggregate({ where: { status: 'DELIVERED' }, _sum: { total: true } }),
-      prisma.order.aggregate({
-        where: { status: 'DELIVERED', completedAt: { gte: startOfMonth } },
-        _sum: { total: true },
-      }),
-      prisma.settlement.count(),
-      prisma.settlement.count({ where: { status: 'PENDING' } }),
-      prisma.settlement.aggregate({
-        where: { status: 'COMPLETED' },
-        _sum: { netAmount: true, commission: true },
-      }),
+      prisma.order.count({ where: { status: 'DELIVERED' } }),
     ]);
 
   return {
-    totalRevenue: Number(totalRevenue._sum.total ?? 0),
-    monthRevenue: Number(monthRevenue._sum.total ?? 0),
-    totalSettlements,
-    pendingSettlements,
-    totalCommissionCollected: Number(completedSettlements._sum.commission ?? 0),
-    totalPaidOut: Number(completedSettlements._sum.netAmount ?? 0),
+    platformRevenue: Number(platformRevenue._sum.amount ?? 0),
+    monthPlatformRevenue: Number(monthPlatformRevenue._sum?.amount ?? 0),
+    pendingPayments,
+    activeSubscriptions,
+    grossMerchandiseValue: Number(gmv._sum.total ?? 0),
+    deliveredOrders,
   };
 }
 
+export async function getMerchantById(id: string) {
+  return prisma.merchant.findUnique({
+    where: { id },
+    include: {
+      users: { where: { isActive: true }, include: { user: { select: { id: true, name: true, email: true, phone: true } } } },
+      subscription: { include: { plan: true } },
+      storefrontSettings: true,
+      _count: { select: { products: true, orders: true, customers: true, branches: true } },
+      orders: { take: 8, orderBy: { createdAt: 'desc' }, select: { id: true, orderNumber: true, status: true, total: true, createdAt: true } },
+    },
+  });
+}
+
+export async function updateMerchantStatus(id: string, status: 'ACTIVE' | 'SUSPENDED' | 'CLOSED') {
+  return prisma.merchant.update({ where: { id }, data: { status, isActive: status === 'ACTIVE' } });
+}
+
 export async function getRecentActivity() {
-  const [recentOrders, recentMerchants, recentDistributors] = await Promise.all([
+  const [recentOrders, recentMerchants] = await Promise.all([
     prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -213,11 +220,6 @@ export async function getRecentActivity() {
       orderBy: { createdAt: 'desc' },
       select: { id: true, name: true, status: true, businessType: true, createdAt: true },
     }),
-    prisma.distributor.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, name: true, status: true, createdAt: true },
-    }),
   ]);
 
   return {
@@ -225,6 +227,5 @@ export async function getRecentActivity() {
     // class instances aren't serializable across the Server Action boundary.
     recentOrders: recentOrders.map((o) => ({ ...o, total: Number(o.total) })),
     recentMerchants,
-    recentDistributors,
   };
 }

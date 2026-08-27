@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
+import { Check, Eye, EyeOff, Store } from 'lucide-react';
 
 /**
  * Merchant registration page for WASLA Commerce OS
  */
 export default function RegisterPage() {
-  const { dict } = useLocale();
+  const { dict, locale } = useLocale();
   const router = useRouter();
   const [formData, setFormData] = useState({
     merchantName: "",
@@ -23,6 +24,8 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const passwordChecks = useMemo(() => [formData.password.length >= 8, /[A-Za-z]/.test(formData.password), /\d/.test(formData.password)], [formData.password]);
 
   function updateField(field: string, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -78,12 +81,10 @@ export default function RegisterPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Logo & Title */}
       <div className="text-center space-y-2">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)] text-white text-2xl font-bold shadow-lg shadow-red-500/20">
-          و
-        </div>
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)] text-white shadow-lg shadow-emerald-500/20"><Store className="h-7 w-7"/></div>
         <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
           {dict.register.title}
         </h1>
@@ -93,7 +94,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Registration Form */}
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
+      <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xl shadow-slate-900/5 sm:p-7">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-400">
@@ -106,7 +107,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-[var(--foreground)]">
               {dict.register.businessType}
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {businessTypes.map((type) => (
                 <button
                   key={type.value}
@@ -124,7 +125,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="merchantName" className="block text-sm font-medium text-[var(--foreground)]">
                 {dict.register.businessName}
@@ -186,21 +187,21 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="reg-password" className="block text-sm font-medium text-[var(--foreground)]">
                 {dict.common.password}
               </label>
-              <input
+              <div className="relative"><input
                 id="reg-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => updateField("password", e.target.value)}
                 placeholder="••••••••"
                 required
                 minLength={8}
-                className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
-              />
+                className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 pe-10 text-sm outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
+              /><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'Hide password':'Show password'} className="absolute end-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]">{showPassword?<EyeOff className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}</button></div>
             </div>
 
             <div className="space-y-2">
@@ -209,7 +210,7 @@ export default function RegisterPage() {
               </label>
               <input
                 id="confirmPassword"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
                 onChange={(e) => updateField("confirmPassword", e.target.value)}
                 placeholder="••••••••"
@@ -220,14 +221,19 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-4 rounded-xl bg-[var(--muted)]/60 p-3 text-[11px] text-[var(--muted-foreground)]">
+            {passwordChecks.map((ok,i)=><span key={i} className={`flex items-center gap-1 ${ok?'font-bold text-emerald-600':''}`}><Check className="h-3 w-3"/>{['8+','A-Z','0-9'][i]}</span>)}
+          </div>
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:bg-[var(--primary)]/90 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-[var(--primary-foreground)] shadow-lg shadow-emerald-500/15 transition-all hover:-translate-y-0.5 hover:bg-[var(--primary)]/90 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? dict.register.creatingStore : dict.register.createAccount}
           </button>
         </form>
+        <p className="mt-4 text-center text-[11px] leading-5 text-[var(--muted-foreground)]">{locale==='ar'?'الباقة الأساسية مجانية ولا تحتاج بطاقة بنكية. بإنشاء الحساب أنت توافق على شروط الاستخدام وسياسة الخصوصية.':'The Basic plan is free and requires no bank card. By creating an account, you agree to the Terms and Privacy Policy.'}</p>
       </div>
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">

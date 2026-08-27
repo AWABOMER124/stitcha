@@ -8,11 +8,12 @@ import { AdminTopbar } from '@/components/admin/topbar';
 import { AppProviders } from '@/components/ui/app-providers';
 import { MobileNavProvider } from '@/components/ui/mobile-nav-context';
 import { SkipLink } from '@/components/ui/skip-link';
+import { isPlatformRole } from '@/lib/platform-permissions';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
-  if (session.user.role !== 'PLATFORM_OWNER') redirect('/dashboard');
+  if (!isPlatformRole(session.user.role)) redirect('/dashboard');
 
   const cookieStore = await cookies();
   const initialLocale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? undefined;
@@ -23,7 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <MobileNavProvider>
           <SkipLink />
           <div className="flex h-screen overflow-hidden bg-[var(--background)]">
-            <AdminSidebar />
+            <AdminSidebar role={session.user.role} />
             <div className="flex flex-1 flex-col overflow-hidden">
               <AdminTopbar />
               <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-6 focus:outline-none">{children}</main>

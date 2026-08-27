@@ -37,7 +37,7 @@ export function withPermission<TArgs extends unknown[], TResult>(
     try {
       const user = await getCurrentUser();
       requirePermission(
-        { userId: user.id, merchantId: user.merchantId ?? '', role: user.role, permissions: [] },
+        { userId: user.id, merchantId: user.merchantId ?? '', role: user.role, permissions: user.permissions ?? [] },
         permission as `${string}:${string}`,
       );
       return await handler(user, ...args);

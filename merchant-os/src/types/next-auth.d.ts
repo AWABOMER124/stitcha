@@ -14,6 +14,7 @@ declare module 'next-auth' {
       merchantSlug: string | null;
       distributorId: string | null;
       distributorSlug: string | null;
+      permissions: string[];
     };
   }
 }
@@ -26,5 +27,6 @@ declare module 'next-auth/jwt' {
     merchantSlug: string | null;
     distributorId: string | null;
     distributorSlug: string | null;
+    permissions: string[];
   }
 }

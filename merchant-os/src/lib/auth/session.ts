@@ -12,6 +12,7 @@ export interface SessionUser {
   merchantSlug?: string | null;
   distributorId?: string | null;
   distributorSlug?: string | null;
+  permissions?: string[];
 }
 
 export interface MerchantContext {
@@ -71,5 +72,5 @@ export function isDistributorRole(role: UserRole): boolean {
 }
 
 export function isMerchantRole(role: UserRole): boolean {
-  return !isDistributorRole(role) && role !== 'PLATFORM_OWNER';
+  return !isDistributorRole(role) && !role.startsWith('PLATFORM_');
 }

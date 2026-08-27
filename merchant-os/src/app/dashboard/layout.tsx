@@ -20,8 +20,10 @@ export default async function DashboardLayout({
   if (!session?.user?.id) redirect('/login');
 
   const role = session.user.role;
-  if (role === 'PLATFORM_OWNER') redirect('/admin');
-  if (role === 'DISTRIBUTOR_OWNER' || role === 'DISTRIBUTOR_ADMIN') redirect('/distributor/dashboard');
+  if (role.startsWith('PLATFORM_')) redirect('/admin');
+  if (role === 'DISTRIBUTOR_OWNER' || role === 'DISTRIBUTOR_ADMIN') {
+    redirect(process.env.DISTRIBUTOR_PORTAL_ENABLED === 'true' ? '/distributor/dashboard' : '/');
+  }
   if (!isMerchantRole(role) || !session.user.merchantId) redirect('/login');
 
   const [cookieStore, merchant] = await Promise.all([

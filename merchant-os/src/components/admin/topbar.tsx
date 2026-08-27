@@ -83,7 +83,7 @@ export function AdminTopbar() {
       });
     }
     setNotifOpen(false);
-    router.push('/admin/distributors');
+    router.push('/admin');
   }
 
   return (
@@ -149,7 +149,7 @@ export function AdminTopbar() {
                 )}
               </div>
               <Link
-                href="/admin/distributors"
+                href="/admin"
                 onClick={() => setNotifOpen(false)}
                 className="block border-t border-[var(--border)] px-4 py-2.5 text-center text-sm font-medium text-[var(--primary)] hover:bg-[var(--muted)] transition-colors"
               >

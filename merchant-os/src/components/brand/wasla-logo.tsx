@@ -2,12 +2,13 @@ import { brand } from '@/config/brand.config';
 
 export function WaslaMark({ className = 'h-9 w-9' }: { className?: string }) {
   return <svg className={className} viewBox="0 0 48 48" role="img" aria-label={brand.displayName}>
-    <rect width="48" height="48" rx="12" fill="var(--primary)"/>
-    <path d="M11 15v10c0 7 5 12 12 12s12-5 12-12V15M11 22h24M17 15v10c0 4 2 6 6 6s6-2 6-6V15" fill="none" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="11" cy="15" r="2.6" fill="white"/><circle cx="35" cy="15" r="2.6" fill="white"/><circle cx="23" cy="37" r="2.6" fill="white"/>
+    <defs><linearGradient id="wasla-mark-bg" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse"><stop stopColor="#3B82F6"/><stop offset=".56" stopColor="#13C4A3"/><stop offset="1" stopColor="#08A9B8"/></linearGradient></defs>
+    <rect width="48" height="48" rx="12" fill="url(#wasla-mark-bg)"/>
+    <path d="M9.5 13.5 17.2 34 24 19l7.2 15L38.5 13.5" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="9.5" cy="13.5" r="3" fill="white"/><circle cx="38.5" cy="13.5" r="3" fill="white"/><circle cx="31.2" cy="34" r="3" fill="white"/>
   </svg>;
 }
 
-export function WaslaLogo({ compact = false }: { compact?: boolean }) {
-  return <div className="flex items-center gap-3"><WaslaMark/><div className={compact ? 'hidden sm:block' : ''}><div className="text-sm font-bold tracking-wide text-[var(--foreground)]">{brand.displayName}</div><div className="text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{brand.descriptor}</div></div></div>;
+export function WaslaLogo({ compact = false, inverse = false }: { compact?: boolean; inverse?: boolean }) {
+  return <div className="flex items-center gap-3"><WaslaMark/><div className={compact ? 'hidden sm:block' : ''}><div className={`flex items-center gap-2 text-base font-black tracking-wide ${inverse?'text-white':'text-[var(--foreground)]'}`}><span>وصلة</span><span className={inverse?'text-white/50':'text-[var(--muted-foreground)]'}>|</span><span>WASLA</span></div><div className={`text-[9px] font-semibold tracking-wide ${inverse?'text-slate-300':'text-[var(--muted-foreground)]'}`}>تجارتك... متصلة بكل طريق</div></div></div>;
 }

@@ -75,7 +75,7 @@ export async function inviteUser(merchantId: string, email: string, role: string
       name: email.split('@')[0],
       email,
       password: tempPassword,
-      role: role as UserRole,
+      role: role as CreateUserInput['role'],
     }) as Awaited<ReturnType<typeof usersRepo.findByEmail>>;
     isNewUser = true;
   }
@@ -107,7 +107,7 @@ export async function inviteDistributorUser(distributorId: string, email: string
       name: email.split('@')[0],
       email,
       password: tempPassword,
-      role: role as UserRole,
+      role: role as CreateUserInput['role'],
     }) as Awaited<ReturnType<typeof usersRepo.findByEmail>>;
     isNewUser = true;
   }

@@ -1,17 +1,10 @@
 'use server';
 
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth/config';
 import * as platformNotificationsService from './services/platform-notifications.service';
 import { markPlatformNotificationsReadSchema } from './schemas/platform-notifications.schemas';
 import type { ActionResult, PaginatedResult } from '@/lib/types';
 import type { PlatformNotificationLog } from '@prisma/client';
-
-async function requirePlatformOwner(): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/login');
-  if (session.user.role !== 'PLATFORM_OWNER') redirect('/dashboard');
-}
+import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
 // ============================================================================
 // Platform Notifications Module — Server Actions
@@ -22,7 +15,7 @@ export async function getPlatformNotificationsAction(
   filters?: unknown
 ): Promise<ActionResult<PaginatedResult<PlatformNotificationLog>>> {
   try {
-    await requirePlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.NOTIFICATIONS_READ);
     const result = await platformNotificationsService.getNotifications(
       filters as { isRead?: boolean; type?: string; page?: number; limit?: number } | undefined
     );
@@ -37,7 +30,7 @@ export async function markPlatformNotificationsReadAction(
   formData: unknown
 ): Promise<ActionResult<{ count: number }>> {
   try {
-    await requirePlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.NOTIFICATIONS_READ);
     const parsed = markPlatformNotificationsReadSchema.parse(formData);
     const result = await platformNotificationsService.markAsRead(parsed.ids);
     return { success: true, data: { count: result.count } };
@@ -49,7 +42,7 @@ export async function markPlatformNotificationsReadAction(
 /** Get unread notification count */
 export async function getPlatformUnreadCountAction(): Promise<ActionResult<number>> {
   try {
-    await requirePlatformOwner();
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.NOTIFICATIONS_READ);
     const count = await platformNotificationsService.getUnreadCount();
     return { success: true, data: count };
   } catch (error) {

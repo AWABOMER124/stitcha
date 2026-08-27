@@ -79,6 +79,10 @@ enum CodCollectionStatus {
 
 enum UserRole {
   PLATFORM_OWNER
+  PLATFORM_ADMIN
+  PLATFORM_OPERATIONS
+  PLATFORM_FINANCE
+  PLATFORM_SUPPORT
   DISTRIBUTOR_OWNER
   DISTRIBUTOR_ADMIN
   MERCHANT_OWNER
@@ -196,6 +200,7 @@ model User {
   emailVerified   DateTime?
   phoneVerifiedAt DateTime?
   image           String?
+  platformAccessEnabled Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

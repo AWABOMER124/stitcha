@@ -2,6 +2,7 @@ import prisma from '@/lib/db/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
 import { privateStorageService } from '@/services/storage';
 import type { PrivateEvidence } from '@/services/storage/private-evidence-input';
+import { isPlatformRole } from '@/lib/platform-permissions';
 
 export type PlatformPaymentAccountInput = {
   channel: 'BANKAK' | 'MYCASHY' | 'OTHER';
@@ -135,6 +136,6 @@ export async function reviewSubscriptionPayment(paymentId: string, reviewerId: s
 export async function getPaymentProof(paymentId: string, actor: { role?: string; merchantId?: string }) {
   const payment = await prisma.merchantSubscriptionPayment.findUnique({ where: { id: paymentId }, select: { merchantId: true, proofStorageKey: true } });
   if (!payment) throw new NotFoundError('Subscription payment');
-  if (actor.role !== 'PLATFORM_OWNER' && actor.merchantId !== payment.merchantId) throw new NotFoundError('Subscription payment');
+  if (!isPlatformRole(actor.role ?? '') && actor.merchantId !== payment.merchantId) throw new NotFoundError('Subscription payment');
   return privateStorageService.download(payment.proofStorageKey);
 }
