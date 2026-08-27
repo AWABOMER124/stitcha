@@ -1,8 +1,7 @@
-import { nanoid } from 'nanoid';
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import * as whatsappChannelService from '@/modules/whatsapp-channel/services/whatsapp-channel.service';
-import * as notificationsService from '@/modules/notifications/services/notifications.service';
+import * as ordersService from '@/modules/orders/services/orders.service';
 
 /**
  * Numbered-menu WhatsApp ordering bot — an MVP, not full NLP. A customer
@@ -119,57 +118,15 @@ async function showProducts(
 }
 
 async function createOrderFromCart(merchantId: string, phone: string, name: string, address: string, cart: CartLine[]) {
-  let customer = await prisma.customer.findFirst({ where: { merchantId, phone } });
-  if (!customer) {
-    customer = await prisma.customer.create({ data: { merchantId, name, phone } });
-  }
-
-  const subtotal = cart.reduce((sum, line) => sum + line.price * line.quantity, 0);
-  const orderNumber = `ORD-${nanoid(8).toUpperCase()}`;
-
-  const order = await prisma.order.create({
-    data: {
-      merchantId,
-      orderNumber,
-      customerId: customer.id,
-      status: 'NEW',
-      subtotal,
-      deliveryFee: 0,
-      total: subtotal,
-      deliveryMethod: 'MERCHANT_DELIVERY',
-      paymentMethod: 'CASH',
-      customerName: name,
-      customerPhone: phone,
-      customerAddress: address,
-      items: {
-        create: cart.map((line) => ({
-          productId: line.productId,
-          productSnapshot: { name: line.name, price: line.price },
-          quantity: line.quantity,
-          unitPrice: line.price,
-          total: line.price * line.quantity,
-        })),
-      },
-      statusHistory: { create: { status: 'NEW', note: 'Order placed via WhatsApp bot' } },
-    },
+  return ordersService.createOrder(merchantId, {
+    customerName: name,
+    customerPhone: phone,
+    customerAddress: address,
+    deliveryMethod: 'MERCHANT_DELIVERY',
+    paymentMethod: 'CASH',
+    notes: 'Order placed via WhatsApp bot',
+    items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
   });
-
-  await prisma.customer.update({
-    where: { id: customer.id },
-    data: { totalOrders: { increment: 1 }, totalSpent: { increment: subtotal } },
-  });
-
-  await notificationsService
-    .sendNotification(merchantId, {
-      type: 'NEW_ORDER',
-      channel: 'IN_APP',
-      recipient: merchantId,
-      title: 'طلب جديد عبر واتساب',
-      body: `طلب ${order.orderNumber} من ${name} بقيمة ${subtotal.toLocaleString('en-US')} SDG`,
-    })
-    .catch(() => {});
-
-  return order;
 }
 
 export interface InboundMessageParams {
@@ -239,7 +196,7 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
     }
 
     const productId = productIds[n - 1];
-    const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true, name: true, price: true } });
+    const product = await prisma.product.findFirst({ where: { id: productId, merchantId, isActive: true }, select: { id: true, name: true, price: true } });
     if (!product) {
       await reply(merchantId, customerPhone, 'هذا المنتج لم يعد متاحاً. رد "قائمة" للرجوع.');
       return true;
@@ -262,7 +219,11 @@ export async function handleInboundMessage(params: InboundMessageParams): Promis
     try {
       const order = await createOrderFromCart(merchantId, customerPhone, params.customerName ?? customerPhone, text, context.cart);
       await setContext(conversationId, null);
-      await reply(merchantId, customerPhone, `تم استلام طلبك رقم ${order.orderNumber}! سنتواصل معك قريباً لتأكيد التفاصيل.`);
+      await reply(
+        merchantId,
+        customerPhone,
+        `تم استلام طلبك رقم ${order.orderNumber} بقيمة ${Number(order.total).toLocaleString('en-US')} SDG شاملة رسوم التوصيل. الدفع نقداً عند الاستلام، وسيتواصل معك المتجر لتأكيد التفاصيل.`,
+      );
     } catch (err) {
       console.error('[whatsapp-ordering] order creation failed:', err);
       await reply(merchantId, customerPhone, 'حدث خطأ أثناء إنشاء طلبك — حاول مرة أخرى أو تواصل معنا مباشرة.');

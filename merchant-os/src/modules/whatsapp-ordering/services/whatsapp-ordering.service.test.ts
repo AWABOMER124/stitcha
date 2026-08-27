@@ -3,22 +3,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const prismaMock = {
   conversation: { findUnique: vi.fn(), update: vi.fn() },
   category: { findMany: vi.fn() },
-  product: { findMany: vi.fn(), findUnique: vi.fn() },
-  customer: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
-  order: { create: vi.fn() },
+  product: { findMany: vi.fn(), findFirst: vi.fn() },
 };
 
 const whatsappChannelServiceMock = {
   sendMessage: vi.fn(),
 };
 
-const notificationsServiceMock = {
-  sendNotification: vi.fn(),
+const ordersServiceMock = {
+  createOrder: vi.fn(),
 };
 
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
 vi.mock('@/modules/whatsapp-channel/services/whatsapp-channel.service', () => whatsappChannelServiceMock);
-vi.mock('@/modules/notifications/services/notifications.service', () => notificationsServiceMock);
+vi.mock('@/modules/orders/services/orders.service', () => ordersServiceMock);
 
 const {
   isMenuTrigger,
@@ -34,10 +32,8 @@ function resetMocks() {
   Object.values(prismaMock.conversation).forEach((fn) => fn.mockReset());
   Object.values(prismaMock.category).forEach((fn) => fn.mockReset());
   Object.values(prismaMock.product).forEach((fn) => fn.mockReset());
-  Object.values(prismaMock.customer).forEach((fn) => fn.mockReset());
-  Object.values(prismaMock.order).forEach((fn) => fn.mockReset());
   whatsappChannelServiceMock.sendMessage.mockReset().mockResolvedValue({ success: true });
-  notificationsServiceMock.sendNotification.mockReset().mockResolvedValue(undefined);
+  ordersServiceMock.createOrder.mockReset();
 }
 
 describe('whatsapp-ordering.service — pure helpers', () => {
@@ -156,7 +152,7 @@ describe('whatsapp-ordering.service — handleInboundMessage state machine', () 
     prismaMock.conversation.findUnique.mockResolvedValue({
       orderContext: { state: 'AWAITING_PRODUCT', categoryId: 'cat_1', productIds: ['prod_1'], cart: [] },
     });
-    prismaMock.product.findUnique.mockResolvedValue({ id: 'prod_1', name: 'كلاسيك برجر', price: 100 });
+    prismaMock.product.findFirst.mockResolvedValue({ id: 'prod_1', name: 'كلاسيك برجر', price: 100 });
     prismaMock.product.findMany.mockResolvedValue([{ id: 'prod_1', name: 'كلاسيك برجر', price: 100 }]);
 
     await handleInboundMessage({ ...baseParams, text: '1' });
@@ -174,7 +170,7 @@ describe('whatsapp-ordering.service — handleInboundMessage state machine', () 
         cart: [{ productId: 'prod_1', name: 'كلاسيك برجر', price: 100, quantity: 1 }],
       },
     });
-    prismaMock.product.findUnique.mockResolvedValue({ id: 'prod_1', name: 'كلاسيك برجر', price: 100 });
+    prismaMock.product.findFirst.mockResolvedValue({ id: 'prod_1', name: 'كلاسيك برجر', price: 100 });
     prismaMock.product.findMany.mockResolvedValue([{ id: 'prod_1', name: 'كلاسيك برجر', price: 100 }]);
 
     await handleInboundMessage({ ...baseParams, text: '1' });
@@ -219,29 +215,24 @@ describe('whatsapp-ordering.service — handleInboundMessage state machine', () 
         cart: [{ productId: 'prod_1', name: 'كلاسيك برجر', price: 100, quantity: 2 }],
       },
     });
-    prismaMock.customer.findFirst.mockResolvedValue(null);
-    prismaMock.customer.create.mockResolvedValue({ id: 'cust_1' });
-    prismaMock.customer.update.mockResolvedValue({});
-    prismaMock.order.create.mockResolvedValue({ id: 'order_1', orderNumber: 'ORD-ABC12345' });
+    ordersServiceMock.createOrder.mockResolvedValue({ id: 'order_1', orderNumber: 'ORD-ABC12345', total: 225 });
 
     await handleInboundMessage({ ...baseParams, text: 'حي الرياض، شارع 10، منزل رقم 5' });
 
-    expect(prismaMock.order.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          merchantId: 'merch_1',
-          subtotal: 200,
-          total: 200,
-          deliveryFee: 0,
-          customerAddress: 'حي الرياض، شارع 10، منزل رقم 5',
-        }),
-      })
-    );
-    expect(notificationsServiceMock.sendNotification).toHaveBeenCalled();
+    expect(ordersServiceMock.createOrder).toHaveBeenCalledWith('merch_1', {
+      customerName: 'Ahmed',
+      customerPhone: '+249911111111',
+      customerAddress: 'حي الرياض، شارع 10، منزل رقم 5',
+      deliveryMethod: 'MERCHANT_DELIVERY',
+      paymentMethod: 'CASH',
+      notes: 'Order placed via WhatsApp bot',
+      items: [{ productId: 'prod_1', quantity: 2 }],
+    });
     expect(prismaMock.conversation.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { orderContext: null } })
     );
     expect(whatsappChannelServiceMock.sendMessage).toHaveBeenCalledWith('merch_1', baseParams.customerPhone, expect.stringContaining('ORD-ABC12345'));
+    expect(whatsappChannelServiceMock.sendMessage).toHaveBeenCalledWith('merch_1', baseParams.customerPhone, expect.stringContaining('225'));
   });
 
   it('rejects a too-short address without creating an order', async () => {
@@ -251,7 +242,7 @@ describe('whatsapp-ordering.service — handleInboundMessage state machine', () 
 
     await handleInboundMessage({ ...baseParams, text: 'ok' });
 
-    expect(prismaMock.order.create).not.toHaveBeenCalled();
+    expect(ordersServiceMock.createOrder).not.toHaveBeenCalled();
   });
 
   it('cancels an in-progress flow and clears its context', async () => {
