@@ -12,6 +12,7 @@ export interface SessionUser {
   merchantSlug?: string | null;
   distributorId?: string | null;
   distributorSlug?: string | null;
+  permissions?: string[];
 }
 
 export interface MerchantContext {

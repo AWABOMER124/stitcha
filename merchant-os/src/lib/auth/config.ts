@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db/prisma';
 import type { UserRole } from '@prisma/client';
 import { enforceRateLimit, getClientIp } from '@/lib/security/rate-limit';
+import { ROLE_PERMISSIONS } from '@/lib/permissions/constants';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: process.env.AUTH_TRUST_HOST === 'true',
@@ -34,7 +35,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           include: {
             merchantUsers: {
               where: { isActive: true },
-              include: { merchant: { select: { id: true, slug: true } } },
+              include: {
+                merchant: { select: { id: true, slug: true } },
+                assignedRole: { include: { permissions: { include: { permission: true } } } },
+              },
               take: 1,
             },
             distributorUsers: {
@@ -52,13 +56,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const merchantUser = user.merchantUsers[0] ?? null;
         const distributorUser = user.distributorUsers[0] ?? null;
+        const effectiveRole = user.role === 'PLATFORM_OWNER'
+          ? user.role
+          : merchantUser?.role ?? distributorUser?.role ?? user.role;
+        const customPermissions = merchantUser?.assignedRole?.permissions.map((entry) => entry.permission.name) ?? [];
+        const permissions = customPermissions.length > 0
+          ? customPermissions
+          : [...(ROLE_PERMISSIONS[effectiveRole] ?? [])];
 
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           image: user.image,
-          role: user.role,
+          role: effectiveRole,
+          permissions,
           merchantId: merchantUser?.merchant.id ?? null,
           merchantSlug: merchantUser?.merchant.slug ?? null,
           distributorId: distributorUser?.distributor.id ?? null,
@@ -83,6 +95,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.merchantSlug = (user as { merchantSlug?: string | null }).merchantSlug ?? null;
         token.distributorId = (user as { distributorId?: string | null }).distributorId ?? null;
         token.distributorSlug = (user as { distributorSlug?: string | null }).distributorSlug ?? null;
+        token.permissions = (user as { permissions?: string[] }).permissions ?? [];
       }
       return token;
     },
@@ -94,6 +107,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.merchantSlug = token.merchantSlug ?? null;
       session.user.distributorId = token.distributorId ?? null;
       session.user.distributorSlug = token.distributorSlug ?? null;
+      session.user.permissions = token.permissions ?? [];
       return session;
     },
   },

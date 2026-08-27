@@ -38,7 +38,8 @@ export function requireAnyPermission(auth: AuthContext, permissions: PermissionS
 
 /**
  * Returns the auth context from the current NextAuth v5 session.
- * Permissions array is empty for role-based bypass (MERCHANT_OWNER / PLATFORM_OWNER skip per-permission checks).
+ * Permissions are resolved during login from the merchant membership's custom role,
+ * with the built-in role matrix as a fallback.
  */
 export async function getAuthContext(): Promise<AuthContext> {
   const session = await auth();
@@ -49,6 +50,6 @@ export async function getAuthContext(): Promise<AuthContext> {
     userId: session.user.id,
     merchantId,
     role: (session.user as { role?: string }).role ?? 'CASHIER',
-    permissions: [],
+    permissions: session.user.permissions ?? [],
   };
 }
