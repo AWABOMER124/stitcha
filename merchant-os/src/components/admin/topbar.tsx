@@ -20,6 +20,7 @@ interface NotificationItem {
   body: string;
   isRead: boolean;
   createdAt: string;
+  metadata?: unknown;
 }
 
 const TYPE_ICON: Record<string, string> = {
@@ -83,7 +84,10 @@ export function AdminTopbar() {
       });
     }
     setNotifOpen(false);
-    router.push('/admin');
+    const metadata = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata)
+      ? n.metadata as Record<string, unknown>
+      : null;
+    router.push(metadata && typeof metadata.complaintId === 'string' ? '/admin/complaints' : '/admin');
   }
 
   return (

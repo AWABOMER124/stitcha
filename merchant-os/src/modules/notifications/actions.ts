@@ -31,7 +31,7 @@ export async function getNotificationsAction(
 export async function sendNotificationAction(formData: unknown): Promise<ActionResult<NotificationLog>> {
   try {
     const auth = await getAuthContext();
-    requirePermission(auth, 'notifications:create');
+    requirePermission(auth, 'notifications:manage');
     const parsed = createNotificationSchema.parse(formData);
     const notification = await notificationsService.sendNotification(auth.merchantId, parsed);
     return { success: true, data: notification };
@@ -44,7 +44,7 @@ export async function sendNotificationAction(formData: unknown): Promise<ActionR
 export async function markAsReadAction(formData: unknown): Promise<ActionResult<{ count: number }>> {
   try {
     const auth = await getAuthContext();
-    requirePermission(auth, 'notifications:update');
+    requirePermission(auth, 'notifications:read');
     const parsed = markReadSchema.parse(formData);
     const result = await notificationsService.markAsRead(auth.merchantId, parsed.ids);
     return { success: true, data: { count: result.count } };

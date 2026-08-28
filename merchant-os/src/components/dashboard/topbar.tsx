@@ -8,6 +8,7 @@ import { useLocale } from "@/lib/i18n/context";
 import { LanguageToggle } from "@/lib/i18n/language-toggle";
 import { getNotificationsAction, getUnreadCountAction, markAsReadAction } from "@/modules/notifications/actions";
 import { useMobileNav } from "@/components/ui/mobile-nav-context";
+import { notificationHref } from "@/lib/notifications/notification-link";
 
 interface NotificationItem {
   id: string;
@@ -16,6 +17,7 @@ interface NotificationItem {
   body: string;
   isRead: boolean;
   createdAt: string;
+  metadata?: unknown;
 }
 
 const TYPE_ICON: Record<string, string> = {
@@ -89,7 +91,7 @@ export function DashboardTopbar() {
       });
     }
     setNotifOpen(false);
-    router.push("/dashboard/notifications");
+    router.push(notificationHref(n.metadata));
   }
 
   const userName = session?.user?.name ?? session?.user?.email ?? dict.topbar.merchantOwner;

@@ -3,8 +3,6 @@ import type { OrderStatus, Prisma, DeliveryMethod, PaymentMethod } from '@prisma
 import type { OrderFilterInput } from '../schemas/orders.schemas';
 import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 import { BusinessRuleError, ValidationError } from '@/lib/errors';
-import { enqueueJob } from '@/services/jobs/outbox.service';
-import { MERCHANT_NOTIFICATION_TOPIC } from '@/services/jobs/notification.jobs';
 
 // ============================================================================
 // Orders Repository — Data access layer
@@ -253,22 +251,18 @@ export async function create(
       },
     });
 
-    await enqueueJob(
-      {
-        topic: MERCHANT_NOTIFICATION_TOPIC,
+    await tx.notificationLog.create({
+      data: {
+        merchantId,
+        type: 'NEW_ORDER',
+        channel: 'IN_APP',
+        recipient: merchantId,
+        title: 'طلب جديد',
+        body: `طلب ${createdOrder.orderNumber} بقيمة ${data.total.toLocaleString()} SDG`,
+        metadata: { kind: 'ORDER', orderId: createdOrder.id },
         idempotencyKey: `order:new:${createdOrder.id}`,
-        payload: {
-          merchantId,
-          type: 'NEW_ORDER',
-          channel: 'IN_APP',
-          recipient: merchantId,
-          title: 'طلب جديد',
-          body: `طلب ${createdOrder.orderNumber} بقيمة ${data.total.toLocaleString()} SDG`,
-          metadata: { orderId: createdOrder.id },
-        },
       },
-      tx,
-    );
+    });
 
     return createdOrder;
   });

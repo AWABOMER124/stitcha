@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { markAsReadAction } from '@/modules/notifications/actions';
 import { useLocale } from '@/lib/i18n/context';
+import { notificationHref } from '@/lib/notifications/notification-link';
 
 export interface Notification {
   id: string;
@@ -13,6 +14,7 @@ export interface Notification {
   body: string;
   isRead: boolean;
   createdAt: string | Date;
+  metadata?: unknown;
 }
 
 const TYPE_ICON: Record<string, string> = {
@@ -111,6 +113,7 @@ export function NotificationsClient({
                   <span className="text-xs text-[var(--muted-foreground)]">{t.types[n.type as keyof typeof t.types] ?? n.type}</span>
                 </div>
                 <p className="text-sm text-[var(--muted-foreground)] mt-0.5">{n.body}</p>
+                <Link href={notificationHref(n.metadata)} onClick={() => !n.isRead && markRead([n.id])} className="mt-2 inline-flex text-xs font-bold text-[var(--primary)]">{locale === 'ar' ? 'فتح التفاصيل' : 'Open details'} →</Link>
                 <p className="text-xs text-[var(--muted-foreground)]/70 mt-1">
                   {new Date(n.createdAt).toLocaleString(locale)}
                 </p>
