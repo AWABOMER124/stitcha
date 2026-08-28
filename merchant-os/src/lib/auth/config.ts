@@ -46,6 +46,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               include: { distributor: { select: { id: true, slug: true } } },
               take: 1,
             },
+            deliveryPartnerUsers: {
+              where: { isActive: true },
+              include: { partner: { select: { id: true, slug: true, status: true, isActive: true } } },
+              take: 1,
+            },
           },
         });
 
@@ -57,10 +62,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const merchantUser = user.merchantUsers[0] ?? null;
         const distributorUser = user.distributorUsers[0] ?? null;
+        const deliveryPartnerUser = user.deliveryPartnerUsers[0] ?? null;
         if (merchantUser && merchantUser.merchant.status !== 'ACTIVE') return null;
         const effectiveRole = user.role.startsWith('PLATFORM_')
           ? user.role
-          : merchantUser?.role ?? distributorUser?.role ?? user.role;
+          : merchantUser?.role ?? distributorUser?.role ?? deliveryPartnerUser?.role ?? user.role;
+        if (deliveryPartnerUser && (!deliveryPartnerUser.partner.isActive || deliveryPartnerUser.partner.status === 'SUSPENDED')) return null;
         const customPermissions = merchantUser?.assignedRole?.permissions.map((entry) => entry.permission.name) ?? [];
         const permissions = customPermissions.length > 0
           ? customPermissions
@@ -77,6 +84,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           merchantSlug: merchantUser?.merchant.slug ?? null,
           distributorId: distributorUser?.distributor.id ?? null,
           distributorSlug: distributorUser?.distributor.slug ?? null,
+          deliveryPartnerId: deliveryPartnerUser?.partner.id ?? null,
+          deliveryPartnerSlug: deliveryPartnerUser?.partner.slug ?? null,
         };
       },
     }),
@@ -97,6 +106,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.merchantSlug = (user as { merchantSlug?: string | null }).merchantSlug ?? null;
         token.distributorId = (user as { distributorId?: string | null }).distributorId ?? null;
         token.distributorSlug = (user as { distributorSlug?: string | null }).distributorSlug ?? null;
+        token.deliveryPartnerId = (user as { deliveryPartnerId?: string | null }).deliveryPartnerId ?? null;
+        token.deliveryPartnerSlug = (user as { deliveryPartnerSlug?: string | null }).deliveryPartnerSlug ?? null;
         token.permissions = (user as { permissions?: string[] }).permissions ?? [];
       }
       return token;
@@ -109,6 +120,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.merchantSlug = token.merchantSlug ?? null;
       session.user.distributorId = token.distributorId ?? null;
       session.user.distributorSlug = token.distributorSlug ?? null;
+      session.user.deliveryPartnerId = token.deliveryPartnerId ?? null;
+      session.user.deliveryPartnerSlug = token.deliveryPartnerSlug ?? null;
       session.user.permissions = token.permissions ?? [];
       return session;
     },

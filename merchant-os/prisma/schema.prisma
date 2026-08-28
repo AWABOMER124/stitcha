@@ -52,6 +52,13 @@ enum DeliveryPartnerStatus {
   SUSPENDED
 }
 
+enum DeliveryPartnerAppStatus {
+  DRAFT
+  SUBMITTED
+  PUBLISHED
+  REJECTED
+}
+
 enum DeliveryQuoteStatus {
   OFFERED
   ACCEPTED
@@ -85,6 +92,8 @@ enum UserRole {
   PLATFORM_SUPPORT
   DISTRIBUTOR_OWNER
   DISTRIBUTOR_ADMIN
+  DELIVERY_PARTNER_OWNER
+  DELIVERY_PARTNER_ADMIN
   MERCHANT_OWNER
   MERCHANT_ADMIN
   BRANCH_MANAGER
@@ -213,12 +222,13 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchantUsers       MerchantUser[]
-  distributorUsers    DistributorUser[]
-  accounts            Account[]
-  sessions            Session[]
-  passwordResetTokens PasswordResetToken[]
-  phoneVerifications  PhoneVerification[]
+  merchantUsers        MerchantUser[]
+  distributorUsers     DistributorUser[]
+  deliveryPartnerUsers DeliveryPartnerUser[]
+  accounts             Account[]
+  sessions             Session[]
+  passwordResetTokens  PasswordResetToken[]
+  phoneVerifications   PhoneVerification[]
 
   @@map("users")
 }
@@ -389,31 +399,80 @@ model DeliveryProviderConfig {
 /// Platform-contracted delivery operator. This is intentionally independent
 /// from Distributor and becomes the ownership boundary for delivery supply.
 model DeliveryPartner {
-  id                      String                @id @default(cuid())
-  legacyDeliveryCompanyId String?               @unique
+  id                      String                   @id @default(cuid())
+  legacyDeliveryCompanyId String?                  @unique
   name                    String
-  slug                    String                @unique
+  slug                    String                   @unique
   contactName             String?
   phone                   String?
   email                   String?
-  status                  DeliveryPartnerStatus @default(PENDING)
-  supportsCod             Boolean               @default(false)
-  isActive                Boolean               @default(true)
-  rating                  Decimal               @default(5) @db.Decimal(3, 2)
-  completedDeliveries     Int                   @default(0)
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
+  description             String?
+  logo                    String?
+  website                 String?
+  supportEmail            String?
+  appName                 String?
+  appDescription          String?
+  appIcon                 String?
+  appWebsite              String?
+  privacyUrl              String?
+  termsUrl                String?
+  documentationUrl        String?
+  appStatus               DeliveryPartnerAppStatus @default(DRAFT)
+  status                  DeliveryPartnerStatus    @default(PENDING)
+  supportsCod             Boolean                  @default(false)
+  isActive                Boolean                  @default(true)
+  rating                  Decimal                  @default(5) @db.Decimal(3, 2)
+  completedDeliveries     Int                      @default(0)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
-  providerConfig DeliveryPartnerProviderConfig?
-  serviceAreas   DeliveryPartnerServiceArea[]
-  pricingRules   DeliveryPartnerPricingRule[]
-  couriers       DeliveryCourier[]
-  quotes         DeliveryQuote[]
-  shipments      PlatformShipment[]
-  settlements    DeliveryPartnerSettlement[]
+  providerConfig      DeliveryPartnerProviderConfig?
+  serviceAreas        DeliveryPartnerServiceArea[]
+  pricingRules        DeliveryPartnerPricingRule[]
+  couriers            DeliveryCourier[]
+  quotes              DeliveryQuote[]
+  shipments           PlatformShipment[]
+  settlements         DeliveryPartnerSettlement[]
+  users               DeliveryPartnerUser[]
+  merchantConnections MerchantDeliveryPartner[]
 
   @@index([status, isActive])
   @@map("delivery_partners")
+}
+
+model DeliveryPartnerUser {
+  id        String   @id @default(cuid())
+  userId    String
+  partnerId String
+  role      UserRole
+  isOwner   Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, partnerId])
+  @@index([partnerId, isActive])
+  @@map("delivery_partner_users")
+}
+
+model MerchantDeliveryPartner {
+  id         String   @id @default(cuid())
+  merchantId String
+  partnerId  String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  partner  DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, partnerId])
+  @@index([merchantId, isActive])
+  @@index([partnerId, isActive])
+  @@map("merchant_delivery_partners")
 }
 
 model DeliveryPartnerProviderConfig {
@@ -712,33 +771,34 @@ model Merchant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  distributor              Distributor?                  @relation(fields: [distributorId], references: [id], onDelete: SetNull)
-  commissionPlan           CommissionPlan?               @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
-  preferredDeliveryCompany DeliveryCompany?              @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
-  users                    MerchantUser[]
-  branches                 Branch[]
-  products                 Product[]
-  categories               Category[]
-  orders                   Order[]
-  customers                Customer[]
-  inventoryItems           InventoryItem[]
-  storefrontSettings       StorefrontSettings?
-  notificationLogs         NotificationLog[]
-  roles                    Role[]
-  transactions             FinancialTransaction[]
-  settlements              Settlement[]
-  promoCodes               PromoCode[]
-  loyaltyConfig            LoyaltyConfig?
-  conversations            Conversation[]
-  whatsappConfig           WhatsAppConfig?
-  featuredPlacements       FeaturedPlacement[]
-  subscription             MerchantSubscription?
-  planChangeRequests       MerchantPlanChangeRequest[]
-  subscriptionPayments     MerchantSubscriptionPayment[]
-  storePaymentAccounts     MerchantPaymentAccount[]
-  orderPaymentProofs       OrderPaymentProof[]
-  whatsappAiUsage          WhatsAppAiUsage[]
-  invoices                 Invoice[]
+  distributor                Distributor?                  @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  commissionPlan             CommissionPlan?               @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  preferredDeliveryCompany   DeliveryCompany?              @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
+  users                      MerchantUser[]
+  branches                   Branch[]
+  products                   Product[]
+  categories                 Category[]
+  orders                     Order[]
+  customers                  Customer[]
+  inventoryItems             InventoryItem[]
+  storefrontSettings         StorefrontSettings?
+  notificationLogs           NotificationLog[]
+  roles                      Role[]
+  transactions               FinancialTransaction[]
+  settlements                Settlement[]
+  promoCodes                 PromoCode[]
+  loyaltyConfig              LoyaltyConfig?
+  conversations              Conversation[]
+  whatsappConfig             WhatsAppConfig?
+  featuredPlacements         FeaturedPlacement[]
+  subscription               MerchantSubscription?
+  planChangeRequests         MerchantPlanChangeRequest[]
+  subscriptionPayments       MerchantSubscriptionPayment[]
+  storePaymentAccounts       MerchantPaymentAccount[]
+  orderPaymentProofs         OrderPaymentProof[]
+  whatsappAiUsage            WhatsAppAiUsage[]
+  invoices                   Invoice[]
+  deliveryPartnerConnections MerchantDeliveryPartner[]
 
   @@index([slug])
   @@index([status])

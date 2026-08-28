@@ -95,6 +95,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     (p) => p !== PERMISSIONS.SETTINGS.UPDATE,
   ),
 
+  DELIVERY_PARTNER_OWNER: [],
+  DELIVERY_PARTNER_ADMIN: [],
+
   MERCHANT_OWNER: ALL_PERMISSIONS,
 
   MERCHANT_ADMIN: ALL_PERMISSIONS.filter(

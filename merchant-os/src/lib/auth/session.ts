@@ -12,6 +12,8 @@ export interface SessionUser {
   merchantSlug?: string | null;
   distributorId?: string | null;
   distributorSlug?: string | null;
+  deliveryPartnerId?: string | null;
+  deliveryPartnerSlug?: string | null;
   permissions?: string[];
 }
 
@@ -72,5 +74,9 @@ export function isDistributorRole(role: UserRole): boolean {
 }
 
 export function isMerchantRole(role: UserRole): boolean {
-  return !isDistributorRole(role) && !role.startsWith('PLATFORM_');
+  return !isDistributorRole(role) && !isDeliveryPartnerRole(role) && !role.startsWith('PLATFORM_');
+}
+
+export function isDeliveryPartnerRole(role: UserRole): boolean {
+  return role === 'DELIVERY_PARTNER_OWNER' || role === 'DELIVERY_PARTNER_ADMIN';
 }

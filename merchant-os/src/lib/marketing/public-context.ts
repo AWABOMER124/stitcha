@@ -9,6 +9,8 @@ export async function getPublicPageContext() {
     ? '/register'
     : session.user.role.startsWith('PLATFORM_')
       ? '/admin'
+      : session.user.role.startsWith('DELIVERY_PARTNER_')
+        ? '/partner'
       : session.user.role.startsWith('DISTRIBUTOR_')
         ? '/'
         : '/dashboard';

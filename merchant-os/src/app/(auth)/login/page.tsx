@@ -37,6 +37,8 @@ export default function LoginPage() {
           router.replace("/admin");
         } else if (role === "DISTRIBUTOR_OWNER" || role === "DISTRIBUTOR_ADMIN") {
           router.replace("/distributor/dashboard");
+        } else if (role === "DELIVERY_PARTNER_OWNER" || role === "DELIVERY_PARTNER_ADMIN") {
+          router.replace("/partner");
         } else {
           router.replace("/dashboard");
         }
@@ -158,6 +160,7 @@ export default function LoginPage() {
           {dict.login.createMerchantAccount}
         </Link>
       </p>
+      <p className="text-center text-xs text-[var(--muted-foreground)]">شركة توصيل؟ <Link href="/partner-register" className="font-bold text-[var(--primary)] hover:underline">انضم كشريك وصلة</Link></p>
     </div>
   );
 }

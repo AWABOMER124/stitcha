@@ -24,6 +24,7 @@ export default async function DashboardLayout({
   if (role === 'DISTRIBUTOR_OWNER' || role === 'DISTRIBUTOR_ADMIN') {
     redirect(process.env.DISTRIBUTOR_PORTAL_ENABLED === 'true' ? '/distributor/dashboard' : '/');
   }
+  if (role === 'DELIVERY_PARTNER_OWNER' || role === 'DELIVERY_PARTNER_ADMIN') redirect('/partner');
   if (!isMerchantRole(role) || !session.user.merchantId) redirect('/login');
 
   const [cookieStore, merchant] = await Promise.all([
