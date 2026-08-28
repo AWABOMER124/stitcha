@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 const content = {
   ar: {
     features: 'المميزات', how: 'كيف تعمل', pricing: 'الأسعار', login: 'دخول', start: 'أنشئ متجرك مجاناً', dashboard: 'لوحة التحكم',
-    eyebrow: 'منصة التجارة للتاجر السوداني', title: 'ابدأ البيع أونلاين،', accent: 'وأدر تجارتك من مكان واحد.',
+    eyebrow: 'ابدأ مجاناً — بدون بطاقة بنكية', title: 'ابدأ البيع أونلاين،', accent: 'وأدر تجارتك من مكان واحد.',
     lead: 'أنشئ متجرك مجاناً، ارفع منتجاتك وصورك، استقبل الطلبات والتحويلات، ونظّم التوصيل وخدمة العملاء من لوحة واضحة. عندما يكبر عملك، فعّل الأدوات الاحترافية التي تحتاجها فقط.',
     promises: ['الباقة الأساسية مجانية', 'لا تحتاج بطاقة بنكية', 'رابط متجر جاهز للمشاركة'],
     section: 'كل ما تحتاجه للتشغيل', sectionTitle: 'من أول منتج إلى أول مائة طلب', sectionLead: 'أدوات عملية تساعدك على البيع والمتابعة والنمو، بدون تعقيد تقني.',
@@ -36,7 +36,7 @@ const content = {
   },
   en: {
     features: 'Features', how: 'How it works', pricing: 'Pricing', login: 'Sign in', start: 'Create your store free', dashboard: 'Dashboard',
-    eyebrow: 'Commerce built for Sudanese merchants', title: 'Start selling online,', accent: 'run everything in one place.',
+    eyebrow: 'Start free — no bank card required', title: 'Start selling online,', accent: 'run everything in one place.',
     lead: 'Create your store for free, upload products and images, receive orders and transfers, and organize delivery and customer service from one clear dashboard. Upgrade only when you need professional tools.',
     promises: ['Basic plan is free', 'No bank card required', 'A shareable store link'],
     section: 'Everything you need', sectionTitle: 'From your first product to your first 100 orders', sectionLead: 'Practical tools to sell, operate and grow without technical complexity.',

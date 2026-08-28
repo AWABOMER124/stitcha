@@ -39,7 +39,7 @@ export function PublicFooter({ locale }: { locale: Locale }) {
       <div className="mx-auto grid max-w-7xl gap-8 px-5 sm:grid-cols-[1fr_auto] lg:px-8">
         <div>
           <WaslaLogo />
-          <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">{ar ? 'منصة سودانية تساعد التجار على إنشاء متجر، إدارة الطلبات، واستقبال المدفوعات والتوصيل من مكان واحد.' : 'A Sudanese commerce platform for storefronts, orders, payments and delivery in one place.'}</p>
+          <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">{ar ? 'أنشئ متجرك، أدر الطلبات والمدفوعات والتوصيل، ونمِّ تجارتك من مكان واحد.' : 'Create your store, manage orders, payments and delivery, and grow from one place.'}</p>
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm font-semibold text-slate-600 dark:text-slate-300">
           <Link href="/blog">{ar ? 'المدونة' : 'Blog'}</Link>
