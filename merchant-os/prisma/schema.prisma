@@ -2104,24 +2104,27 @@ enum ConvStatus {
 }
 
 model Conversation {
-  id            String         @id @default(cuid())
-  merchantId    String
-  channel       InboxChannel   @default(WEB)
-  customerName  String?
-  customerPhone String?
-  status        ConvStatus     @default(OPEN)
-  assignedToId  String?
+  id              String         @id @default(cuid())
+  merchantId      String
+  channel         InboxChannel   @default(WEB)
+  customerName    String?
+  customerPhone   String?
+  status          ConvStatus     @default(OPEN)
+  assignedToId    String?
   /// Numbered-menu WhatsApp ordering-bot state for this thread (see
   /// whatsapp-ordering module) — null means no bot flow is in progress,
   /// in which case the conversation behaves exactly like a normal support
   /// thread. Never touched by non-WhatsApp channels.
-  orderContext  Json?
+  orderContext    Json?
   /// True when a customer or staff member requested human ownership.
-  aiAgentPaused Boolean        @default(false)
-  messages      InboxMessage[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  merchant      Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  aiAgentPaused   Boolean        @default(false)
+  /// Hash of the opaque browser token used by storefront customers to
+  /// continue a web conversation without creating a platform account.
+  publicTokenHash String?        @unique
+  messages        InboxMessage[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  merchant        Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
 
   @@index([merchantId])
   @@index([status])
@@ -2136,10 +2139,13 @@ model InboxMessage {
   senderName     String?
   /// Provider message ID; null for web/manual messages. Prevents webhook retries from duplicating replies.
   externalId     String?      @unique
+  /// Set when the receiving side opens the thread.
+  readAt         DateTime?
   sentAt         DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
+  @@index([conversationId, readAt])
   @@map("inbox_messages")
 }
 

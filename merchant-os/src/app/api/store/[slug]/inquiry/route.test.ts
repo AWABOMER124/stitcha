@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 const mocks = vi.hoisted(() => ({
   merchantFindUnique: vi.fn(),
   conversationCreate: vi.fn(),
+  notificationCreate: vi.fn(),
   checkRateLimit: vi.fn(() => true),
 }));
 
@@ -11,6 +12,7 @@ vi.mock('@/lib/db/prisma', () => ({
   default: {
     merchant: { findUnique: mocks.merchantFindUnique },
     conversation: { create: mocks.conversationCreate },
+    notificationLog: { create: mocks.notificationCreate },
   },
 }));
 
@@ -37,6 +39,7 @@ describe('store inquiry route', () => {
     mocks.checkRateLimit.mockReturnValue(true);
     mocks.merchantFindUnique.mockResolvedValue({ id: 'merchant-demo' });
     mocks.conversationCreate.mockResolvedValue({ id: 'conversation-1' });
+    mocks.notificationCreate.mockResolvedValue({ id: 'notification-1' });
   });
 
   it('derives the merchant from the slug and rejects client tenant IDs', async () => {
@@ -59,7 +62,12 @@ describe('store inquiry route', () => {
       select: { id: true },
     });
     expect(mocks.conversationCreate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ merchantId: 'merchant-demo' }),
+      data: expect.objectContaining({ merchantId: 'merchant-demo', publicTokenHash: expect.any(String) }),
+    }));
+    const payload = await response.json();
+    expect(payload).toMatchObject({ conversationId: 'conversation-1', token: expect.any(String) });
+    expect(mocks.notificationCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ merchantId: 'merchant-demo', type: 'SYSTEM' }),
     }));
   });
 

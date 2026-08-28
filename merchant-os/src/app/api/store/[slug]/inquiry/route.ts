@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
+import { createConversationToken } from '@/lib/security/public-conversation';
 
 const inquirySchema = z.object({
   customerName: z.string().trim().min(1).max(100),
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     }))?.id;
     if (!id) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
 
+    const publicAccess = createConversationToken();
     const conv = await prisma.conversation.create({
       data: {
         merchantId: id,
@@ -35,6 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
         customerPhone: customerPhone ?? null,
         channel: 'WEB',
         status: 'OPEN',
+        publicTokenHash: publicAccess.hash,
         messages: {
           create: { content: message, isFromCustomer: true, senderName: customerName },
         },
@@ -42,7 +45,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     }).catch(() => null);
 
     if (!conv) return NextResponse.json({ error: 'Failed to submit inquiry' }, { status: 500 });
-    return NextResponse.json({ success: true, conversationId: conv.id });
+
+    await prisma.notificationLog.create({
+      data: {
+        merchantId: id,
+        type: 'SYSTEM',
+        channel: 'IN_APP',
+        recipient: id,
+        title: 'رسالة جديدة من المتجر',
+        body: `${customerName}: ${message.slice(0, 140)}`,
+        metadata: { kind: 'STORE_MESSAGE', conversationId: conv.id },
+        idempotencyKey: `store-message:first:${conv.id}`,
+      },
+    }).catch(() => null);
+
+    return NextResponse.json({ success: true, conversationId: conv.id, token: publicAccess.token });
   } catch {
     return NextResponse.json({ error: 'Failed to submit inquiry' }, { status: 500 });
   }

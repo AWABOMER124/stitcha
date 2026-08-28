@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
 import { LanguageToggle } from '@/lib/i18n/language-toggle';
@@ -12,6 +12,8 @@ export type Category = { id: string; name: string; slug: string; _count: { produ
 export type Merchant = { id: string; name: string; slug: string; description: string | null; logo: string | null; coverImage: string | null; storefrontSettings: { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null };
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
+type StoreChatMessage = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string; readAt?: string | null };
+type StoreChatSession = { conversationId: string; token: string };
 
 function calcItemTotal(basePrice: number, mods: { price: number }[], qty: number) {
   return (basePrice + mods.reduce((s, m) => s + m.price, 0)) * qty;
@@ -19,7 +21,7 @@ function calcItemTotal(basePrice: number, mods: { price: number }[], qty: number
 
 export function StoreClient({ merchant, categories, products }: { merchant: Merchant; categories: Category[]; products: Product[] }) {
   const router = useRouter();
-  const { dict, dir } = useLocale();
+  const { dict, dir, locale } = useLocale();
   const t = dict.storefrontPublic;
   const settings = merchant.storefrontSettings;
   const rawTheme = (settings?.theme ?? {}) as Record<string, unknown>;
@@ -41,9 +43,23 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   const [itemNotes, setItemNotes] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [chatName, setChatName] = useState('');
+  const [chatPhone, setChatPhone] = useState('');
   const [chatMsg, setChatMsg] = useState('');
-  const [chatSent, setChatSent] = useState(false);
+  const [chatSession, setChatSession] = useState<StoreChatSession | null>(null);
+  const [chatMessages, setChatMessages] = useState<StoreChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState('');
   const catRefs = useRef<Record<string, HTMLElement | null>>({});
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatCopy = locale === 'ar' ? {
+    subtitle: 'عادةً يرد المتجر خلال وقت قصير', phone: 'رقم الهاتف (اختياري)',
+    start: 'بدء المحادثة', reply: 'اكتب رسالتك…', retry: 'تعذر إرسال الرسالة. حاول مرة أخرى.',
+    newChat: 'محادثة جديدة', you: 'أنت', store: 'المتجر',
+  } : {
+    subtitle: 'The store usually replies shortly', phone: 'Phone number (optional)',
+    start: 'Start conversation', reply: 'Write your message…', retry: 'Could not send the message. Please try again.',
+    newChat: 'New conversation', you: 'You', store: 'Store',
+  };
 
   useEffect(() => {
     // localStorage is unavailable during SSR, so this can't be a lazy useState initializer.
@@ -55,6 +71,39 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   useEffect(() => {
     localStorage.setItem(`cart-${merchant.slug}`, JSON.stringify(cart));
   }, [cart, merchant.slug]);
+
+  const loadChat = useCallback(async (session: StoreChatSession) => {
+    const response = await fetch(`/api/store/${merchant.slug}/conversations/${session.conversationId}`, {
+      headers: { 'x-conversation-token': session.token },
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error('Conversation unavailable');
+    const data = await response.json();
+    setChatMessages(data.messages ?? []);
+  }, [merchant.slug]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(`store-chat-${merchant.slug}`);
+    if (!raw) return;
+    try {
+      const saved = JSON.parse(raw) as StoreChatSession;
+      if (saved.conversationId && saved.token) {
+        const restore = window.setTimeout(() => setChatSession(saved), 0);
+        return () => window.clearTimeout(restore);
+      }
+    } catch {
+      localStorage.removeItem(`store-chat-${merchant.slug}`);
+    }
+  }, [merchant.slug]);
+
+  useEffect(() => {
+    if (!chatOpen || !chatSession) return;
+    const initial = window.setTimeout(() => void loadChat(chatSession).catch(() => setChatError(chatCopy.retry)), 0);
+    const poll = window.setInterval(() => void loadChat(chatSession).catch(() => {}), 5000);
+    return () => { window.clearTimeout(initial); window.clearInterval(poll); };
+  }, [chatOpen, chatSession, loadChat, chatCopy.retry]);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
   const filtered = products.filter(p => {
     const matchCat = activeCat === 'all' || p.categoryId === activeCat;
@@ -115,17 +164,47 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   }
 
   async function sendChat() {
-    if (!chatName.trim() || !chatMsg.trim()) return;
+    if (!chatMsg.trim() || (!chatSession && !chatName.trim())) return;
+    setChatLoading(true);
+    setChatError('');
     try {
-      const response = await fetch(`/api/store/${merchant.slug}/inquiry`, {
+      const response = await fetch(chatSession
+        ? `/api/store/${merchant.slug}/conversations/${chatSession.conversationId}`
+        : `/api/store/${merchant.slug}/inquiry`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerName: chatName, message: chatMsg }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(chatSession ? { 'x-conversation-token': chatSession.token } : {}),
+        },
+        body: JSON.stringify(chatSession
+          ? { message: chatMsg }
+          : { customerName: chatName, customerPhone: chatPhone || undefined, message: chatMsg }),
       });
-      if (response.ok) setChatSent(true);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Send failed');
+      let activeSession = chatSession;
+      if (!activeSession) {
+        activeSession = { conversationId: data.conversationId, token: data.token };
+        localStorage.setItem(`store-chat-${merchant.slug}`, JSON.stringify(activeSession));
+        setChatSession(activeSession);
+      }
+      setChatMsg('');
+      await loadChat(activeSession);
     } catch {
-      // Keep the form open so the customer can retry.
+      setChatError(chatCopy.retry);
+    } finally {
+      setChatLoading(false);
     }
+  }
+
+  function startNewChat() {
+    localStorage.removeItem(`store-chat-${merchant.slug}`);
+    setChatSession(null);
+    setChatMessages([]);
+    setChatName('');
+    setChatPhone('');
+    setChatMsg('');
+    setChatError('');
   }
 
   const minOrder = Number(settings?.minimumOrderAmount ?? 0);
@@ -391,19 +470,38 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
 
       {/* Chat Widget */}
       {chatOpen && (
-        <div className="fixed bottom-24 left-4 z-50 w-80 bg-white rounded-2xl shadow-2xl border border-stone-100 overflow-hidden" dir={dir}>
+        <div className="fixed bottom-20 left-4 z-50 flex max-h-[min(620px,75vh)] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl" dir={dir}>
           <div className="px-4 py-3 text-white flex items-center justify-between" style={{ background: primary }}>
-            <span className="font-bold text-sm">{t.contactUs}</span>
+            <div><span className="block font-bold text-sm">{t.contactUs}</span><span className="text-[11px] text-white/75">{chatCopy.subtitle}</span></div>
             <button onClick={() => setChatOpen(false)} className="text-white/80 hover:text-white">✕</button>
           </div>
-          {chatSent
-            ? <div className="p-6 text-center text-stone-600"><div className="text-3xl mb-2">✅</div><p className="font-medium">{t.messageSent}</p><p className="text-sm text-stone-400 mt-1">{t.messageSentSubtitle}</p></div>
-            : <div className="p-4 space-y-3">
-              <input value={chatName} onChange={e => setChatName(e.target.value)} placeholder={t.namePlaceholder} className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none" />
-              <textarea value={chatMsg} onChange={e => setChatMsg(e.target.value)} rows={3} placeholder={t.messagePlaceholder} className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none resize-none" />
-              <button onClick={sendChat} disabled={!chatName.trim() || !chatMsg.trim()} className="w-full py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: primary }}>{t.send}</button>
+          {chatSession ? <>
+            <div className="flex items-center justify-between border-b border-stone-100 bg-stone-50 px-4 py-2 text-xs text-stone-500">
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />{t.messageSentSubtitle}</span>
+              <button onClick={startNewChat} className="font-bold hover:text-stone-800">{chatCopy.newChat}</button>
             </div>
-          }
+            <div className="min-h-52 flex-1 space-y-3 overflow-y-auto bg-stone-50/60 p-4">
+              {chatMessages.map(message => <div key={message.id} className={`flex ${message.isFromCustomer ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm ${message.isFromCustomer ? 'rounded-ee-md text-white' : 'rounded-es-md border border-stone-200 bg-white text-stone-800'}`} style={message.isFromCustomer ? { background: primary } : undefined}>
+                  <p className="mb-1 text-[10px] font-bold opacity-65">{message.isFromCustomer ? chatCopy.you : chatCopy.store}</p>
+                  <p className="whitespace-pre-wrap leading-6">{message.content}</p>
+                  <p className="mt-1 text-[9px] opacity-55">{new Date(message.sentAt).toLocaleTimeString(locale === 'ar' ? 'ar-SD' : 'en', { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+              </div>)}
+              <div ref={chatEndRef} />
+            </div>
+            {chatError && <p className="px-4 pt-2 text-xs text-red-600">{chatError}</p>}
+            <div className="flex gap-2 border-t border-stone-100 bg-white p-3">
+              <textarea value={chatMsg} onChange={e => setChatMsg(e.target.value)} rows={2} placeholder={chatCopy.reply} className="min-h-11 flex-1 resize-none rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-stone-400" />
+              <button onClick={sendChat} disabled={chatLoading || !chatMsg.trim()} className="self-end rounded-xl px-4 py-3 text-sm font-bold text-white disabled:opacity-50" style={{ background: primary }}>{chatLoading ? '…' : t.send}</button>
+            </div>
+          </> : <div className="p-4 space-y-3">
+              <input value={chatName} onChange={e => setChatName(e.target.value)} placeholder={t.namePlaceholder} className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none" />
+              <input value={chatPhone} onChange={e => setChatPhone(e.target.value)} inputMode="tel" placeholder={chatCopy.phone} className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none" />
+              <textarea value={chatMsg} onChange={e => setChatMsg(e.target.value)} rows={3} placeholder={t.messagePlaceholder} className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none resize-none" />
+              {chatError && <p className="text-xs text-red-600">{chatError}</p>}
+              <button onClick={sendChat} disabled={chatLoading || !chatName.trim() || !chatMsg.trim()} className="w-full py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50" style={{ background: primary }}>{chatLoading ? '…' : chatCopy.start}</button>
+            </div>}
         </div>
       )}
     </div>

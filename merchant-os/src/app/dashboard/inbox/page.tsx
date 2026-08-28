@@ -12,6 +12,7 @@ export default async function InboxPage() {
     orderBy: { updatedAt: 'desc' },
     include: {
       messages: { orderBy: { sentAt: 'desc' }, take: 1 },
+      _count: { select: { messages: { where: { isFromCustomer: true, readAt: null } } } },
     },
   });
 

@@ -2,8 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocale } from '@/lib/i18n/context';
 
-type Message = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string | Date };
-type Conversation = { id: string; customerName: string | null; customerPhone: string | null; channel: string; status: string; aiAgentPaused: boolean; createdAt: string | Date; updatedAt: string | Date; messages: Message[] };
+type Message = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string | Date; readAt?: string | Date | null };
+type Conversation = { id: string; customerName: string | null; customerPhone: string | null; channel: string; status: string; aiAgentPaused: boolean; createdAt: string | Date; updatedAt: string | Date; messages: Message[]; _count?: { messages: number } };
 
 const CHANNEL_ICONS: Record<string, string> = { WEB: '🌐', WHATSAPP: '💬', MESSENGER: '📘', INSTAGRAM: '📸' };
 const STATUS_COLORS: Record<string, string> = {
@@ -28,6 +28,17 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  useEffect(() => {
+    if (!selected) return;
+    const poll = window.setInterval(() => {
+      void fetch(`/api/inbox/${selected.id}/messages`, { cache: 'no-store' })
+        .then(response => response.json())
+        .then(data => { if (data.messages) setMessages(data.messages); })
+        .catch(() => {});
+    }, 5000);
+    return () => window.clearInterval(poll);
+  }, [selected]);
+
   async function loadConversation(conv: Conversation) {
     setSelected(conv);
     try {
@@ -36,6 +47,7 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
       if (data.messages) setMessages(data.messages);
       else setMessages(conv.messages);
     } catch { setMessages(conv.messages); }
+    setConversations(current => current.map(item => item.id === conv.id ? { ...item, _count: { messages: 0 } } : item));
   }
 
   async function sendReply() {
@@ -113,6 +125,7 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{CHANNEL_ICONS[conv.channel] ?? '💬'}</span>
                     <span className="font-semibold text-sm text-[var(--foreground)] truncate">{conv.customerName ?? t.unknownCustomer}</span>
+                    {(conv._count?.messages ?? 0) > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[10px] font-bold text-white">{conv._count?.messages}</span>}
                   </div>
                   {conv.messages[0] && <p className="text-xs text-[var(--muted-foreground)] mt-0.5 truncate">{conv.messages[0].content}</p>}
                 </div>

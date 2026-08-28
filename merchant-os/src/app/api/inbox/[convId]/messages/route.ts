@@ -13,10 +13,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ convId:
     });
     if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    const messages = await prisma.inboxMessage.findMany({
-      where: { conversationId: convId },
-      orderBy: { sentAt: 'asc' },
-    });
+    const [messages] = await prisma.$transaction([
+      prisma.inboxMessage.findMany({ where: { conversationId: convId }, orderBy: { sentAt: 'asc' } }),
+      prisma.inboxMessage.updateMany({
+        where: { conversationId: convId, isFromCustomer: true, readAt: null },
+        data: { readAt: new Date() },
+      }),
+    ]);
     return NextResponse.json({ messages });
   } catch {
     return NextResponse.json({ messages: [] });
