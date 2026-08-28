@@ -303,7 +303,12 @@ export default function RegisterPage() {
             {loading ? dict.register.creatingStore : dict.register.createAccount}
           </button>
         </form>
-        <p className="mt-4 text-center text-[11px] leading-5 text-[var(--muted-foreground)]">{locale==='ar'?'الباقة الأساسية مجانية ولا تحتاج بطاقة بنكية. بإنشاء الحساب أنت توافق على شروط الاستخدام وسياسة الخصوصية.':'The Basic plan is free and requires no bank card. By creating an account, you agree to the Terms and Privacy Policy.'}</p>
+        <p className="mt-4 text-center text-[11px] leading-5 text-[var(--muted-foreground)]">
+          {locale === 'ar' ? 'الباقة الأساسية مجانية ولا تحتاج بطاقة بنكية. بإنشاء الحساب أنت توافق على ' : 'The Basic plan is free and requires no bank card. By creating an account, you agree to the '}
+          <Link href="/terms" className="font-bold text-[var(--primary)] hover:underline">{locale === 'ar' ? 'الشروط والأحكام' : 'Terms'}</Link>
+          {locale === 'ar' ? ' و' : ' and '}
+          <Link href="/privacy" className="font-bold text-[var(--primary)] hover:underline">{locale === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</Link>.
+        </p>
       </div>
 
       <p className="text-center text-sm text-[var(--muted-foreground)]">
