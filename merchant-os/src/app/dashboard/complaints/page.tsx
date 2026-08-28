@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
 import prisma from "@/lib/db/prisma";
+import { LiveRefresh } from "@/components/shared/live-refresh";
 
 async function reply(formData: FormData) {
   "use server";
@@ -102,11 +103,13 @@ export default async function MerchantComplaintsPage({
         include: {
           messages: { orderBy: { createdAt: "asc" } },
           order: { select: { orderNumber: true } },
+          attachments: { orderBy: { createdAt: "asc" } },
         },
       })
     : null;
   return (
     <div className="space-y-6" dir="rtl">
+      <LiveRefresh intervalMs={5000} />
       <header>
         <h1 className="text-2xl font-black">الشكاوى وخدمة العملاء</h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">
@@ -154,6 +157,19 @@ export default async function MerchantComplaintsPage({
                   {selected.status}
                 </span>
               </div>
+              {selected.attachments.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-bold">الصور المرفقة</p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {selected.attachments.map((attachment) => (
+                      <a key={attachment.id} href={`/api/complaint-attachments/${attachment.id}`} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={`/api/complaint-attachments/${attachment.id}`} alt={attachment.fileName} className="h-28 w-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="max-h-96 space-y-3 overflow-y-auto rounded-2xl bg-[var(--muted)]/50 p-4">
                 {selected.messages
                   .filter((m) => !m.isInternalNote)

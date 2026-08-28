@@ -45,9 +45,24 @@ export function AdminTopbar() {
   const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getPlatformUnreadCountAction().then((res) => {
-      if (res.success) setUnreadCount(res.data);
-    });
+    function refreshNotifications() {
+      if (document.visibilityState !== 'visible') return;
+      void Promise.all([
+        getPlatformUnreadCountAction(),
+        getPlatformNotificationsAction({ limit: 5 }),
+      ]).then(([count, latest]) => {
+        if (count.success) setUnreadCount(count.data);
+        if (latest.success) setNotifications(latest.data.data as unknown as NotificationItem[]);
+        setNotifLoaded(true);
+      });
+    }
+    refreshNotifications();
+    const interval = window.setInterval(refreshNotifications, 5000);
+    document.addEventListener('visibilitychange', refreshNotifications);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshNotifications);
+    };
   }, []);
 
   useEffect(() => {

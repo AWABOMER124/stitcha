@@ -10,23 +10,38 @@ export default function NewComplaintPage() {
   const [result, setResult] = useState<{
     ticketNumber: string;
     url: string;
+    token: string;
+    uploadWarning?: string;
   } | null>(null);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    const form = new FormData(event.currentTarget);
+    const files = form.getAll("attachments").filter((value): value is File => value instanceof File && value.size > 0);
+    form.delete("attachments");
     const response = await fetch(`/api/store/${slug}/complaints`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(
-        Object.fromEntries(new FormData(event.currentTarget)),
+        Object.fromEntries(form),
       ),
     });
     const data = await response.json();
-    setLoading(false);
-    if (!response.ok) return setError(data.error ?? "تعذر إرسال الشكوى");
+    if (!response.ok) {
+      setLoading(false);
+      return setError(data.error ?? "تعذر إرسال الشكوى");
+    }
     localStorage.setItem(`complaint-${data.ticketNumber}`, data.token);
-    setResult(data);
+    let uploadWarning = "";
+    for (const file of files.slice(0, 5)) {
+      const upload = new FormData();
+      upload.set("file", file);
+      const uploadResponse = await fetch(`/api/complaints/${data.token}/attachments`, { method: "POST", body: upload });
+      if (!uploadResponse.ok) uploadWarning = "تم تسجيل الشكوى، لكن تعذر رفع صورة أو أكثر.";
+    }
+    setLoading(false);
+    setResult({ ...data, uploadWarning });
   }
   if (result)
     return (
@@ -37,6 +52,7 @@ export default function NewComplaintPage() {
           <p className="mt-2 text-stone-500">
             رقم التذكرة: <b>{result.ticketNumber}</b>
           </p>
+          {result.uploadWarning && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{result.uploadWarning}</p>}
           <Link
             href={result.url}
             className="mt-6 inline-flex rounded-xl bg-stone-900 px-5 py-3 font-bold text-white"
@@ -92,6 +108,11 @@ export default function NewComplaintPage() {
             <option value="SERVICE">الخدمة</option>
             <option value="OTHER">أخرى</option>
           </select>
+        </label>
+        <label className="block rounded-2xl border border-dashed p-4 text-sm font-bold">
+          صور توضيحية (اختياري)
+          <input name="attachments" type="file" accept="image/jpeg,image/png,image/webp" multiple className="mt-3 block w-full text-sm font-normal" />
+          <span className="mt-2 block text-xs font-normal text-stone-500">حتى 5 صور، وبحد أقصى 10MB للصورة. الصور خاصة ولا تظهر للعامة.</span>
         </label>
         <Field name="title" label="عنوان مختصر" />
         <label className="block text-sm font-bold">

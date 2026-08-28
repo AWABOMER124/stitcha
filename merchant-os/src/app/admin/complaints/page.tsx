@@ -4,6 +4,7 @@ import {
   PLATFORM_PERMISSIONS,
   requirePlatformPermission,
 } from "@/lib/platform-permissions";
+import { LiveRefresh } from "@/components/shared/live-refresh";
 
 async function updateComplaint(formData: FormData) {
   "use server";
@@ -58,12 +59,14 @@ export default async function AdminComplaintsPage() {
       merchant: { select: { name: true } },
       order: { select: { orderNumber: true } },
       messages: { orderBy: { createdAt: "desc" }, take: 3 },
+      attachments: { orderBy: { createdAt: "asc" } },
     },
     orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
     take: 200,
   });
   return (
     <div className="space-y-6" dir="rtl">
+      <LiveRefresh intervalMs={5000} />
       <header>
         <h1 className="text-2xl font-black">مركز الشكاوى</h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">
@@ -92,6 +95,15 @@ export default async function AdminComplaintsPage() {
               </span>
             </div>
             <p className="mt-4 text-sm leading-7">{c.description}</p>
+            {c.attachments.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {c.attachments.map((attachment) => (
+                  <a key={attachment.id} href={`/api/complaint-attachments/${attachment.id}`} target="_blank" rel="noreferrer" className="rounded-xl border px-3 py-2 text-xs font-bold text-[var(--primary)]">
+                    فتح الصورة: {attachment.fileName}
+                  </a>
+                ))}
+              </div>
+            )}
             <div className="mt-4 rounded-xl bg-[var(--muted)]/60 p-3 text-xs">
               آخر رد: {c.messages[0]?.content ?? "—"}
             </div>

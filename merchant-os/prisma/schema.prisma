@@ -2258,9 +2258,10 @@ model Complaint {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  merchant Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  order    Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  messages ComplaintMessage[]
+  merchant    Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  order       Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  messages    ComplaintMessage[]
+  attachments ComplaintAttachment[]
 
   @@index([merchantId, status, createdAt])
   @@index([orderId])
@@ -2281,6 +2282,22 @@ model ComplaintMessage {
 
   @@index([complaintId, createdAt])
   @@map("complaint_messages")
+}
+
+model ComplaintAttachment {
+  id          String   @id @default(cuid())
+  complaintId String
+  storageKey  String   @unique
+  fileName    String
+  mimeType    String
+  size        Int
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId, createdAt])
+  @@map("complaint_attachments")
 }
 
 /// Per-merchant WhatsApp Business API credentials (each merchant messages

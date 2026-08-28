@@ -19,6 +19,7 @@ export function PublicHeader({ locale, accountHref, signedIn = false }: {
           <Link href="/#how" className="hover:text-[#087d82]">{ar ? 'كيف تبدأ' : 'How it works'}</Link>
           <Link href="/#pricing" className="hover:text-[#087d82]">{ar ? 'الباقات' : 'Plans'}</Link>
           <Link href="/blog" className="hover:text-[#087d82]">{ar ? 'المدونة' : 'Blog'}</Link>
+          <Link href="/partners" className="hover:text-[#087d82]">{ar ? 'كن شريكنا' : 'Partners'}</Link>
         </nav>
         <div className="flex items-center gap-2">
           <LanguageToggle />
@@ -46,6 +47,7 @@ export function PublicFooter({ locale }: { locale: Locale }) {
           <Link href="/privacy">{ar ? 'الخصوصية' : 'Privacy'}</Link>
           <Link href="/terms">{ar ? 'الشروط والأحكام' : 'Terms'}</Link>
           <Link href="/register">{ar ? 'إنشاء متجر' : 'Create a store'}</Link>
+          <Link href="/partners">{ar ? 'كن شريكنا' : 'Become a partner'}</Link>
         </div>
       </div>
       <div className="mx-auto mt-8 max-w-7xl border-t border-slate-100 px-5 pt-6 text-xs text-slate-500 lg:px-8">© {new Date().getFullYear()} WASLA · {ar ? 'تجارتك... متصلة بكل طريق' : 'Your business, connected to every path'}</div>

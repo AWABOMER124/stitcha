@@ -47,14 +47,24 @@ export function DashboardTopbar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function refreshUnreadCount() {
-      getUnreadCountAction().then((res) => {
-        if (res.success) setUnreadCount(res.data);
+    function refreshNotifications() {
+      if (document.visibilityState !== "visible") return;
+      void Promise.all([
+        getUnreadCountAction(),
+        getNotificationsAction({ limit: 5 }),
+      ]).then(([count, latest]) => {
+        if (count.success) setUnreadCount(count.data);
+        if (latest.success) setNotifications(latest.data.data as unknown as NotificationItem[]);
+        setNotifLoaded(true);
       });
     }
-    refreshUnreadCount();
-    const interval = setInterval(refreshUnreadCount, 20_000);
-    return () => clearInterval(interval);
+    refreshNotifications();
+    const interval = setInterval(refreshNotifications, 5000);
+    document.addEventListener("visibilitychange", refreshNotifications);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshNotifications);
+    };
   }, []);
 
   useEffect(() => {

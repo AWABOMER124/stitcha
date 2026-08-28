@@ -25,19 +25,43 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
   const [suggestError, setSuggestError] = useState('');
   const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const selectedId = selected?.id;
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
-    if (!selected) return;
-    const poll = window.setInterval(() => {
-      void fetch(`/api/inbox/${selected.id}/messages`, { cache: 'no-store' })
+    const refreshList = () => {
+      if (document.visibilityState !== 'visible') return;
+      void fetch('/api/inbox', { cache: 'no-store' })
+        .then(response => response.json())
+        .then(data => {
+          if (!data.conversations) return;
+          setConversations(data.conversations);
+          setSelected(current => current ? (data.conversations.find((item: Conversation) => item.id === current.id) ?? current) : (data.conversations[0] ?? null));
+        })
+        .catch(() => {});
+    };
+    const poll = window.setInterval(refreshList, 5000);
+    document.addEventListener('visibilitychange', refreshList);
+    return () => {
+      window.clearInterval(poll);
+      document.removeEventListener('visibilitychange', refreshList);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const refreshMessages = () => {
+      if (document.visibilityState !== 'visible') return;
+      void fetch(`/api/inbox/${selectedId}/messages`, { cache: 'no-store' })
         .then(response => response.json())
         .then(data => { if (data.messages) setMessages(data.messages); })
         .catch(() => {});
-    }, 5000);
+    };
+    refreshMessages();
+    const poll = window.setInterval(refreshMessages, 5000);
     return () => window.clearInterval(poll);
-  }, [selected]);
+  }, [selectedId]);
 
   async function loadConversation(conv: Conversation) {
     setSelected(conv);

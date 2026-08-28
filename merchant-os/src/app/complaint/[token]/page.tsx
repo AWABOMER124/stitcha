@@ -2,6 +2,8 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/db/prisma";
 import { hashConversationToken } from "@/lib/security/public-conversation";
+import { uploadComplaintAttachment } from "@/modules/complaints/complaint-attachments";
+import { LiveRefresh } from "@/components/shared/live-refresh";
 
 async function customerReply(formData: FormData) {
   "use server";
@@ -9,20 +11,18 @@ async function customerReply(formData: FormData) {
   const content = String(formData.get("content") ?? "")
     .trim()
     .slice(0, 2000);
-  if (!content) return;
+  const files = formData.getAll("attachments").filter((value): value is File => value instanceof File && value.size > 0);
+  if (!content && files.length === 0) return;
   const complaint = await prisma.complaint.findUnique({
     where: { publicTokenHash: hashConversationToken(token) },
     select: { id: true, merchantId: true, status: true },
   });
   if (!complaint || ["CLOSED", "RESOLVED"].includes(complaint.status)) return;
-  const message = await prisma.complaintMessage.create({
-    data: {
-      complaintId: complaint.id,
-      content,
-      senderType: "CUSTOMER",
-      senderName: "العميل",
-    },
-  });
+  const message = content ? await prisma.complaintMessage.create({
+    data: { complaintId: complaint.id, content, senderType: "CUSTOMER", senderName: "العميل" },
+  }) : null;
+  for (const file of files.slice(0, 5))
+    await uploadComplaintAttachment(complaint.id, file, "CUSTOMER").catch(() => null);
   await prisma.complaint.update({
     where: { id: complaint.id },
     data: { status: "WAITING_MERCHANT" },
@@ -35,9 +35,9 @@ async function customerReply(formData: FormData) {
         channel: "IN_APP",
         recipient: complaint.merchantId,
         title: "رد جديد على شكوى",
-        body: content.slice(0, 140),
+        body: content.slice(0, 140) || "أرفق العميل صوراً جديدة",
         metadata: { kind: "COMPLAINT", complaintId: complaint.id },
-        idempotencyKey: `complaint:reply:${message.id}`,
+        idempotencyKey: `complaint:reply:${message?.id ?? `attachment:${Date.now()}`}`,
       },
     })
     .catch(() => null);
@@ -58,12 +58,14 @@ export default async function ComplaintTrackingPage({
         orderBy: { createdAt: "asc" },
       },
       order: { select: { orderNumber: true } },
+      attachments: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!complaint) notFound();
   const closed = ["CLOSED", "RESOLVED"].includes(complaint.status);
   return (
     <main className="mx-auto max-w-3xl px-5 py-12" dir="rtl">
+      <LiveRefresh intervalMs={5000} />
       <header className="rounded-3xl bg-[#07111f] p-7 text-white">
         <p className="text-sm text-emerald-300">{complaint.ticketNumber}</p>
         <h1 className="mt-2 text-2xl font-black">{complaint.title}</h1>
@@ -98,6 +100,19 @@ export default async function ComplaintTrackingPage({
           </div>
         ))}
       </section>
+      {complaint.attachments.length > 0 && (
+        <section className="mt-5 rounded-3xl border bg-white p-5">
+          <h2 className="font-black">الصور المرفقة</h2>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {complaint.attachments.map((attachment) => (
+              <a key={attachment.id} href={`/api/complaints/${token}/attachments/${attachment.id}`} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/complaints/${token}/attachments/${attachment.id}`} alt={attachment.fileName} className="h-32 w-full object-cover" />
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
       {complaint.resolution && (
         <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <p className="font-bold text-emerald-800">الحل</p>
@@ -107,16 +122,16 @@ export default async function ComplaintTrackingPage({
         </div>
       )}
       {!closed && (
-        <form action={customerReply} className="mt-5 flex gap-3">
+        <form action={customerReply} className="mt-5 grid gap-3 rounded-2xl border bg-white p-4">
           <input type="hidden" name="token" value={token} />
           <textarea
             name="content"
-            required
             rows={3}
             placeholder="أضف رداً أو معلومة جديدة…"
-            className="flex-1 rounded-2xl border px-4 py-3"
+            className="rounded-2xl border px-4 py-3"
           />
-          <button className="self-end rounded-xl bg-[#087d82] px-5 py-3 font-bold text-white">
+          <input name="attachments" type="file" accept="image/jpeg,image/png,image/webp" multiple className="text-sm" />
+          <button className="justify-self-end rounded-xl bg-[#087d82] px-5 py-3 font-bold text-white">
             إرسال
           </button>
         </form>
