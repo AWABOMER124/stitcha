@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Boxes, CheckCircle2, Code2, MapPin, Truck } from "lucide-react";
 import { PublicFooter, PublicHeader } from "@/components/marketing/public-chrome";
+import { LocaleProvider } from "@/lib/i18n/context";
 import { getPublicPageContext } from "@/lib/marketing/public-context";
 
 export const metadata = {
@@ -23,6 +24,7 @@ export default async function PartnersPage() {
         [Boxes, "One partner portal", "Review shipments, test the integration and manage your delivery app settings."],
       ];
   return (
+    <LocaleProvider initialLocale={ctx.locale}>
     <div className="min-h-screen bg-white text-[#07111f]" dir={ar ? "rtl" : "ltr"}>
       <PublicHeader {...ctx} />
       <main>
@@ -64,5 +66,6 @@ export default async function PartnersPage() {
       </main>
       <PublicFooter locale={ctx.locale} />
     </div>
+    </LocaleProvider>
   );
 }
