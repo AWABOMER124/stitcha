@@ -17,6 +17,46 @@ the first login.
 5. Wait until the template status is `APPROVED` before enabling signup OTP in
    production.
 
+## Temporary Evolution API bridge
+
+While Meta onboarding is pending, the platform number may send signup OTP and
+platform notifications through a dedicated Evolution API instance. This is an
+outbound bridge only: merchant WhatsApp inboxes, ordering bots and AI agents
+continue to use each merchant's Meta configuration. This boundary makes the
+later switch back to Meta a one-variable change and avoids storing temporary
+Evolution credentials in merchant records.
+
+Evolution uses a linked-device session and is not equivalent to Meta's official
+Cloud API. Keep it temporary, monitor disconnects, never expose the manager or
+API key publicly, and keep signup verification disabled until a real send test
+from `+249915970000` succeeds.
+
+Add these values to Dokploy:
+
+```dotenv
+PLATFORM_WHATSAPP_PROVIDER=evolution
+EVOLUTION_API_URL=https://<private-evolution-host>
+EVOLUTION_API_KEY=<strong-api-key>
+EVOLUTION_INSTANCE_NAME=wasla-main
+EVOLUTION_SEND_PAYLOAD_STYLE=textMessage
+PHONE_OTP_SECRET=<independent-random-secret>
+WHATSAPP_SIGNUP_VERIFICATION_ENABLED=false
+```
+
+Create/connect the `wasla-main` instance, scan its QR from the WhatsApp Business
+app on `+249915970000`, and send a test message. Only then change
+`WHATSAPP_SIGNUP_VERIFICATION_ENABLED=true`. If the installed Evolution release
+expects the newer flat body `{ number, text }`, set
+`EVOLUTION_SEND_PAYLOAD_STYLE=flat` and retest. Do not enable automatic payload
+fallback because retrying an ambiguous provider error can duplicate OTP
+messages.
+
+To move to Meta later, configure the Meta variables below and set:
+
+```dotenv
+PLATFORM_WHATSAPP_PROVIDER=meta
+```
+
 ## Dokploy environment
 
 Add these values to the `merchant-os` application environment and redeploy.

@@ -16,6 +16,8 @@ const ENV_KEYS = [
   'TWILIO_SMS_FROM', 'WHATSAPP_CLOUD_API_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID',
   'WHATSAPP_GRAPH_API_VERSION',
   'WHATSAPP_OTP_TEMPLATE_NAME', 'WHATSAPP_OTP_TEMPLATE_LANGUAGE',
+  'PLATFORM_WHATSAPP_PROVIDER', 'EVOLUTION_API_URL', 'EVOLUTION_API_KEY',
+  'EVOLUTION_INSTANCE_NAME', 'EVOLUTION_SEND_PAYLOAD_STYLE',
 ] as const;
 
 describe('external notification providers', () => {
@@ -102,5 +104,35 @@ describe('external notification providers', () => {
         ],
       },
     });
+  });
+
+  it('sends platform WhatsApp messages through a temporary Evolution instance', async () => {
+    process.env.PLATFORM_WHATSAPP_PROVIDER = 'evolution';
+    process.env.EVOLUTION_API_URL = 'https://evolution.example.com/';
+    process.env.EVOLUTION_API_KEY = 'evolution-secret';
+    process.env.EVOLUTION_INSTANCE_NAME = 'wasla-main';
+    vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 200 }));
+
+    await new WhatsAppProvider().send({ ...payload, channel: 'WHATSAPP' });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://evolution.example.com/message/sendText/wasla-main',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ apikey: 'evolution-secret' }),
+      }),
+    );
+    const [, request] = vi.mocked(fetch).mock.calls[0];
+    expect(JSON.parse(String(request?.body))).toEqual({
+      number: '249111222333',
+      textMessage: { text: 'Message body' },
+    });
+  });
+
+  it('fails closed when Evolution is selected without credentials', async () => {
+    process.env.PLATFORM_WHATSAPP_PROVIDER = 'evolution';
+    await expect(new WhatsAppProvider().send({ ...payload, channel: 'WHATSAPP' }))
+      .rejects.toThrow('Evolution غير مهيأة');
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
