@@ -1,20 +1,21 @@
 # دليل ربط وصلة مع شركات الشحن والتوصيل
 
-> الحالة: مرجع تنفيذي للإنتاج — آخر تحديث 2026-08-27
+> الحالة: منفذ وجاهز لاختبار الشريك — آخر تحديث 2026-08-28
 > النطاق: تعاقد وصلة مباشرة مع شركات التوصيل، إنشاء الشحنات، التتبع، إثبات التسليم، والتحصيل عند الاستلام.
 
 ## 1. الملخص التنفيذي
 
-المنصة تملك حالياً أساساً جيداً للتسعير واختيار شركة التوصيل وإنشاء سجل الشحنة داخلياً، لكنها **لا ترسل شحنة `PlatformShipment` إلى API شركة حقيقية بعد**. يوجد Adapter أقدم يعمل على `DeliveryCompany` و`Delivery`، بينما نموذج التشغيل الجديد يعتمد `DeliveryPartner` و`PlatformShipment`. يجب توحيد المسارين على نموذج الشركاء الجديد قبل تفعيل `PLATFORM_DELIVERY_ENABLED=true`.
+المسار الجديد يعمل على `DeliveryPartner` و`PlatformShipment`: يسجل الشريك، يجهز بطاقة تطبيقه وAPI والتغطية والأسعار، تراجعه الإدارة وتنشره، ثم يفعله التاجر من سوق التطبيقات. عند قبول العرض ترسل وصلة الشحنة إلى API الشريك وتحفظ مرجعه، وتستقبل Webhooks موقعة لعكس الحالة على الشحنة والطلب.
 
 | الجزء | الحالة الحالية | المطلوب للإنتاج |
 |---|---|---|
 | مناطق الخدمة والأسعار | جاهز | تحميل أسعار وعقود الشركات المعتمدة |
 | عروض التوصيل | جاهز داخلياً | خيار طلب سعر لحظي من الشركة لاحقاً |
 | قبول العرض وتحديث إجمالي الطلب | جاهز وذري | لا تغيير |
-| إنشاء سجل الشحنة ورقم تتبع وصلة | جاهز | إرسال الشحنة للشركة عبر Outbox |
-| Adapter شركة خارجية | واجهة قديمة + Mock فقط | Adapter لكل شركة على `DeliveryPartner` |
-| Webhook | موجود للمسار القديم | مسار موقع وموقّع للشركاء الجدد + منع التكرار |
+| إنشاء سجل الشحنة ورقم تتبع وصلة | جاهز | مراقبة المحاولات وإضافة retry دائم قبل الإنتاج الواسع |
+| تكامل شركة خارجية | `PARTNER_HTTP_V1` جاهز | اختبار عقد API مع كل شركة |
+| Webhook | جاهز للشركاء مع HMAC SHA-256 | اختبار التوقيع وإعادة الإرسال مع كل شركة |
+| بوابة الشريك وسوق التطبيقات | جاهز | مراجعة قانونية وتشغيل UAT |
 | المندوب وإثبات التسليم | نماذج البيانات جاهزة | APIs وتحقق الملفات/OTP |
 | تحصيل COD والتسويات | نماذج البيانات جاهزة | مطابقة وتحويل وتسوية قابلة للمراجعة |
 
@@ -44,7 +45,8 @@ Order
 |---|---|---|---|
 | `POST` | `/api/orders/{orderId}/delivery-quotes` | جلسة العميل أو إجراء التاجر الداخلي | حساب أفضل عروض متاحة؛ الميزة خلف `PLATFORM_DELIVERY_ENABLED` |
 | `POST` | `/api/orders/{orderId}/delivery-quotes/{quoteId}/accept` | جلسة العميل أو إجراء التاجر الداخلي | قبول العرض، إلغاء المنافسين، تحديث الرسوم والإجمالي، إنشاء الشحنة وCOD |
-| `POST` | `/api/webhooks/delivery/{token}` | Token في الرابط + تحقق Adapter | Webhook للمسار القديم فقط؛ لا يُعتمد للشركاء الجدد قبل التوحيد |
+| `POST` | `/api/webhooks/delivery-partners/{token}` | Token في الرابط + `X-Wasla-Signature` | استقبال حالة الشحنة من نظام الشريك الجديد |
+| `POST` | `/api/webhooks/delivery/{token}` | Token في الرابط + تحقق Adapter | توافق مع شركات المسار القديم فقط |
 
 ضوابط حالية مهمة:
 
@@ -59,8 +61,8 @@ Order
 
 1. يقبل العميل أو التاجر عرض التوصيل.
 2. تنشئ وصلة `PlatformShipment` بحالة `REQUESTED` ورقم `WSL-*`.
-3. في نفس المعاملة، تضيف وصلة مهمة Outbox بمفتاح تكرار ثابت.
-4. العامل الخلفي يرسل `createShipment` إلى شركة الشحن.
+3. بعد نجاح المعاملة ترسل وصلة الشحنة إلى API الشريك مع مفتاح تكرار ثابت؛ إن فشل المزود تبقى الشحنة `REQUESTED` ولا يضيع الطلب.
+4. الشريك يعيد `providerReference` وتحفظه وصلة على الشحنة.
 5. تحفظ وصلة `providerReference` و`trackingUrl` وتنتقل إلى `ASSIGNED` عند قبول الشركة.
 6. ترسل الشركة Webhooks موقعة للحالات، المندوب، الموقع، وإثبات التسليم.
 7. تسجل وصلة كل حدث في `DeliveryEvent` ثم تحدّث الحالة الحالية للشحنة والطلب.
@@ -72,22 +74,21 @@ Order
 
 ### 5.1 إنشاء شحنة
 
-`POST {providerBaseUrl}/v1/shipments`
+`POST {providerBaseUrl}/shipments`
 
 Headers:
 
 ```http
 Authorization: Bearer <provider-api-token>
 Content-Type: application/json
-Idempotency-Key: wasla:shipment:<platformShipmentId>:create
-X-Wasla-Request-Id: <uuid>
+Idempotency-Key: <platformShipmentId>
 ```
 
 Request:
 
 ```json
 {
-  "externalReference": "clx_platform_shipment_id",
+  "shipmentId": "clx_platform_shipment_id",
   "orderNumber": "WSL-ORDER-1042",
   "trackingCode": "WSL-N8Q2K7F4A1",
   "pickup": {
@@ -106,11 +107,8 @@ Request:
     "longitude": 32.5752,
     "notes": "الاتصال قبل الوصول"
   },
-  "payment": {
-    "method": "COD",
-    "amountToCollect": 24500,
-    "currency": "SDG"
-  }
+  "codAmount": 24500,
+  "currency": "SDG"
 }
 ```
 
@@ -126,7 +124,25 @@ Success `201` أو إعادة نفس النتيجة عند تكرار `Idempoten
 }
 ```
 
-### 5.2 إلغاء شحنة
+### 5.2 Webhook الحالة إلى وصلة
+
+```http
+POST https://wassla-sd.shop/api/webhooks/delivery-partners/<partner-webhook-token>
+Content-Type: application/json
+X-Wasla-Signature: sha256=<hex-hmac-of-raw-body>
+```
+
+```json
+{
+  "providerReference": "SHIP-883140",
+  "status": "IN_TRANSIT",
+  "note": "غادر المندوب نقطة الاستلام"
+}
+```
+
+القيم المقبولة: `ASSIGNED`, `PICKED_UP`, `IN_TRANSIT`, `DELIVERED`, `FAILED`, `CANCELLED`. يحسب الشريك التوقيع باستخدام نفس Secret المدخل في بوابته، ولا ترسل وصلة السر الخام إلى المتصفح.
+
+### 5.3 إلغاء شحنة
 
 `POST {providerBaseUrl}/v1/shipments/{providerReference}/cancel`
 
@@ -140,13 +156,13 @@ Success `201` أو إعادة نفس النتيجة عند تكرار `Idempoten
 
 يجب أن يكون الإلغاء idempotent. إذا كانت الشحنة مسلّمة، تعيد الشركة `409` مع كود واضح مثل `SHIPMENT_NOT_CANCELLABLE`.
 
-### 5.3 قراءة حالة الشحنة
+### 5.4 قراءة حالة الشحنة
 
 `GET {providerBaseUrl}/v1/shipments/{providerReference}`
 
 يستخدم للمطابقة والإصلاح عند فقد Webhook، وليس بديلاً عن Webhooks.
 
-### 5.4 التسعير اللحظي — اختياري في المرحلة الثانية
+### 5.5 التسعير اللحظي — اختياري في المرحلة الثانية
 
 `POST {providerBaseUrl}/v1/quotes`
 

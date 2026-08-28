@@ -241,7 +241,7 @@ Automated unit and PostgreSQL integration suites run in CI. Supplement them with
 
 ## ⚠️ Known Limitations
 
-- **External delivery still needs a partner adapter and production credentials.** Follow [`docs/SHIPPING_INTEGRATION_API.md`](docs/SHIPPING_INTEGRATION_API.md); keep `PLATFORM_DELIVERY_ENABLED=false` until P0, contract tests, and partner UAT pass. Configure `JOB_RUNNER_SECRET` and call `/api/internal/jobs/run`; failed background work remains visible in `outbox_jobs`.
+- **External delivery has a standard partner adapter but still needs production credentials and partner UAT.** Partners onboard through `/partner-register`, publish through admin review, and connect with `PARTNER_HTTP_V1` plus signed webhooks. Follow [`docs/SHIPPING_INTEGRATION_API.md`](docs/SHIPPING_INTEGRATION_API.md); keep `PLATFORM_DELIVERY_ENABLED=false` until contract tests, field UAT, COD terms, and retry operations are signed off.
 - **File storage defaults to local disk** unless `S3_*` env vars are set — not durable across redeploys on ephemeral hosting.
 - **AI services are unconfigured** without `ANTHROPIC_API_KEY`: store generation fails gracefully and the WhatsApp agent stays inactive.
 - **Coverage is focused on critical paths.** Keep adding UI and end-to-end coverage; `scripts/check-raw-prisma-returns.sh` remains a supplementary heuristic guard.
