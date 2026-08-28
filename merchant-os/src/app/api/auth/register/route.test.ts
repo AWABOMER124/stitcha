@@ -26,6 +26,7 @@ const { POST } = await import('./route');
 
 describe('POST /api/auth/register', () => {
   beforeEach(() => {
+    process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED = 'true';
     Object.values(txMock).forEach((model) => Object.values(model).forEach((fn) => fn.mockReset()));
     prismaMock.user.findFirst.mockReset().mockResolvedValue(null);
     prismaMock.$transaction.mockClear();
@@ -55,5 +56,22 @@ describe('POST /api/auth/register', () => {
       slug: 'store-1', verificationRequired: true, verificationToken: expect.any(String),
       phone: '+249111222333', otpSent: true,
     }));
+  });
+
+  it('preserves active signup while WhatsApp verification is not enabled', async () => {
+    process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED = 'false';
+    const response = await POST(new Request('http://localhost/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        merchantName: 'Pilot Store', ownerName: 'Owner', email: 'pilot@example.com',
+        phone: '0911222333', password: 'password123', businessType: 'RETAIL',
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(txMock.merchant.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: 'ACTIVE', registrationToken: null }),
+    });
+    await expect(response.json()).resolves.toEqual({ slug: 'store-1', verificationRequired: false });
   });
 });

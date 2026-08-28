@@ -56,6 +56,11 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Registration failed");
+      } else if (!data.verificationRequired) {
+        const signInResult = await signIn('credentials', {
+          email: formData.email, password: formData.password, redirect: false,
+        });
+        router.replace(signInResult?.error ? '/login' : '/dashboard');
       } else {
         setVerificationToken(data.verificationToken);
         setSentTo(data.phone);

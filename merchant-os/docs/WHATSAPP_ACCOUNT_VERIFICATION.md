@@ -19,7 +19,9 @@ the first login.
 
 ## Dokploy environment
 
-Add these values to the `merchant-os` application environment and redeploy:
+Add these values to the `merchant-os` application environment and redeploy.
+Keep the feature flag off until a real-number send test passes; the default
+preserves the existing signup flow during setup:
 
 ```dotenv
 WHATSAPP_CLOUD_API_TOKEN=<permanent-system-user-token>
@@ -28,6 +30,7 @@ WHATSAPP_GRAPH_API_VERSION=<current-version-shown-by-meta>
 WHATSAPP_OTP_TEMPLATE_NAME=wasla_account_verification
 WHATSAPP_OTP_TEMPLATE_LANGUAGE=ar
 PHONE_OTP_SECRET=<independent-random-secret>
+WHATSAPP_SIGNUP_VERIFICATION_ENABLED=true
 ```
 
 Generate `PHONE_OTP_SECRET` with a cryptographically secure random generator.
@@ -65,4 +68,3 @@ registration token, and timing-safe code comparison.
 No new database migration is required: the existing `PhoneVerification`,
 `User.phoneVerifiedAt`, `Merchant.status`, and registration-token fields are
 used.
-

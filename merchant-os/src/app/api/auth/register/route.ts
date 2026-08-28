@@ -52,8 +52,9 @@ export async function POST(req: Request) {
   const slug = `${baseSlug || 'store'}-${Date.now().toString(36)}`;
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const registrationToken = crypto.randomBytes(32).toString('base64url');
-  const registrationTokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
+  const verificationEnabled = process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED === 'true';
+  const registrationToken = verificationEnabled ? crypto.randomBytes(32).toString('base64url') : null;
+  const registrationTokenExpiresAt = verificationEnabled ? new Date(Date.now() + 30 * 60 * 1000) : null;
 
   const registration = await prisma.$transaction(async (tx) => {
     const newMerchant = await tx.merchant.create({
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
         email: normalizedEmail,
         phone,
         businessType,
-        status: 'PENDING',
+        status: verificationEnabled ? 'PENDING' : 'ACTIVE',
         registrationToken,
         registrationTokenExpiresAt,
         subscription: {
@@ -106,6 +107,10 @@ export async function POST(req: Request) {
 
     return { merchant: newMerchant, user };
   });
+
+  if (!verificationEnabled) {
+    return NextResponse.json({ slug: registration.merchant.slug, verificationRequired: false }, { status: 201 });
+  }
 
   let otpSent = true;
   let warning: string | undefined;
