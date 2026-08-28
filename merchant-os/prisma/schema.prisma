@@ -59,6 +59,32 @@ enum DeliveryPartnerAppStatus {
   REJECTED
 }
 
+enum ComplaintStatus {
+  NEW
+  UNDER_REVIEW
+  WAITING_MERCHANT
+  WAITING_CUSTOMER
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ComplaintCategory {
+  ORDER
+  DELIVERY
+  PAYMENT
+  PRODUCT
+  SERVICE
+  OTHER
+}
+
 enum DeliveryQuoteStatus {
   OFFERED
   ACCEPTED
@@ -799,6 +825,7 @@ model Merchant {
   whatsappAiUsage            WhatsAppAiUsage[]
   invoices                   Invoice[]
   deliveryPartnerConnections MerchantDeliveryPartner[]
+  complaints                 Complaint[]
 
   @@index([slug])
   @@index([status])
@@ -1412,6 +1439,7 @@ model Order {
   deliveryQuotes   DeliveryQuote[]
   platformShipment PlatformShipment?
   invoice          Invoice?
+  complaints       Complaint[]
 
   @@unique([merchantId, orderNumber])
   @@index([merchantId])
@@ -2207,6 +2235,52 @@ model InboxMessage {
   @@index([conversationId])
   @@index([conversationId, readAt])
   @@map("inbox_messages")
+}
+
+model Complaint {
+  id              String            @id @default(cuid())
+  ticketNumber    String            @unique
+  merchantId      String
+  orderId         String?
+  category        ComplaintCategory
+  priority        ComplaintPriority @default(NORMAL)
+  status          ComplaintStatus   @default(NEW)
+  title           String
+  description     String
+  customerName    String
+  customerPhone   String?
+  customerEmail   String?
+  publicTokenHash String            @unique
+  resolution      String?
+  assignedToId    String?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  merchant Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  order    Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  messages ComplaintMessage[]
+
+  @@index([merchantId, status, createdAt])
+  @@index([orderId])
+  @@index([status, priority, createdAt])
+  @@map("complaints")
+}
+
+model ComplaintMessage {
+  id             String   @id @default(cuid())
+  complaintId    String
+  content        String
+  senderType     String
+  senderName     String?
+  isInternalNote Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId, createdAt])
+  @@map("complaint_messages")
 }
 
 /// Per-merchant WhatsApp Business API credentials (each merchant messages

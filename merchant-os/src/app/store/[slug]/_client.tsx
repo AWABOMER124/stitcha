@@ -344,7 +344,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
 
       {!hiddenSections.has('social') && (
         <section className="border-t border-stone-100 bg-white px-4 py-10 text-center" style={sectionStyle('social')}>
-          <div className="mx-auto max-w-4xl"><h2 className="text-xl font-black text-stone-900">تواصل معنا</h2><p className="mt-2 text-sm text-stone-500">نحن قريبون منك للإجابة عن أسئلتك ومتابعة طلبك.</p><button onClick={() => setChatOpen(true)} className="mt-5 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-sm" style={{ background: primary }}>ابدأ محادثة</button><p className="mt-7 text-xs text-stone-400">متجر إلكتروني بواسطة وصلة</p></div>
+          <div className="mx-auto max-w-4xl"><h2 className="text-xl font-black text-stone-900">تواصل معنا</h2><p className="mt-2 text-sm text-stone-500">نحن قريبون منك للإجابة عن أسئلتك ومتابعة طلبك.</p><div className="mt-5 flex flex-wrap justify-center gap-3"><button onClick={() => setChatOpen(true)} className="rounded-xl px-6 py-3 text-sm font-bold text-white shadow-sm" style={{ background: primary }}>ابدأ محادثة</button><button onClick={() => router.push(`/store/${merchant.slug}/complaints/new`)} className="rounded-xl border border-stone-300 bg-white px-6 py-3 text-sm font-bold text-stone-700">تقديم شكوى</button></div><p className="mt-7 text-xs text-stone-400">متجر إلكتروني بواسطة وصلة</p></div>
         </section>
       )}
       </div>

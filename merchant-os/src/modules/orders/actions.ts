@@ -1,20 +1,26 @@
-'use server';
+"use server";
 
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth/config';
-import { getAuthContext, requirePermission } from '@/lib/permissions';
-import * as ordersService from './services/orders.service';
-import { createShipmentForOrder } from '@/modules/delivery-integrations/services/delivery-integrations.service';
-import { createOrderSchema, updateOrderStatusSchema, orderFilterSchema } from './schemas/orders.schemas';
-import type { ActionResult, PaginatedResult } from '@/lib/types';
-import type { Order, OrderStatus } from '@prisma/client';
-import type { DistributorOrderTab } from './repositories/orders.repository';
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth/config";
+import { getAuthContext, requirePermission } from "@/lib/permissions";
+import * as ordersService from "./services/orders.service";
+import { createShipmentForOrder } from "@/modules/delivery-integrations/services/delivery-integrations.service";
+import {
+  createOrderSchema,
+  editOrderSchema,
+  updateOrderStatusSchema,
+  orderFilterSchema,
+} from "./schemas/orders.schemas";
+import type { ActionResult, PaginatedResult } from "@/lib/types";
+import type { Order, OrderStatus } from "@prisma/client";
+import type { DistributorOrderTab } from "./repositories/orders.repository";
 
 async function getDistributorId(): Promise<string> {
   const session = await auth();
-  if (!session?.user?.distributorId) redirect('/login');
+  if (!session?.user?.distributorId) redirect("/login");
   const role = session.user.role;
-  if (role !== 'DISTRIBUTOR_OWNER' && role !== 'DISTRIBUTOR_ADMIN') redirect('/dashboard');
+  if (role !== "DISTRIBUTOR_OWNER" && role !== "DISTRIBUTOR_ADMIN")
+    redirect("/dashboard");
   return session.user.distributorId;
 }
 
@@ -23,15 +29,20 @@ async function getDistributorId(): Promise<string> {
 // ============================================================================
 
 /** List orders with filters and pagination */
-export async function getOrdersAction(filters: unknown): Promise<ActionResult<PaginatedResult<Order>>> {
+export async function getOrdersAction(
+  filters: unknown,
+): Promise<ActionResult<PaginatedResult<Order>>> {
   try {
     const auth = await getAuthContext();
-    requirePermission(auth, 'orders:read');
+    requirePermission(auth, "orders:read");
     const parsed = orderFilterSchema.parse(filters);
     const result = await ordersService.getOrders(auth.merchantId, parsed);
     return { success: true, data: result };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to get orders' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get orders",
+    };
   }
 }
 
@@ -39,58 +50,101 @@ export async function getOrdersAction(filters: unknown): Promise<ActionResult<Pa
 export async function getOrderAction(id: string): Promise<ActionResult<Order>> {
   try {
     const auth = await getAuthContext();
-    requirePermission(auth, 'orders:read');
+    requirePermission(auth, "orders:read");
     const order = await ordersService.getOrder(auth.merchantId, id);
     return { success: true, data: order as Order };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to get order' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get order",
+    };
   }
 }
 
 /** Create a new order */
-export async function createOrderAction(formData: unknown): Promise<ActionResult<Order>> {
+export async function createOrderAction(
+  formData: unknown,
+): Promise<ActionResult<Order>> {
   try {
     const auth = await getAuthContext();
-    requirePermission(auth, 'orders:create');
+    requirePermission(auth, "orders:create");
     const parsed = createOrderSchema.parse(formData);
     const order = await ordersService.createOrder(auth.merchantId, parsed);
     return { success: true, data: order as Order };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to create order' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create order",
+    };
   }
 }
 
 /** Update order status */
 export async function updateOrderStatusAction(
   id: string,
-  formData: unknown
+  formData: unknown,
 ): Promise<ActionResult<Order>> {
   try {
     const auth = await getAuthContext();
-    requirePermission(auth, 'orders:update');
+    requirePermission(auth, "orders:update");
     const parsed = updateOrderStatusSchema.parse(formData);
     const order = await ordersService.updateOrderStatus(
       auth.merchantId,
       id,
       parsed.status as OrderStatus,
       parsed.note,
-      auth.userId
+      auth.userId,
     );
     return { success: true, data: order };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to update order status' };
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update order status",
+    };
+  }
+}
+
+export async function editOrderAction(
+  id: string,
+  formData: unknown,
+): Promise<ActionResult<Order>> {
+  try {
+    const auth = await getAuthContext();
+    requirePermission(auth, "orders:update");
+    const parsed = editOrderSchema.parse(formData);
+    const order = await ordersService.editOrder(
+      auth.merchantId,
+      id,
+      parsed,
+      auth.userId,
+    );
+    return { success: true, data: order as Order };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to edit order",
+    };
   }
 }
 
 /** Get today's order overview */
-export async function getTodayOverviewAction(): Promise<ActionResult<{ totalOrders: number; revenue: unknown; pendingOrders: number }>> {
+export async function getTodayOverviewAction(): Promise<
+  ActionResult<{ totalOrders: number; revenue: unknown; pendingOrders: number }>
+> {
   try {
     const auth = await getAuthContext();
-    requirePermission(auth, 'orders:read');
+    requirePermission(auth, "orders:read");
     const overview = await ordersService.getTodayOverview(auth.merchantId);
     return { success: true, data: overview };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to get today overview' };
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to get today overview",
+    };
   }
 }
 
@@ -106,10 +160,18 @@ export async function getDistributorOrdersAction(
 ): Promise<ActionResult<unknown>> {
   try {
     const distributorId = await getDistributorId();
-    const data = await ordersService.getOrdersForDistributor(distributorId, { tab, search, page, limit });
+    const data = await ordersService.getOrdersForDistributor(distributorId, {
+      tab,
+      search,
+      page,
+      limit,
+    });
     return { success: true, data };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to get orders' };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get orders",
+    };
   }
 }
 
@@ -119,7 +181,11 @@ export async function assignOrderDeliveryCompanyAction(
 ): Promise<ActionResult<unknown>> {
   try {
     const distributorId = await getDistributorId();
-    const data = await ordersService.assignOrderDeliveryCompany(distributorId, orderId, deliveryCompanyId);
+    const data = await ordersService.assignOrderDeliveryCompany(
+      distributorId,
+      orderId,
+      deliveryCompanyId,
+    );
 
     // Best-effort — only meaningful once the company has a real provider
     // integration configured (the common case today is a manual/phone
@@ -128,12 +194,22 @@ export async function assignOrderDeliveryCompanyAction(
     // calls back into ordersService for inbound webhook status updates.
     if (deliveryCompanyId) {
       createShipmentForOrder(deliveryCompanyId, orderId).catch((err) =>
-        console.error('[orders] Failed to create external shipment for order', orderId, err)
+        console.error(
+          "[orders] Failed to create external shipment for order",
+          orderId,
+          err,
+        ),
       );
     }
 
     return { success: true, data };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to assign delivery company' };
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to assign delivery company",
+    };
   }
 }
