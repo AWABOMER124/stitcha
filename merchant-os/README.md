@@ -204,6 +204,9 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 
 ## 🐳 Deployment
 
+WhatsApp signup verification and the required Meta/Dokploy configuration are
+documented in [docs/WHATSAPP_ACCOUNT_VERIFICATION.md](docs/WHATSAPP_ACCOUNT_VERIFICATION.md).
+
 For the production VPS procedure, environment list, persistent image storage,
 health check, upgrade sequence, and rollback, follow
 [`../docs/DOKPLOY_DEPLOYMENT.md`](../docs/DOKPLOY_DEPLOYMENT.md).

@@ -18,6 +18,9 @@ vi.mock('@/lib/security/rate-limit', () => ({
   checkRateLimit: vi.fn().mockReturnValue(true),
   getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
 }));
+vi.mock('@/modules/phone-verification/services/phone-verification.service', () => ({
+  sendOtp: vi.fn().mockResolvedValue({ phone: '+249111222333', expiresInMinutes: 10 }),
+}));
 
 const { POST } = await import('./route');
 
@@ -30,7 +33,7 @@ describe('POST /api/auth/register', () => {
     txMock.user.create.mockResolvedValue({ id: 'user_1' });
   });
 
-  it('creates every direct merchant on the free Basic plan', async () => {
+  it('creates a pending free-plan merchant and starts WhatsApp verification', async () => {
     const response = await POST(new Request('http://localhost/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({
@@ -42,10 +45,15 @@ describe('POST /api/auth/register', () => {
     expect(response.status).toBe(201);
     expect(txMock.merchant.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        status: 'ACTIVE',
+        status: 'PENDING',
+        registrationToken: expect.any(String),
+        registrationTokenExpiresAt: expect.any(Date),
         subscription: { create: { plan: { connect: { code: 'FREE' } } } },
       }),
     });
-    await expect(response.json()).resolves.toEqual({ slug: 'store-1' });
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+      slug: 'store-1', verificationRequired: true, verificationToken: expect.any(String),
+      phone: '+249111222333', otpSent: true,
+    }));
   });
 });

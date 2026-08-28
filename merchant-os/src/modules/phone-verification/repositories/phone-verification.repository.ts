@@ -14,6 +14,26 @@ export async function findLatestPending(userId: string) {
   });
 }
 
+export async function findLatest(userId: string) {
+  return prisma.phoneVerification.findFirst({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function countCreatedSince(userId: string, since: Date) {
+  return prisma.phoneVerification.count({
+    where: { userId, createdAt: { gte: since } },
+  });
+}
+
+export async function expirePending(userId: string) {
+  return prisma.phoneVerification.updateMany({
+    where: { userId, verifiedAt: null, expiresAt: { gt: new Date() } },
+    data: { expiresAt: new Date() },
+  });
+}
+
 export async function incrementAttempts(id: string) {
   return prisma.phoneVerification.update({
     where: { id },

@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/db/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { z } from 'zod';
+import crypto from 'crypto';
+import { formatPhoneNumber } from '@/lib/utils/formatting';
+import { sendOtp } from '@/modules/phone-verification/services/phone-verification.service';
 
 const directMerchantRegistrationSchema = z.object({
   merchantName: z.string().trim().min(2).max(120),
@@ -20,13 +23,24 @@ export async function POST(req: Request) {
 
   const parsed = directMerchantRegistrationSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'Invalid registration details' }, { status: 400 });
-  const { merchantName, ownerName, email, phone, password, businessType } = parsed.data;
+  const { merchantName, ownerName, email, password, businessType } = parsed.data;
 
   const normalizedEmail = String(email).trim().toLowerCase();
+  const phone = formatPhoneNumber(parsed.data.phone);
+  if (!/^\+249\d{9}$/.test(phone)) {
+    return NextResponse.json({ error: 'أدخل رقم واتساب سوداني صحيحاً' }, { status: 400 });
+  }
 
-  const existing = await prisma.user.findFirst({ where: { email: { equals: normalizedEmail, mode: 'insensitive' } } });
+  const existing = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: { equals: normalizedEmail, mode: 'insensitive' } },
+        { phone: { in: [phone, parsed.data.phone.trim()] } },
+      ],
+    },
+  });
   if (existing) {
-    return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
+    return NextResponse.json({ error: 'البريد الإلكتروني أو رقم الهاتف مستخدم مسبقاً' }, { status: 409 });
   }
 
   const baseSlug = merchantName
@@ -38,8 +52,10 @@ export async function POST(req: Request) {
   const slug = `${baseSlug || 'store'}-${Date.now().toString(36)}`;
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const registrationToken = crypto.randomBytes(32).toString('base64url');
+  const registrationTokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-  const merchant = await prisma.$transaction(async (tx) => {
+  const registration = await prisma.$transaction(async (tx) => {
     const newMerchant = await tx.merchant.create({
       data: {
         name: merchantName,
@@ -47,7 +63,9 @@ export async function POST(req: Request) {
         email: normalizedEmail,
         phone,
         businessType,
-        status: 'ACTIVE',
+        status: 'PENDING',
+        registrationToken,
+        registrationTokenExpiresAt,
         subscription: {
           create: { plan: { connect: { code: 'FREE' } } },
         },
@@ -86,8 +104,25 @@ export async function POST(req: Request) {
       data: { merchantId: newMerchant.id },
     });
 
-    return newMerchant;
+    return { merchant: newMerchant, user };
   });
 
-  return NextResponse.json({ slug: merchant.slug }, { status: 201 });
+  let otpSent = true;
+  let warning: string | undefined;
+  try {
+    await sendOtp(registration.user.id);
+  } catch (error) {
+    otpSent = false;
+    warning = error instanceof Error ? error.message : 'تعذر إرسال رمز واتساب';
+  }
+
+  return NextResponse.json({
+    slug: registration.merchant.slug,
+    verificationRequired: true,
+    verificationToken: registrationToken,
+    phone,
+    expiresInMinutes: 10,
+    otpSent,
+    ...(warning && { warning }),
+  }, { status: 201 });
 }

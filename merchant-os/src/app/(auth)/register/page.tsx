@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
-import { Check, Eye, EyeOff, Store } from 'lucide-react';
+import { Check, Eye, EyeOff, MessageCircle, ShieldCheck, Store } from 'lucide-react';
 
 /**
  * Merchant registration page for WASLA Commerce OS
@@ -25,6 +25,10 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [verificationToken, setVerificationToken] = useState('');
+  const [sentTo, setSentTo] = useState('');
+  const [code, setCode] = useState('');
   const passwordChecks = useMemo(() => [formData.password.length >= 8, /[A-Za-z]/.test(formData.password), /\d/.test(formData.password)], [formData.password]);
 
   function updateField(field: string, value: string) {
@@ -49,21 +53,54 @@ export default function RegisterPage() {
         body: JSON.stringify(formData),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         setError(data.error || "Registration failed");
       } else {
-        const signInResult = await signIn("credentials", {
-          email: formData.email,
-          password: formData.password,
-          redirect: false,
-        });
-        if (signInResult?.error) {
-          router.replace("/login");
-        } else {
-          router.replace("/dashboard");
-        }
+        setVerificationToken(data.verificationToken);
+        setSentTo(data.phone);
+        setStep('otp');
+        setError(data.otpSent ? '' : (data.warning || 'تم إنشاء الحساب، لكن تعذر إرسال الرمز. حاول إعادة الإرسال.'));
       }
+    } catch {
+      setError(dict.common.somethingWrong);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-phone', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationToken, code }),
+      });
+      const data = await res.json();
+      if (!res.ok) return setError(data.error || 'فشل تأكيد الرقم');
+      const signInResult = await signIn('credentials', {
+        email: formData.email, password: formData.password, redirect: false,
+      });
+      router.replace(signInResult?.error ? '/login' : '/dashboard');
+    } catch {
+      setError(dict.common.somethingWrong);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resendCode() {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-phone/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error || 'تعذر إعادة إرسال الرمز');
     } catch {
       setError(dict.common.somethingWrong);
     } finally {
@@ -79,6 +116,34 @@ export default function RegisterPage() {
     { value: "RETAIL", label: dict.register.types.RETAIL },
     { value: "OTHER", label: dict.register.types.OTHER },
   ];
+
+  if (step === 'otp') {
+    return (
+      <div className="space-y-5">
+        <div className="text-center space-y-2">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"><MessageCircle className="h-7 w-7" /></div>
+          <h1 className="text-2xl font-bold">تأكيد رقم واتساب</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">أرسلنا رمزاً من 6 أرقام إلى <b dir="ltr">{sentTo}</b></p>
+        </div>
+        <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-xl shadow-slate-900/5 sm:p-8">
+          {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+          <form onSubmit={verifyCode} className="space-y-5">
+            <label htmlFor="otp-code" className="block text-center text-sm font-semibold">رمز التأكيد</label>
+            <input id="otp-code" autoFocus required inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+              value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="w-full rounded-2xl border border-[var(--input)] bg-transparent px-4 py-4 text-center text-3xl font-bold tracking-[0.45em] outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20" dir="ltr" />
+            <button disabled={loading || code.length !== 6} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 font-bold text-white disabled:opacity-50">
+              <ShieldCheck className="h-5 w-5" />{loading ? 'جارٍ التأكيد...' : 'تأكيد وتفعيل المتجر'}
+            </button>
+          </form>
+          <div className="mt-5 text-center text-sm">
+            <button type="button" disabled={loading} onClick={resendCode} className="font-semibold text-[var(--primary)] disabled:opacity-50">إعادة إرسال الرمز</button>
+          </div>
+          <p className="mt-5 text-center text-xs leading-5 text-[var(--muted-foreground)]">الرمز صالح لمدة 10 دقائق. لا تشاركه مع أي شخص، وفريق وصلة لن يطلبه منك.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

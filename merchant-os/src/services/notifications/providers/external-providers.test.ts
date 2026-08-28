@@ -15,6 +15,7 @@ const ENV_KEYS = [
   'RESEND_API_KEY', 'EMAIL_FROM', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN',
   'TWILIO_SMS_FROM', 'WHATSAPP_CLOUD_API_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID',
   'WHATSAPP_GRAPH_API_VERSION',
+  'WHATSAPP_OTP_TEMPLATE_NAME', 'WHATSAPP_OTP_TEMPLATE_LANGUAGE',
 ] as const;
 
 describe('external notification providers', () => {
@@ -72,5 +73,34 @@ describe('external notification providers', () => {
     }));
     const [, request] = vi.mocked(fetch).mock.calls[0];
     expect(JSON.parse(String(request?.body))).toMatchObject({ to: '249111222333', type: 'text' });
+  });
+
+  it('sends signup codes with an approved WhatsApp authentication template', async () => {
+    process.env.WHATSAPP_CLOUD_API_TOKEN = 'wa-token';
+    process.env.WHATSAPP_PHONE_NUMBER_ID = 'phone-id';
+    process.env.WHATSAPP_GRAPH_API_VERSION = 'vXX.X';
+    process.env.WHATSAPP_OTP_TEMPLATE_NAME = 'wasla_account_verification';
+    process.env.WHATSAPP_OTP_TEMPLATE_LANGUAGE = 'ar';
+    vi.mocked(fetch).mockResolvedValue(new Response('{}', { status: 200 }));
+
+    await new WhatsAppProvider().send({
+      ...payload,
+      channel: 'WHATSAPP',
+      metadata: { kind: 'whatsapp_authentication', code: '123456' },
+    });
+
+    const [, request] = vi.mocked(fetch).mock.calls[0];
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      to: '249111222333',
+      type: 'template',
+      template: {
+        name: 'wasla_account_verification',
+        language: { code: 'ar' },
+        components: [
+          { type: 'body', parameters: [{ type: 'text', text: '123456' }] },
+          { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: '123456' }] },
+        ],
+      },
+    });
   });
 });

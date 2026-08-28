@@ -36,7 +36,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             merchantUsers: {
               where: { isActive: true },
               include: {
-                merchant: { select: { id: true, slug: true } },
+                merchant: { select: { id: true, slug: true, status: true } },
                 assignedRole: { include: { permissions: { include: { permission: true } } } },
               },
               take: 1,
@@ -57,6 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const merchantUser = user.merchantUsers[0] ?? null;
         const distributorUser = user.distributorUsers[0] ?? null;
+        if (merchantUser && merchantUser.merchant.status !== 'ACTIVE') return null;
         const effectiveRole = user.role.startsWith('PLATFORM_')
           ? user.role
           : merchantUser?.role ?? distributorUser?.role ?? user.role;
