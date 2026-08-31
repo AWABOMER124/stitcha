@@ -8,6 +8,9 @@ const links = [
   ["الشحنات", "/partner/shipments", "📦"],
   ["التغطية والأسعار", "/partner/coverage", "🗺️"],
   ["التطبيق والتكامل", "/partner/settings", "🔌"],
+  ["دليل الربط وAPI", "/partner/docs", "📖"],
+  ["متجر الاختبار", "/partner/sandbox", "🧪"],
+  ["أمان الحساب", "/partner/security", "🔐"],
 ];
 export function PartnerSidebar({ name }: { name: string }) {
   const path = usePathname();

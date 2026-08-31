@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import prisma from '@/lib/db/prisma';
 import { enqueueExternalNotification } from '@/services/jobs/notification.jobs';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
+import { getPublicOrigin } from '@/lib/public-origin';
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -14,10 +15,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const body = await req.json();
-  const { email } = body;
+  const body = await req.json().catch(() => ({}));
+  const email = body?.email;
 
-  if (!email || typeof email !== 'string') {
+  if (!email || typeof email !== 'string' || email.length > 254) {
     return NextResponse.json({ error: 'Email is required' }, { status: 400 });
   }
 
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
     },
   });
 
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/reset-password?token=${rawToken}`;
+  const resetUrl = `${await getPublicOrigin()}/reset-password?token=${rawToken}`;
 
   try {
     await enqueueExternalNotification({

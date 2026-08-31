@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
 import prisma from "@/lib/db/prisma";
 import { ExternalImage } from "@/components/external-image";
+import Link from 'next/link';
 
 async function togglePartner(formData: FormData) {
   "use server";
@@ -60,6 +61,7 @@ export default async function DeliveryMarketplacePage() {
           سوق تطبيقات وصلة
         </p>
         <h1 className="mt-1 text-2xl font-black">شركاء التوصيل</h1>
+        <Link href="/dashboard/delivery/partners/docs" className="mt-3 inline-block text-sm font-bold underline">دليل تفعيل الشحن والربط وAPI</Link>
         <p className="mt-2 text-sm leading-7 text-[var(--muted-foreground)]">
           اختر الشركات التي تريد استقبال عروضها لطلبات متجرك. يمكنك تعطيل أي
           شريك في أي وقت.

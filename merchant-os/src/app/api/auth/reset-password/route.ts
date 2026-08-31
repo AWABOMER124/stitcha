@@ -9,14 +9,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 });
   }
 
-  const body = await req.json();
-  const { token, password } = body;
+  const body = await req.json().catch(() => ({}));
+  const { token, password } = body ?? {};
 
-  if (!token || typeof token !== 'string') {
+  if (!token || typeof token !== 'string' || token.length > 200) {
     return NextResponse.json({ error: 'Reset token is required' }, { status: 400 });
   }
-  if (!password || typeof password !== 'string' || password.length < 8) {
-    return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
+  if (!password || typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72) {
+    return NextResponse.json({ error: 'Password must be at least 8 characters and at most 72 UTF-8 bytes' }, { status: 400 });
   }
 
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -33,16 +33,15 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: resetToken.userId },
-      data: { passwordHash },
-    }),
-    prisma.passwordResetToken.update({
-      where: { id: resetToken.id },
-      data: { usedAt: new Date() },
-    }),
-  ]);
+  const changed = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${resetToken.userId} FOR UPDATE`;
+    const used = await tx.passwordResetToken.updateMany({ where: { id: resetToken.id, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
+    if (used.count !== 1) return false;
+    await tx.user.update({ where: { id: resetToken.userId }, data: { passwordHash, authVersion: { increment: 1 } } });
+    await tx.passwordResetToken.updateMany({ where: { userId: resetToken.userId, usedAt: null }, data: { usedAt: new Date() } });
+    return true;
+  });
+  if (!changed) return NextResponse.json({ error: 'This reset link is invalid or has expired' }, { status: 400 });
 
   return NextResponse.json({ message: 'Password updated successfully' });
 }

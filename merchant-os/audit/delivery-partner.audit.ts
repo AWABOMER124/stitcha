@@ -334,6 +334,8 @@ describe('Portal HTTP acceptance (actual local Next server)', () => {
     expect(input).toBeDefined(); expect(input).not.toContain('type="url"');
   });
   it('U06 saves encrypted integration config and submits application through the real server action', async () => {
+    // Verification itself is tested in partner-portal.audit.ts; this case covers submission.
+    await prisma.user.update({ where: { email: data.email }, data: { emailVerified: new Date() } });
     const html = await (await http('/partner/settings')).text();
     const actionName = html.match(/name="(\$ACTION_ID_[^"]+)"/)?.[1];
     expect(actionName).toBeDefined();

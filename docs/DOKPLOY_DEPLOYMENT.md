@@ -4,6 +4,15 @@ This is the production runbook for the Merchant OS container. Dokploy must use
 the repository root as its build context and the root `Dockerfile`; the second
 Dockerfile under `merchant-os/` is for local Compose only.
 
+For the August 31 partner workspace release (verification, uploads, docs and sandbox),
+follow [the migration and rollout checklist](PARTNER_PORTAL_UPGRADE_2026-08-31.md).
+Both Docker builds now assert that the five core partner page routes exist in
+Next's build manifest. A successful health response alone does not prove the
+latest version is deployed: compare `release` with the intended commit, and verify
+`/partner/coverage` redirects to login for a signed-out user instead of returning 404.
+Check the domain-to-service mapping when a deployment succeeds but the public
+domain still serves an older image. Do not reset the database to repair a missing route.
+
 ## Dokploy application settings
 
 - Source branch: the reviewed release branch or `main` after merge.

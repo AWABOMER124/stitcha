@@ -12,7 +12,7 @@ export default async function PartnerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [{ partnerId }, cookieStore] = await Promise.all([
+  const [{ partnerId, verified }, cookieStore] = await Promise.all([
     requireDeliveryPartner(),
     cookies(),
   ]);
@@ -39,9 +39,10 @@ export default async function PartnerLayout({
             </header>
             <nav aria-label="تنقل الشريك" className="flex gap-4 overflow-x-auto border-b p-3 text-sm lg:hidden">
               <Link href="/partner">الرئيسية</Link><Link href="/partner/shipments">الشحنات</Link>
-              <Link href="/partner/coverage">المناطق والأسعار</Link><Link href="/partner/settings">التطبيق والربط</Link>
+              <Link href="/partner/coverage">المناطق والأسعار</Link><Link href="/partner/settings">التطبيق والربط</Link><Link href="/partner/docs">دليل API</Link><Link href="/partner/sandbox">الاختبار</Link><Link href="/partner/security">الأمان</Link>
             </nav>
             <main className="flex-1 overflow-y-auto p-5 lg:p-7">
+              {!verified && <Link href="/partner/security" className="mb-5 block rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">حسابك غير مؤكّد — أكّد البريد أو واتساب لإكمال خطوات الشراكة.</Link>}
               {children}
             </main>
           </div>

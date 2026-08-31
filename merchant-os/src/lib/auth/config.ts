@@ -75,6 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         return {
           id: user.id,
+          authVersion: user.authVersion,
           email: user.email,
           name: user.name,
           image: user.image,
@@ -101,6 +102,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
+        token.authVersion = (user as { authVersion?: number }).authVersion ?? 0;
         token.role = (user as { role: UserRole }).role;
         token.merchantId = (user as { merchantId?: string | null }).merchantId ?? null;
         token.merchantSlug = (user as { merchantSlug?: string | null }).merchantSlug ?? null;
@@ -115,6 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     async session({ session, token }) {
       session.user.id = token.id;
+      session.user.authVersion = token.authVersion ?? 0;
       session.user.role = token.role;
       session.user.merchantId = token.merchantId ?? null;
       session.user.merchantSlug = token.merchantSlug ?? null;

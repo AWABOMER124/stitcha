@@ -25,7 +25,7 @@ ARG APP_RELEASE="unknown"
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV APP_RELEASE=$APP_RELEASE
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN npm run build && node scripts/assert-partner-build.mjs
 
 # ── Stage 2: Production ───────────────────────────────────────────────────────
 FROM node:24-alpine AS runner

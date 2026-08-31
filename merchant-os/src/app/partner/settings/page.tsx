@@ -5,6 +5,9 @@ import { encryptSecret } from "@/lib/crypto/secret";
 import { getPublicOrigin } from "@/lib/public-origin";
 import { validatePartnerEndpoint } from '@/modules/delivery-partners/services/partner-endpoint';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { z } from 'zod';
+import { PartnerLogoUpload } from '@/components/partner/logo-upload';
 
 async function saveApplication(formData: FormData) {
   "use server";
@@ -16,6 +19,12 @@ async function saveApplication(formData: FormData) {
   const apiBaseUrl = value("apiBaseUrl", 300);
   const apiSecret = value("apiSecret", 500);
   const intent = value("intent", 30);
+  if (intent === 'submit') await requireDeliveryPartner({ verified: true });
+  for (const key of ['website', 'appWebsite', 'privacyUrl', 'termsUrl', 'documentationUrl']) {
+    const raw = value(key, 300);
+    if (raw && !z.url({ protocol: /^https?$/ }).safeParse(raw).success) redirect('/partner/settings?error=validation');
+  }
+  if (value('supportEmail', 254) && !z.email().safeParse(value('supportEmail', 254)).success) redirect('/partner/settings?error=validation');
   if (apiBaseUrl) {
     try { validatePartnerEndpoint(apiBaseUrl); } catch { redirect('/partner/settings?error=api-origin'); }
   }
@@ -30,12 +39,12 @@ async function saveApplication(formData: FormData) {
         supportEmail: value("supportEmail", 254),
         appName: value("appName", 120),
         appDescription: value("appDescription", 1500),
-        appIcon: value("appIcon", 500),
         appWebsite: value("appWebsite", 300),
         privacyUrl: value("privacyUrl", 300),
         termsUrl: value("termsUrl", 300),
         documentationUrl: value("documentationUrl", 300),
-        appStatus: intent === 'submit' ? 'SUBMITTED' : 'DRAFT',
+        // Saving a published application's metadata must not silently unpublish it.
+        appStatus: intent === 'submit' && existing.appStatus !== 'PUBLISHED' ? 'SUBMITTED' : existing.appStatus,
       },
     });
     if (apiBaseUrl) {
@@ -60,10 +69,11 @@ async function saveApplication(formData: FormData) {
   });
   revalidatePath("/partner/settings");
   revalidatePath("/partner");
+  redirect('/partner/settings?saved=1');
 }
 
-export default async function PartnerSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
+export default async function PartnerSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string }> }) {
+  const { error, saved } = await searchParams;
   const { partnerId } = await requireDeliveryPartner();
   const partner = await prisma.deliveryPartner.findUniqueOrThrow({
     where: { id: partnerId },
@@ -74,23 +84,22 @@ export default async function PartnerSettingsPage({ searchParams }: { searchPara
     : null;
   return (
     <div className="mx-auto max-w-4xl space-y-6" dir="rtl">
+      {saved && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">تم حفظ بيانات التطبيق بنجاح.</p>}
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">أكمل اسم التطبيق ومفتاح الربط. رابط API يجب أن يكون HTTPS ومعتمداً من إدارة وصلة قبل استخدامه.</p>}
       <header>
+        <p className="mb-2 text-sm font-bold text-[var(--primary)]">مساحة تطوير تطبيق الشحن</p>
         <h1 className="text-2xl font-black">التطبيق والتكامل</h1>
         <p className="mt-2 text-sm leading-7 text-[var(--muted-foreground)]">
           هذه البيانات هي بطاقة تطبيقك في سوق وصلة، وإعدادات الاتصال بنظام الشحن
           لديك.
         </p>
+        <div className="mt-4 flex flex-wrap gap-3 text-sm"><span className="rounded-full border px-3 py-2">{({ DRAFT: 'مسودة', SUBMITTED: 'قيد المراجعة', PUBLISHED: 'منشور', REJECTED: 'يحتاج تعديلاً' } as Record<string, string>)[partner.appStatus] ?? partner.appStatus}</span><Link className="rounded-full border px-3 py-2" href="/partner/docs">دليل الربط وAPI</Link><Link className="rounded-full border px-3 py-2" href="/partner/sandbox">متجر الاختبار</Link><Link className="rounded-full border px-3 py-2" href="/partner/security">تأكيد الحساب</Link></div>
       </header>
+      <PartnerLogoUpload initialUrl={partner.appIcon} />
       <form action={saveApplication} className="space-y-6">
-        <Section title="بطاقة التطبيق">
+        <Section title="01 — كيف يظهر تطبيقك للتجار">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field name="appName" label="اسم التطبيق" value={partner.appName} type="text" />
-            <Field
-              name="appIcon"
-              label="رابط شعار التطبيق"
-              value={partner.appIcon}
-            />
             <Field
               name="appWebsite"
               label="موقع التطبيق"
@@ -122,7 +131,8 @@ export default async function PartnerSettingsPage({ searchParams }: { searchPara
             />
           </div>
         </Section>
-        <Section title="ربط نظام الشحن">
+        <Section title="02 — الاتصال بنظام الشحن">
+          <p className="text-sm leading-7 text-[var(--muted-foreground)]">أدخل عنوان نظام شركتك ومفتاحه، واترك المفتاح فارغاً عند الحفظ للاحتفاظ بالقيمة السابقة. عنوان الإنتاج يحتاج اعتماد نطاقه من إدارة وصلة. استخدم متجر الاختبار للتجارب المعزولة.</p>
           <Field
             name="apiBaseUrl"
             label="رابط API الأساسي"
@@ -139,7 +149,7 @@ export default async function PartnerSettingsPage({ searchParams }: { searchPara
             {webhookUrl ? (
               <>
                 رابط الاستقبال:{" "}
-                <code dir="ltr" className="select-all">
+                <code dir="ltr" className="block break-all select-all">
                   {webhookUrl}
                 </code>
               </>
@@ -148,7 +158,7 @@ export default async function PartnerSettingsPage({ searchParams }: { searchPara
             )}
           </p>
         </Section>
-        <Section title="بيانات الشركة">
+        <Section title="03 — بيانات الشركة والدعم">
           <Area
             name="description"
             label="نبذة عن الشركة"
@@ -162,7 +172,7 @@ export default async function PartnerSettingsPage({ searchParams }: { searchPara
             value="save"
             className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-5 py-3 font-bold"
           >
-            حفظ كمسودة
+            حفظ التغييرات
           </button>
           <button
             name="intent"

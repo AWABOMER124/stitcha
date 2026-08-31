@@ -17,6 +17,7 @@ declare module 'next-auth' {
       deliveryPartnerId: string | null;
       deliveryPartnerSlug: string | null;
       permissions: string[];
+      authVersion?: number;
     };
   }
 }
@@ -32,5 +33,6 @@ declare module 'next-auth/jwt' {
     deliveryPartnerId: string | null;
     deliveryPartnerSlug: string | null;
     permissions: string[];
+    authVersion?: number;
   }
 }
