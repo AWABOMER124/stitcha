@@ -3,6 +3,8 @@ import prisma from "@/lib/db/prisma";
 import { requireDeliveryPartner } from "@/lib/auth/delivery-partner";
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { SudanCoverageFields } from '@/components/delivery-partners/sudan-coverage-fields';
+import { resolveCoverageLocation } from '@/lib/geography/sudan';
 
 const optionalNumber = z.preprocess(value => value === '' || value == null ? null : Number(value), z.number().finite().nonnegative().nullable());
 const areaSchema = z.object({
@@ -19,7 +21,10 @@ function invalid(): never { redirect('/partner/coverage?error=validation'); }
 async function addArea(formData: FormData) {
   "use server";
   const { partnerId } = await requireDeliveryPartner();
-  const parsed = areaSchema.safeParse(Object.fromEntries(formData));
+  const input = Object.fromEntries(formData);
+  const location = resolveCoverageLocation(input);
+  if (!location) redirect('/partner/coverage?error=location');
+  const parsed = areaSchema.safeParse({ ...input, name: location.name });
   if (!parsed.success || !formData.get('centerLat') || !formData.get('centerLng')) invalid();
   const name = parsed.data.name;
   const code = String(formData.get("code") ?? "")
@@ -31,7 +36,7 @@ async function addArea(formData: FormData) {
       partnerId,
       name,
       code,
-      city: String(formData.get("city") ?? "").trim() || null,
+      city: location.city,
       centerLat: parsed.data.centerLat, centerLng: parsed.data.centerLng, radiusKm: parsed.data.radiusKm,
       estimatedMinutesMin: parsed.data.etaMin == null ? null : Math.round(parsed.data.etaMin),
       estimatedMinutesMax: parsed.data.etaMax == null ? null : Math.round(parsed.data.etaMax),
@@ -97,7 +102,9 @@ export default async function CoveragePage({ searchParams }: { searchParams: Pro
   ]);
   return (
     <div className="space-y-7" dir="rtl">
-      {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">راجع البيانات: حدود المنطقة مطلوبة، الأسعار غير سالبة، والحد الأعلى لا يقل عن الأدنى. اختر منطقة تابعة لشركتك وكوداً غير مكرر.</p>}
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error === 'location'
+        ? 'تعذر حفظ الموقع: اختر ولاية ومدينة متوافقتين وحيّاً تابعاً للمدينة، أو أدخل اسم المنطقة غير المدرجة (2–120 حرفاً).'
+        : 'راجع البيانات: حدود المنطقة مطلوبة، الأسعار غير سالبة، والحد الأعلى لا يقل عن الأدنى. اختر منطقة تابعة لشركتك وكوداً غير مكرر.'}</p>}
       <header>
         <h1 className="text-2xl font-black">التغطية والأسعار</h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">
@@ -107,9 +114,8 @@ export default async function CoveragePage({ searchParams }: { searchParams: Pro
       <div className="grid gap-5 xl:grid-cols-2">
         <Box title="إضافة منطقة خدمة">
           <form action={addArea} className="grid gap-3 sm:grid-cols-2">
-            <Input name="name" label="اسم المنطقة" />
+            <SudanCoverageFields />
             <Input name="code" label="الكود" />
-            <Input name="city" label="المدينة" />
             <Input name="centerLat" label="خط عرض مركز المنطقة" type="number" />
             <Input name="centerLng" label="خط طول مركز المنطقة" type="number" />
             <Input name="radiusKm" label="نصف قطر التغطية (كم)" type="number" />
@@ -209,7 +215,7 @@ function Input({
       <input
         name={name}
         type={type}
-        step={type === "number" ? "0.01" : undefined}
+        step={type === "number" ? (name === 'centerLat' || name === 'centerLng' ? '0.000001' : '0.01') : undefined}
         required={["name", "code", "baseFee", "centerLat", "centerLng", "radiusKm"].includes(name)}
         className="mt-2 w-full rounded-xl border border-[var(--input)] bg-transparent px-3 py-3"
       />

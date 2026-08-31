@@ -322,6 +322,11 @@ describe('Portal HTTP acceptance (actual local Next server)', () => {
     const html = await response.text();
     expect(html).toMatch(/<h1[^>]*>التغطية والأسعار<\/h1>/);
     expect(html).toContain('name="serviceAreaId"');
+    expect(html).toContain('name="stateId"');
+    expect(html).toContain('name="cityId"');
+    expect(html).toContain('name="districtId"');
+    expect(html).toContain('البحر الأحمر');
+    expect(html).toContain('وسط دارفور');
   });
   it('U03 renders application name as text, not URL', async () => {
     const html = await (await http('/partner/settings')).text();
@@ -368,6 +373,33 @@ describe('Portal HTTP acceptance (actual local Next server)', () => {
     const other = await fixture();
     await formAction('/partner/coverage', 'baseFee', { serviceAreaId: other.area.id, baseFee: '500' });
     expect(await prisma.deliveryPartnerPricingRule.count({ where: { partnerId, serviceAreaId: other.area.id } })).toBe(0);
+  });
+  it('C05 saves a Sudan directory district with canonical labels through the real action', async () => {
+    await formAction('/partner/coverage', 'code', { locationMode: 'directory', stateId: 'red-sea', cityId: 'port-sudan', districtId: 'deim-arab',
+      name: 'Untrusted label', city: 'Wrong city', code: 'AUDIT-SUDAN', centerLat: '19.61', centerLng: '37.21', radiusKm: '1.5' });
+    const area = await prisma.deliveryPartnerServiceArea.findUniqueOrThrow({ where: { partnerId_code: { partnerId, code: 'AUDIT-SUDAN' } } });
+    expect(area).toMatchObject({ name: 'ديم عرب', city: 'بورتسودان', centerLat: 19.61, centerLng: 37.21, radiusKm: 1.5 });
+    expect(await prisma.deliveryPartnerPricingRule.count({ where: { serviceAreaId: area.id } })).toBe(0);
+  });
+  it('C06 rejects mismatched state/city and city/district with no database writes', async () => {
+    const before = await prisma.deliveryPartnerServiceArea.count({ where: { partnerId } });
+    for (const selection of [{ stateId: 'kassala', districtId: 'deim-arab' }, { stateId: 'red-sea', districtId: 'burri' }]) {
+      const response = await formAction('/partner/coverage', 'code', { locationMode: 'directory', cityId: 'port-sudan', ...selection,
+        name: 'Invalid district', code: 'AUDIT-BAD-SUDAN', centerLat: '19.61', centerLng: '37.21', radiusKm: '1.5' });
+      expect(response.headers.get('location')).toContain('error=location');
+    }
+    expect(await prisma.deliveryPartnerServiceArea.count({ where: { partnerId } })).toBe(before);
+  });
+  it('C07 supports a custom district in a listed city without losing its city', async () => {
+    await formAction('/partner/coverage', 'code', { locationMode: 'directory', stateId: 'gezira', cityId: 'wad-madani', districtId: '',
+      name: 'نطاق اختبار محلي', code: 'AUDIT-CUSTOM-DISTRICT', centerLat: '14.40', centerLng: '33.52', radiusKm: '2' });
+    expect(await prisma.deliveryPartnerServiceArea.findUniqueOrThrow({ where: { partnerId_code: { partnerId, code: 'AUDIT-CUSTOM-DISTRICT' } } }))
+      .toMatchObject({ city: 'ود مدني', name: 'نطاق اختبار محلي' });
+  });
+  it('C08 directory selection alone cannot create a region without real geometry', async () => {
+    const before = await prisma.deliveryPartnerServiceArea.count({ where: { partnerId } });
+    await formAction('/partner/coverage', 'code', { locationMode: 'directory', stateId: 'red-sea', cityId: 'port-sudan', districtId: 'deim-arab', code: 'AUDIT-NO-GEO' });
+    expect(await prisma.deliveryPartnerServiceArea.count({ where: { partnerId } })).toBe(before);
   });
   it('A01 approves/publishes a submitted partner and enables COD through admin actions', async () => {
     const ownerCookies = cookie;

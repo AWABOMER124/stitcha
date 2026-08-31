@@ -3,6 +3,7 @@
 Opt-in acceptance tests, outside normal unit-test discovery because they require real local PostgreSQL and a local Next server.
 The baseline audit had **37 tests: 21 passed, 16 failed** (`partner-audit-results.json`).
 After repairs, the expanded suite contains **40 tests**, including real worker retry/recovery and concurrent webhooks. Updated results are in `partner-repair-results.json`; see `../../docs/DELIVERY_PARTNER_REPAIRS_2026-08-31.md`.
+The Sudan directory expansion adds four acceptance cases: **44/44 passed** in `partner-sudan-directory-results.json`. Directory scope, sources and rollout notes are in [Sudan location directory](../../docs/SUDAN_LOCATION_DIRECTORY.md).
 
 ## Safety boundary
 
@@ -11,7 +12,7 @@ After repairs, the expanded suite contains **40 tests**, including real worker r
 - All accounts, customers, orders and partners are synthetic. API calls go to a loopback mock, not a delivery company.
 - The audit leaves its rows for inspection. The local app and database container were stopped after testing. No production account or shipment was created.
 - Restarting the suite creates a new synthetic merchant. Registration has a real per-process limit; restart the local app if repeated audit runs exhaust that limit.
-- The negative-price case is protected by a database constraint but currently gives a server error, not friendly form validation.
+- Negative pricing is rejected by form validation before a database write; database constraints remain a second safety layer.
 - Actual service/database tests use explicitly created fixtures, not the entire UI chain for every order. Quote authorization/feature-gate production configuration is not certified by direct-service tests.
 
 ## Run locally (PowerShell)
@@ -41,7 +42,7 @@ In another terminal at `merchant-os`:
 
 ```powershell
 $env:DATABASE_URL='postgresql://postgres:audit-local-only@127.0.0.1:55439/wasla_partner_audit'
-npx vitest run --config vitest.partner-audit.config.ts --reporter=verbose --reporter=json --outputFile.json=audit/partner-repair-results.json
+npx vitest run --config vitest.partner-audit.config.ts --reporter=verbose --reporter=json --outputFile.json=audit/partner-sudan-directory-results.json
 ```
 
 The repaired suite should pass. Preserve the baseline result file. Do not weaken safety assertions to obtain a green result; document policy changes before adjusting tests.
