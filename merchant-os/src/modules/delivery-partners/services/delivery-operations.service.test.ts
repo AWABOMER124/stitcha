@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BusinessRuleError } from "@/lib/errors";
 
 const txMock = {
+  $queryRaw: vi.fn().mockResolvedValue([]),
+  deliveryPartner: { findUniqueOrThrow: vi.fn() },
+  merchantDeliveryPartner: { findUnique: vi.fn() },
+  outboxJob: { upsert: vi.fn().mockResolvedValue({}) },
   deliveryQuote: { findFirst: vi.fn(), updateMany: vi.fn() },
   order: { update: vi.fn() },
   platformShipment: { create: vi.fn() },
@@ -38,6 +42,8 @@ beforeEach(() => {
     trackingCode: "WSL-1",
   });
   txMock.codCollection.create.mockResolvedValue({});
+  txMock.deliveryPartner.findUniqueOrThrow.mockResolvedValue({ id: 'partner_1', isActive: true, status: 'ACTIVE', appStatus: 'PUBLISHED', supportsCod: true, providerConfig: { isActive: true, providerKey: 'TEST_SIMULATOR' } });
+  txMock.merchantDeliveryPartner.findUnique.mockResolvedValue({ isActive: true });
 });
 
 describe("quotePlatformDelivery", () => {
@@ -85,7 +91,7 @@ describe("quotePlatformDelivery", () => {
         maxDistanceKm: null,
         currency: "SDG",
         partner: { id: "partner_1" },
-        serviceArea: null,
+        serviceArea: { isActive: true, partnerId: 'partner_1', centerLat: 15.5, centerLng: 32.5, radiusKm: 20 },
       },
       {
         id: "rule_cheap",
@@ -97,7 +103,7 @@ describe("quotePlatformDelivery", () => {
         maxDistanceKm: null,
         currency: "SDG",
         partner: { id: "partner_1" },
-        serviceArea: null,
+        serviceArea: { isActive: true, partnerId: 'partner_1', centerLat: 15.5, centerLng: 32.5, radiusKm: 20 },
       },
       {
         id: "rule_other",
@@ -109,7 +115,7 @@ describe("quotePlatformDelivery", () => {
         maxDistanceKm: null,
         currency: "SDG",
         partner: { id: "partner_2" },
-        serviceArea: null,
+        serviceArea: { isActive: true, partnerId: 'partner_2', centerLat: 15.5, centerLng: 32.5, radiusKm: 20 },
       },
     ]);
     prismaMock.deliveryQuote.create.mockImplementation(
@@ -150,7 +156,11 @@ describe("acceptDeliveryQuote", () => {
       currency: "SDG",
       partnerId: "partner_1",
       partner: { supportsCod: true },
+      distanceKm: 0,
+      pricingRule: { isActive: true, partnerId: 'partner_1', serviceArea: { isActive: true, partnerId: 'partner_1', centerLat: 15.5, centerLng: 32.5, radiusKm: 20 } },
       order: {
+        merchantId: 'merchant_1', status: 'READY', deliveryMethod: 'MERCHANT_DELIVERY',
+        branch: { lat: 15.5, lng: 32.5 }, delivery: { lat: 15.5, lng: 32.5 },
         subtotal: 100,
         discount: 10,
         tax: 5,

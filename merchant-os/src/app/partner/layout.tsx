@@ -37,6 +37,10 @@ export default async function PartnerLayout({
                 تسجيل الخروج
             </Link>
             </header>
+            <nav aria-label="تنقل الشريك" className="flex gap-4 overflow-x-auto border-b p-3 text-sm lg:hidden">
+              <Link href="/partner">الرئيسية</Link><Link href="/partner/shipments">الشحنات</Link>
+              <Link href="/partner/coverage">المناطق والأسعار</Link><Link href="/partner/settings">التطبيق والربط</Link>
+            </nav>
             <main className="flex-1 overflow-y-auto p-5 lg:p-7">
               {children}
             </main>

@@ -4,11 +4,11 @@
 .codex
 .dart_tool
 build
-coverage
+/coverage
 node_modules
 **/node_modules
 **/.next
-**/coverage
+/merchant-os/coverage
 **/.env
 **/.env.*
 !**/.env.example

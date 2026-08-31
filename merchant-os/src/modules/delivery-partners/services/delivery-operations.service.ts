@@ -3,6 +3,8 @@ import prisma from "@/lib/db/prisma";
 import { BusinessRuleError } from "@/lib/errors";
 import { calculateDeliveryPrice } from "./delivery-pricing.service";
 import { dispatchShipmentToPartner } from "./partner-integration.service";
+import { enqueueJob } from '@/services/jobs/outbox.service';
+import { validatePartnerEndpoint } from './partner-endpoint';
 
 function distanceKm(
   a: { lat: number; lng: number },
@@ -40,7 +42,7 @@ export async function quotePlatformDelivery(orderId: string) {
   const origin =
     order.branch ??
     (await prisma.branch.findFirst({
-      where: { merchantId: order.merchantId, isMain: true },
+      where: { merchantId: order.merchantId, isMain: true, isActive: true },
     }));
   if (
     origin?.lat == null ||
@@ -64,6 +66,7 @@ export async function quotePlatformDelivery(orderId: string) {
         status: "ACTIVE",
         isActive: true,
         appStatus: "PUBLISHED",
+        providerConfig: { isActive: true },
         merchantConnections: {
           some: { merchantId: order.merchantId, isActive: true },
         },
@@ -78,7 +81,7 @@ export async function quotePlatformDelivery(orderId: string) {
   const candidates = rules
     .flatMap((rule) => {
       const area = rule.serviceArea;
-      if (area && !area.isActive) return [];
+      if (!area?.isActive || area.partnerId !== rule.partnerId || area.centerLat == null || area.centerLng == null || area.radiusKm == null || area.radiusKm <= 0) return [];
       if (
         area?.centerLat != null &&
         area.centerLng != null &&
@@ -136,16 +139,20 @@ export async function quotePlatformDelivery(orderId: string) {
 
 export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
   const shipment = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
     const quote = await tx.deliveryQuote.findFirst({
       where: { id: quoteId, orderId },
       include: {
         order: {
           include: {
             payment: true,
+            delivery: true,
+            branch: true,
             platformShipment: { select: { id: true } },
           },
         },
         partner: true,
+        pricingRule: { include: { serviceArea: true } },
       },
     });
     if (!quote || quote.status !== "OFFERED" || quote.expiresAt <= new Date()) {
@@ -165,6 +172,25 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
       throw new BusinessRuleError(
         "A delivery shipment already exists for this order",
       );
+
+    if (['CANCELLED', 'REJECTED', 'DELIVERED'].includes(quote.order.status) || quote.order.deliveryMethod === 'PICKUP') throw new BusinessRuleError('Order cannot request delivery');
+    await tx.$queryRaw`SELECT id FROM delivery_partners WHERE id = ${quote.partnerId} FOR SHARE`;
+    const partner = await tx.deliveryPartner.findUniqueOrThrow({ where: { id: quote.partnerId }, include: { providerConfig: true } });
+    const connection = await tx.merchantDeliveryPartner.findUnique({ where: { merchantId_partnerId: { merchantId: quote.order.merchantId, partnerId: quote.partnerId } } });
+    if (!partner.isActive || partner.status !== 'ACTIVE' || partner.appStatus !== 'PUBLISHED' || !partner.supportsCod || !connection?.isActive) throw new BusinessRuleError('Partner is no longer eligible');
+    const config = partner.providerConfig;
+    if (!config?.isActive || !['PARTNER_HTTP_V1', 'TEST_SIMULATOR'].includes(config.providerKey)) throw new BusinessRuleError('Partner integration is inactive');
+    if (config.providerKey === 'PARTNER_HTTP_V1') {
+      if (!config.apiBaseUrl || !config.credentials) throw new BusinessRuleError('Partner integration is incomplete');
+      validatePartnerEndpoint(config.apiBaseUrl);
+    }
+    const rule = quote.pricingRule;
+    const area = rule?.serviceArea;
+    const origin = quote.order.branch ?? await tx.branch.findFirst({ where: { merchantId: quote.order.merchantId, isMain: true, isActive: true } });
+    const destination = quote.order.delivery;
+    if (!rule?.isActive || rule.partnerId !== partner.id || !area?.isActive || area.partnerId !== partner.id || area.centerLat == null || area.centerLng == null || !area.radiusKm || origin?.lat == null || origin.lng == null || destination?.lat == null || destination.lng == null) throw new BusinessRuleError('Coverage needs verification');
+    const distance = distanceKm({ lat: origin.lat, lng: origin.lng }, { lat: destination.lat, lng: destination.lng });
+    if (distanceKm({ lat: area.centerLat, lng: area.centerLng }, { lat: destination.lat, lng: destination.lng }) > area.radiusKm || (rule.maxDistanceKm != null && distance > rule.maxDistanceKm) || Math.abs(distance - Number(quote.distanceKm)) > 0.01) throw new BusinessRuleError('Delivery address or coverage changed; request a new quote');
 
     const accepted = await tx.deliveryQuote.updateMany({
       where: { id: quote.id, status: "OFFERED", expiresAt: { gt: new Date() } },
@@ -215,6 +241,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
         },
       });
     }
+    await enqueueJob({ topic: 'delivery.partner.dispatch', payload: { shipmentId: shipment.id }, idempotencyKey: `delivery:dispatch:${shipment.id}`, maxAttempts: 8 }, tx);
     return shipment;
   });
   await dispatchShipmentToPartner(shipment.id).catch((error) => {

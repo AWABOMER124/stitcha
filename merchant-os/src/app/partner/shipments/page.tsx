@@ -1,7 +1,21 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/db/prisma";
 import { requireDeliveryPartner } from "@/lib/auth/delivery-partner";
-import * as ordersService from "@/modules/orders/services/orders.service";
+import { applyShipmentState } from '@/modules/delivery-partners/services/shipment-state.service';
+import { LiveRefresh } from '@/components/shared/live-refresh';
+import { redirect } from 'next/navigation';
+import { BusinessRuleError } from '@/lib/errors';
+
+const labels: Record<string, string> = { REQUESTED: 'بانتظار الإسناد', ASSIGNED: 'تم الإسناد', PICKED_UP: 'تم الاستلام', IN_TRANSIT: 'في الطريق', DELIVERED: 'تم التسليم', FAILED: 'تعذر التسليم', CANCELLED: 'ملغاة' };
+
+async function retryDispatch(formData: FormData) {
+  'use server';
+  const { partnerId } = await requireDeliveryPartner();
+  const shipment = await prisma.platformShipment.findFirst({ where: { id: String(formData.get('id')), partnerId, status: 'REQUESTED', providerReference: null } });
+  if (!shipment) return;
+  await prisma.outboxJob.updateMany({ where: { idempotencyKey: `delivery:dispatch:${shipment.id}`, status: 'FAILED' }, data: { status: 'PENDING', attempts: 0, availableAt: new Date(), lastError: null, lockedAt: null, lockedBy: null } });
+  revalidatePath('/partner/shipments');
+}
 
 const transitions: Record<string, string[]> = {
   REQUESTED: ["ASSIGNED", "CANCELLED"],
@@ -19,48 +33,16 @@ async function updateShipment(formData: FormData) {
     include: { order: { select: { merchantId: true, status: true } } },
   });
   if (!shipment || !transitions[shipment.status]?.includes(status)) return;
-  await prisma.platformShipment.update({
-    where: { id },
-    data: {
-      status: status as never,
-      ...(status === "ASSIGNED" ? { assignedAt: new Date() } : {}),
-      ...(status === "PICKED_UP" ? { pickedUpAt: new Date() } : {}),
-      ...(status === "DELIVERED" ? { deliveredAt: new Date() } : {}),
-      events: {
-        create: {
-          status: status as never,
-          actorType: "DELIVERY_PARTNER",
-          actorId: userId,
-        },
-      },
-    },
-  });
-  if (
-    ["PICKED_UP", "IN_TRANSIT"].includes(status) &&
-    shipment.order.status !== "OUT_FOR_DELIVERY"
-  )
-    await ordersService
-      .updateOrderStatus(
-        shipment.order.merchantId,
-        shipment.orderId,
-        "OUT_FOR_DELIVERY",
-        `Delivery partner: ${status}`,
-        userId,
-      )
-      .catch(() => null);
-  if (status === "DELIVERED" && shipment.order.status !== "DELIVERED")
-    await ordersService
-      .updateOrderStatus(
-        shipment.order.merchantId,
-        shipment.orderId,
-        "DELIVERED",
-        "Delivery partner confirmed delivery",
-        userId,
-      )
-      .catch(() => null);
+  try {
+    await applyShipmentState({ shipmentId: id, partnerId, status: status as import('@prisma/client').PlatformShipmentStatus, actorType: 'DELIVERY_PARTNER', actorId: userId });
+  } catch (error) {
+    if (error instanceof BusinessRuleError) redirect('/partner/shipments?error=transition');
+    throw error;
+  }
   revalidatePath("/partner/shipments");
 }
-export default async function ShipmentsPage() {
+export default async function ShipmentsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   const { partnerId } = await requireDeliveryPartner();
   const shipments = await prisma.platformShipment.findMany({
     where: { partnerId },
@@ -79,12 +61,16 @@ export default async function ShipmentsPage() {
     orderBy: { createdAt: "desc" },
     take: 100,
   });
+  const jobs = await prisma.outboxJob.findMany({ where: { idempotencyKey: { in: shipments.map(s => `delivery:dispatch:${s.id}`) } }, select: { idempotencyKey: true, status: true, attempts: true } });
+  const jobsByShipment = new Map(jobs.map(job => [job.idempotencyKey, job]));
   return (
     <div className="space-y-6" dir="rtl">
+      <LiveRefresh />
+      {error && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-amber-900">تعذر تغيير الحالة. تأكد من جاهزية الطلب لدى التاجر وحدّث الصفحة قبل المحاولة.</p>}
       <header>
         <h1 className="text-2xl font-black">الشحنات</h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-          استلام الطلبات وتحديث حالتها ينعكس مباشرةً للتاجر والعميل.
+          تحديث الحالة ينعكس على الطلب. تتحدث هذه الشاشة تلقائياً كل خمس ثوانٍ.
         </p>
       </header>
       <div className="space-y-3">
@@ -104,12 +90,12 @@ export default async function ShipmentsPage() {
                 </p>
               </div>
               <span className="rounded-full bg-[var(--muted)] px-3 py-1 text-xs font-bold">
-                {s.status}
+                {labels[s.status] ?? s.status}
               </span>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <span className="me-auto text-sm font-bold">
-                {Number(s.fee).toLocaleString()} SDG
+                {Number(s.fee).toLocaleString()} {s.currency}
               </span>
               {(transitions[s.status] ?? []).map((next) => (
                 <form action={updateShipment} key={next}>
@@ -119,11 +105,18 @@ export default async function ShipmentsPage() {
                     value={next}
                     className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-bold hover:border-[var(--primary)]"
                   >
-                    {next}
+                    {labels[next] ?? next}
                   </button>
                 </form>
               ))}
             </div>
+            {!s.providerReference && jobsByShipment.has(`delivery:dispatch:${s.id}`) && <div className="mt-3 rounded-xl bg-[var(--muted)] p-3 text-sm">
+              {jobsByShipment.get(`delivery:dispatch:${s.id}`)?.status === 'FAILED' ? <form action={retryDispatch}>
+                <input type="hidden" name="id" value={s.id} />
+                <span>تعذر الربط بعد عدة محاولات. راجع إعدادات API ثم </span>
+                <button className="font-bold underline">أعد محاولة إرسال الشحنة</button>
+              </form> : 'إرسال الشحنة محفوظ في صف المعالجة؛ ستعاد المحاولة تلقائياً عند تعذر الاتصال.'}
+            </div>}
           </article>
         ))}
         {!shipments.length && (

@@ -3,6 +3,8 @@ import prisma from "@/lib/db/prisma";
 import { requireDeliveryPartner } from "@/lib/auth/delivery-partner";
 import { encryptSecret } from "@/lib/crypto/secret";
 import { getPublicOrigin } from "@/lib/public-origin";
+import { validatePartnerEndpoint } from '@/modules/delivery-partners/services/partner-endpoint';
+import { redirect } from 'next/navigation';
 
 async function saveApplication(formData: FormData) {
   "use server";
@@ -14,6 +16,11 @@ async function saveApplication(formData: FormData) {
   const apiBaseUrl = value("apiBaseUrl", 300);
   const apiSecret = value("apiSecret", 500);
   const intent = value("intent", 30);
+  if (apiBaseUrl) {
+    try { validatePartnerEndpoint(apiBaseUrl); } catch { redirect('/partner/settings?error=api-origin'); }
+  }
+  const existing = await prisma.deliveryPartner.findUniqueOrThrow({ where: { id: partnerId }, include: { providerConfig: true } });
+  if (intent === 'submit' && (!value('appName', 120) || !apiBaseUrl || (!apiSecret && !existing.providerConfig?.credentials))) redirect('/partner/settings?error=incomplete');
   await prisma.$transaction(async (tx) => {
     await tx.deliveryPartner.update({
       where: { id: partnerId },
@@ -28,7 +35,7 @@ async function saveApplication(formData: FormData) {
         privacyUrl: value("privacyUrl", 300),
         termsUrl: value("termsUrl", 300),
         documentationUrl: value("documentationUrl", 300),
-        ...(intent === "submit" ? { appStatus: "SUBMITTED" } : {}),
+        appStatus: intent === 'submit' ? 'SUBMITTED' : 'DRAFT',
       },
     });
     if (apiBaseUrl) {
@@ -49,12 +56,14 @@ async function saveApplication(formData: FormData) {
         },
       });
     }
+    else await tx.deliveryPartnerProviderConfig.updateMany({ where: { partnerId }, data: { isActive: false } });
   });
   revalidatePath("/partner/settings");
   revalidatePath("/partner");
 }
 
-export default async function PartnerSettingsPage() {
+export default async function PartnerSettingsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   const { partnerId } = await requireDeliveryPartner();
   const partner = await prisma.deliveryPartner.findUniqueOrThrow({
     where: { id: partnerId },
@@ -65,6 +74,7 @@ export default async function PartnerSettingsPage() {
     : null;
   return (
     <div className="mx-auto max-w-4xl space-y-6" dir="rtl">
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">أكمل اسم التطبيق ومفتاح الربط. رابط API يجب أن يكون HTTPS ومعتمداً من إدارة وصلة قبل استخدامه.</p>}
       <header>
         <h1 className="text-2xl font-black">التطبيق والتكامل</h1>
         <p className="mt-2 text-sm leading-7 text-[var(--muted-foreground)]">
@@ -75,7 +85,7 @@ export default async function PartnerSettingsPage() {
       <form action={saveApplication} className="space-y-6">
         <Section title="بطاقة التطبيق">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field name="appName" label="اسم التطبيق" value={partner.appName} />
+            <Field name="appName" label="اسم التطبيق" value={partner.appName} type="text" />
             <Field
               name="appIcon"
               label="رابط شعار التطبيق"
@@ -124,7 +134,7 @@ export default async function PartnerSettingsPage() {
             type="password"
           />
           <p className="rounded-xl bg-[var(--muted)] p-3 text-xs leading-6">
-            يجب أن يدعم نظامك إنشاء الشحنة وإلغائها، ويرسل تحديثات الحالة إلى
+            الربط الحالي ينشئ الشحنة ويستقبل تحديثات الحالة الموقعة. تنسيق الإلغاء مع الشركة مطلوب قبل الإطلاق. أرسل الحالات إلى
             Webhook وصلة.{" "}
             {webhookUrl ? (
               <>

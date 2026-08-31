@@ -11,7 +11,10 @@ const schema = z
     companyName: z.string().trim().min(2).max(120),
     ownerName: z.string().trim().min(2).max(120),
     email: z.string().trim().email().max(254),
-    phone: z.string().trim().min(9).max(24),
+    phone: z.string().trim().min(9).max(24).regex(/^\+?[\d\s()-]+$/).refine(value => {
+      const normalized = formatPhoneNumber(value);
+      return /^\+?[1-9]\d{8,14}$/.test(normalized);
+    }),
     password: z.string().min(8).max(128),
   })
   .strict();

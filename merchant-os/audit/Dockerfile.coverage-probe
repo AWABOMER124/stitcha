@@ -1,0 +1,4 @@
+# Diagnostic only: run with the repository root as Docker build context.
+# Before repair COPY failed; after repair it must include the tracked route.
+FROM scratch
+COPY merchant-os/src/app/partner/coverage/page.tsx /coverage-page.tsx

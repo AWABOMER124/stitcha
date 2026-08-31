@@ -1,23 +1,40 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/db/prisma";
 import { requireDeliveryPartner } from "@/lib/auth/delivery-partner";
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
+
+const optionalNumber = z.preprocess(value => value === '' || value == null ? null : Number(value), z.number().finite().nonnegative().nullable());
+const areaSchema = z.object({
+  name: z.string().trim().min(2).max(120), code: z.string().trim().min(2).max(40),
+  centerLat: z.coerce.number().min(-90).max(90), centerLng: z.coerce.number().min(-180).max(180),
+  radiusKm: z.coerce.number().positive().max(500), etaMin: optionalNumber, etaMax: optionalNumber,
+}).refine(v => v.etaMin == null || v.etaMax == null || v.etaMax >= v.etaMin);
+const priceSchema = z.object({
+  baseFee: z.coerce.number().finite().nonnegative(), perKmFee: optionalNumber,
+  minimumFee: optionalNumber, maximumFee: optionalNumber, maxDistanceKm: optionalNumber,
+}).refine(v => v.maximumFee == null || v.maximumFee >= (v.minimumFee ?? 0));
+function invalid(): never { redirect('/partner/coverage?error=validation'); }
 
 async function addArea(formData: FormData) {
   "use server";
   const { partnerId } = await requireDeliveryPartner();
-  const name = String(formData.get("name") ?? "").trim();
+  const parsed = areaSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success || !formData.get('centerLat') || !formData.get('centerLng')) invalid();
+  const name = parsed.data.name;
   const code = String(formData.get("code") ?? "")
     .trim()
     .toUpperCase();
-  if (!name || !code) return;
+  if (await prisma.deliveryPartnerServiceArea.findUnique({ where: { partnerId_code: { partnerId, code } } })) invalid();
   await prisma.deliveryPartnerServiceArea.create({
     data: {
       partnerId,
       name,
       code,
       city: String(formData.get("city") ?? "").trim() || null,
-      estimatedMinutesMin: Number(formData.get("etaMin")) || null,
-      estimatedMinutesMax: Number(formData.get("etaMax")) || null,
+      centerLat: parsed.data.centerLat, centerLng: parsed.data.centerLng, radiusKm: parsed.data.radiusKm,
+      estimatedMinutesMin: parsed.data.etaMin == null ? null : Math.round(parsed.data.etaMin),
+      estimatedMinutesMax: parsed.data.etaMax == null ? null : Math.round(parsed.data.etaMax),
       isActive: true,
     },
   });
@@ -26,18 +43,20 @@ async function addArea(formData: FormData) {
 async function addPrice(formData: FormData) {
   "use server";
   const { partnerId } = await requireDeliveryPartner();
-  const baseFee = Number(formData.get("baseFee"));
-  if (!Number.isFinite(baseFee) || baseFee < 0) return;
+  const parsed = priceSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success || !formData.get('baseFee')) invalid();
+  const baseFee = parsed.data.baseFee;
   const serviceAreaId = String(formData.get("serviceAreaId") ?? "") || null;
+  if (!serviceAreaId || !await prisma.deliveryPartnerServiceArea.findFirst({ where: { id: serviceAreaId, partnerId, isActive: true, centerLat: { not: null }, centerLng: { not: null }, radiusKm: { gt: 0 } } })) invalid();
   await prisma.deliveryPartnerPricingRule.create({
     data: {
       partnerId,
       serviceAreaId,
       baseFee,
-      perKmFee: Number(formData.get("perKmFee")) || 0,
-      minimumFee: Number(formData.get("minimumFee")) || 0,
-      maximumFee: Number(formData.get("maximumFee")) || null,
-      maxDistanceKm: Number(formData.get("maxDistanceKm")) || null,
+      perKmFee: parsed.data.perKmFee ?? 0,
+      minimumFee: parsed.data.minimumFee ?? 0,
+      maximumFee: parsed.data.maximumFee,
+      maxDistanceKm: parsed.data.maxDistanceKm,
       currency: "SDG",
       isActive: true,
     },
@@ -50,31 +69,35 @@ async function removeRecord(formData: FormData) {
   const id = String(formData.get("id"));
   const type = String(formData.get("type"));
   if (type === "price")
-    await prisma.deliveryPartnerPricingRule.deleteMany({
+    await prisma.deliveryPartnerPricingRule.updateMany({
       where: { id, partnerId },
+      data: { isActive: false },
     });
   if (type === "area")
-    await prisma.deliveryPartnerServiceArea.deleteMany({
+    await prisma.deliveryPartnerServiceArea.updateMany({
       where: { id, partnerId },
+      data: { isActive: false },
     });
   revalidatePath("/partner/coverage");
 }
 
-export default async function CoveragePage() {
+export default async function CoveragePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   const { partnerId } = await requireDeliveryPartner();
   const [areas, prices] = await Promise.all([
     prisma.deliveryPartnerServiceArea.findMany({
-      where: { partnerId },
+      where: { partnerId, isActive: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.deliveryPartnerPricingRule.findMany({
-      where: { partnerId },
+      where: { partnerId, isActive: true },
       include: { serviceArea: true },
       orderBy: { createdAt: "desc" },
     }),
   ]);
   return (
     <div className="space-y-7" dir="rtl">
+      {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">راجع البيانات: حدود المنطقة مطلوبة، الأسعار غير سالبة، والحد الأعلى لا يقل عن الأدنى. اختر منطقة تابعة لشركتك وكوداً غير مكرر.</p>}
       <header>
         <h1 className="text-2xl font-black">التغطية والأسعار</h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">
@@ -87,6 +110,9 @@ export default async function CoveragePage() {
             <Input name="name" label="اسم المنطقة" />
             <Input name="code" label="الكود" />
             <Input name="city" label="المدينة" />
+            <Input name="centerLat" label="خط عرض مركز المنطقة" type="number" />
+            <Input name="centerLng" label="خط طول مركز المنطقة" type="number" />
+            <Input name="radiusKm" label="نصف قطر التغطية (كم)" type="number" />
             <div className="grid grid-cols-2 gap-2">
               <Input name="etaMin" label="الزمن من" type="number" />
               <Input name="etaMax" label="إلى (دقيقة)" type="number" />
@@ -104,7 +130,7 @@ export default async function CoveragePage() {
                 name="serviceAreaId"
                 className="mt-2 w-full rounded-xl border border-[var(--input)] bg-transparent px-3 py-3"
               >
-                <option value="">كل المناطق</option>
+                <option value="">اختر منطقة تغطية</option>
                 {areas.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -184,7 +210,7 @@ function Input({
         name={name}
         type={type}
         step={type === "number" ? "0.01" : undefined}
-        required={["name", "code", "baseFee"].includes(name)}
+        required={["name", "code", "baseFee", "centerLat", "centerLng", "radiusKm"].includes(name)}
         className="mt-2 w-full rounded-xl border border-[var(--input)] bg-transparent px-3 py-3"
       />
     </label>
@@ -210,7 +236,7 @@ function Row({
       <form action={removeRecord}>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="type" value={type} />
-        <button className="text-xs font-bold text-red-600">حذف</button>
+        <button className="text-xs font-bold text-red-600">تعطيل</button>
       </form>
     </div>
   );
