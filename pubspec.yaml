@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  intl: ^0.20.2
+  intl: ^0.20.3
 
   # State Management
   flutter_riverpod: ^2.4.9
@@ -20,7 +20,7 @@ dependencies:
   go_router: ^13.1.0
 
   # Networking
-  dio: ^5.4.0
+  dio: ^5.11.0
   connectivity_plus: ^5.0.2
   
   # Storage & Security
@@ -42,8 +42,8 @@ dependencies:
   logger: ^2.0.2
   
   # Data Classes & JSON
-  freezed_annotation: ^2.4.1
-  json_annotation: ^4.8.1
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.12.0
   
   # Theming & Fonts
   google_fonts: ^6.1.0
@@ -52,9 +52,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
-  build_runner: ^2.4.8
-  freezed: ^2.4.7
-  json_serializable: 6.9.5
+  build_runner: ^2.16.0
+  freezed: ^4.0.1
+  json_serializable: 6.14.1
 
 flutter:
   uses-material-design: true
