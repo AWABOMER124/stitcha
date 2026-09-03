@@ -29,6 +29,7 @@ function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'الشكاوى', href: '/admin/complaints', icon: '🛟' }] : []),
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'مراجعة الهوية', href: '/admin/verifications', icon: '🪪' }] : []),
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'دومينات المتاجر', href: '/admin/domains', icon: '🔗' }] : []),
+    ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'طلبات المسوقين', href: '/admin/marketers', icon: '📣' }] : []),
     { type: 'divider' },
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'Delivery partners', href: '/admin/delivery-partners', icon: '🚚' }] : []),
     { type: 'section', label: nav.financeReportsSection },

@@ -224,6 +224,17 @@ enum StoreAffiliateCommissionStatus {
   REVERSED
 }
 
+enum MarketerApplicationType {
+  MERCHANT_ACQUISITION
+  STOREFRONT_PRODUCTS
+}
+
+enum MarketerApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum IdentityDocumentType {
   NATIONAL_ID
   PASSPORT
@@ -970,6 +981,7 @@ model Merchant {
   customDomains                  MerchantDomain[]
   affiliateIdentityVerifications StoreAffiliateIdentityVerification[]
   affiliatePayoutProfiles        StoreAffiliatePayoutProfile[]
+  marketerApplications           MarketerApplication[]
 
   @@index([slug])
   @@index([status])
@@ -1157,11 +1169,46 @@ model StoreAffiliate {
   commissions          StoreAffiliateCommission[]
   identityVerification StoreAffiliateIdentityVerification?
   payoutProfile        StoreAffiliatePayoutProfile?
+  marketerApplication  MarketerApplication?
 
   @@unique([merchantId, code])
   @@unique([merchantId, phone])
   @@index([merchantId, status, createdAt])
   @@map("store_affiliates")
+}
+
+/// Public marketer application. Acquisition applications are reviewed by
+/// WASLA; product applications are tenant-scoped and reviewed by the store.
+model MarketerApplication {
+  id              String                    @id @default(cuid())
+  applicationKey  String                    @unique
+  type            MarketerApplicationType
+  merchantId      String?
+  name            String
+  phone           String
+  email           String
+  city            String
+  channels        String[]
+  experience      String?
+  audienceSize    Int?
+  portfolioUrl    String?
+  notes           String?
+  status          MarketerApplicationStatus @default(PENDING)
+  affiliateId     String?                   @unique
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+  termsAcceptedAt DateTime
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  merchant  Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  affiliate StoreAffiliate? @relation(fields: [affiliateId], references: [id], onDelete: SetNull)
+
+  @@index([type, status, createdAt])
+  @@index([merchantId, status, createdAt])
+  @@index([phone])
+  @@map("marketer_applications")
 }
 
 /// Merchant KYC record. Document numbers and files are never public: numbers

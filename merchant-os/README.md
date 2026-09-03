@@ -241,6 +241,7 @@ Automated unit and PostgreSQL integration suites run in CI. Supplement them with
 - `/dashboard/verification` → upload a valid identity document, review it in `/admin/verifications`, and confirm private downloads are authorized and never cached
 - `/dashboard/domains` → request a Pro domain, verify TXT, add the hostname and TLS certificate in Dokploy, then activate it from `/admin/domains`
 - `/dashboard/affiliates` → create a pilot marketer, open their link, deliver an order, then verify hold and payout states
+- `/marketers` → submit both application types; verify platform review and that product applications appear only to the selected merchant
 - `/distributor/drivers` → add a driver, open their detail page
 - `/store/{merchantSlug}` with at least one priced product → loads, add to cart, checkout completes
 - `sh scripts/check-raw-prisma-returns.sh` → review any new matches

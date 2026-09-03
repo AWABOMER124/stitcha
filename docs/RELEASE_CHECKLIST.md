@@ -53,6 +53,8 @@
 
 ## Product and operations
 
+- [ ] Submit one merchant-acquisition and one product-marketing application from `/marketers`; verify duplicate/rate-limit handling and the correct reviewer inbox.
+- [ ] Approve a product marketer, issue the existing KYC link, approve identity, deliver an attributed order and reconcile the first payout.
 - [ ] Verify a Basic merchant is blocked at product 21, branch 2 and team account 2, including simultaneous requests.
 - [ ] Mount durable private storage and verify KYC files survive a redeploy and are excluded from public URLs and backups are restorable.
 - [ ] Complete one merchant and one affiliate KYC review; confirm expired documents and unauthorized downloads are rejected.

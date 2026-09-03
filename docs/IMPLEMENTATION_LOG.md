@@ -1,5 +1,14 @@
 # Implementation log
 
+## 2026-09-03 — Public marketer applications
+
+- Added a bilingual `/marketers` acquisition page with separate applications for WASLA merchant acquisition and store-product affiliates.
+- Added rate-limited, validated public submission with duplicate protection and explicit terms consent.
+- Added platform review at `/admin/marketers` and tenant-scoped merchant review at `/dashboard/affiliates/applications`.
+- Product approval atomically creates the existing store-affiliate record, after which the marketer completes the established KYC and payout flow.
+- Added the feature to navigation, sitemap, homepage, privacy and terms, plus an isolated 4/4 PostgreSQL audit.
+
+
 ## 2026-09-03 — Basic limits, KYC, recurring referrals and Pro domains
 
 - Enforced the Basic plan at 20 active products, one branch and one active team account with transactional concurrency locks.

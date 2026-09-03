@@ -1,0 +1,15 @@
+import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
+import { reviewAcquisitionApplicationAction } from '@/modules/marketer-applications/actions';
+import { listAcquisitionApplicationsForAdmin } from '@/modules/marketer-applications/marketer-applications.service';
+
+export const dynamic = 'force-dynamic';
+
+const statusName = { PENDING: 'قيد المراجعة', APPROVED: 'مقبول', REJECTED: 'مرفوض' } as const;
+
+export default async function AdminMarketersPage() {
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_MANAGE);
+  const applications = await listAcquisitionApplicationsForAdmin();
+  return <div className="space-y-7" dir="rtl"><header><p className="font-bold text-[var(--primary)]">شركاء النمو</p><h1 className="mt-2 text-2xl font-black">طلبات مسوقي استقطاب التجار</h1><p className="mt-2 max-w-3xl text-sm leading-7 text-[var(--muted-foreground)]">مراجعة أولية قبل التعاقد وKYC وإصدار رابط الإحالة. القبول هنا لا ينشئ التزاماً مالياً تلقائياً.</p></header>
+    <section className="grid gap-4">{applications.map(item=><article key={item.id} className="rounded-2xl border bg-[var(--card)] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-black">{item.name}</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]" dir="ltr">{item.phone} · {item.email}</p><p className="mt-1 text-sm">{item.city} · {item.channels.join('، ')}</p></div><span className="rounded-full bg-[var(--muted)] px-3 py-1 text-xs font-bold">{statusName[item.status]}</span></div>{item.experience&&<p className="mt-4 rounded-xl bg-[var(--muted)] p-3 text-sm leading-6">{item.experience}</p>}<div className="mt-3 flex flex-wrap gap-4 text-xs text-[var(--muted-foreground)]"><span>الجمهور: {item.audienceSize?.toLocaleString('ar-SD')??'غير محدد'}</span>{item.portfolioUrl&&<a href={item.portfolioUrl} target="_blank" rel="noreferrer" className="text-[var(--primary)] underline">رابط الأعمال</a>}<span>{item.createdAt.toLocaleString('ar-SD')}</span></div>{item.notes&&<p className="mt-3 text-sm">ملاحظات: {item.notes}</p>}{item.rejectionReason&&<p className="mt-3 text-sm text-red-600">سبب الرفض: {item.rejectionReason}</p>}{item.status==='PENDING'&&<div className="mt-5 grid gap-3 sm:grid-cols-2"><form action={reviewAcquisitionApplicationAction}><input type="hidden" name="applicationId" value={item.id}/><input type="hidden" name="decision" value="APPROVE"/><button className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white">قبول مبدئي</button></form><form action={reviewAcquisitionApplicationAction} className="flex gap-2"><input type="hidden" name="applicationId" value={item.id}/><input type="hidden" name="decision" value="REJECT"/><input name="reason" required maxLength={500} placeholder="سبب الرفض" className="min-w-0 flex-1 rounded-xl border bg-transparent p-2.5"/><button className="rounded-xl bg-red-600 px-4 font-bold text-white">رفض</button></form></div>}</article>)}{!applications.length&&<p className="rounded-2xl border border-dashed p-12 text-center text-[var(--muted-foreground)]">لا توجد طلبات حتى الآن.</p>}</section>
+  </div>;
+}
