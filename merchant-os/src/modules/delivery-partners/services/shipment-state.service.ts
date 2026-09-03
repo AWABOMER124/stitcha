@@ -2,6 +2,7 @@ import prisma from '@/lib/db/prisma';
 import { BusinessRuleError, NotFoundError } from '@/lib/errors';
 import type { OrderStatus, PlatformShipmentStatus } from '@prisma/client';
 import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
+import { qualifyStoreAffiliateCommission } from '@/modules/store-affiliates/store-affiliates.service';
 
 export const shipmentTransitions: Partial<Record<PlatformShipmentStatus, PlatformShipmentStatus[]>> = {
   REQUESTED: ['ASSIGNED', 'CANCELLED'], ASSIGNED: ['PICKED_UP', 'CANCELLED'],
@@ -49,7 +50,10 @@ export async function applyShipmentState(input: {
     if (orderStatus) {
       await tx.order.update({ where: { id: shipment.orderId }, data: { status: orderStatus, ...(orderStatus === 'DELIVERED' ? { completedAt: now } : {}) } });
       await tx.orderStatusHistory.create({ data: { orderId: shipment.orderId, status: orderStatus, note: input.note ?? `Delivery partner: ${input.status}`, changedById: input.actorId } });
-      if (orderStatus === 'DELIVERED') await evaluateMerchantReferralInTransaction(tx, shipment.order.merchantId, now);
+      if (orderStatus === 'DELIVERED') {
+        await evaluateMerchantReferralInTransaction(tx, shipment.order.merchantId, now);
+        await qualifyStoreAffiliateCommission(tx, shipment.orderId, now);
+      }
     }
     return { applied: true };
   });

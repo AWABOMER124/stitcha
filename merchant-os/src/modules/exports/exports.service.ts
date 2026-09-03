@@ -1,7 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import { createWorkbook, type ExportColumn, type ExportRow } from './excel';
 
-export const EXPORT_TYPES = ['orders', 'products', 'inventory', 'customers', 'transactions', 'settlements', 'invoices'] as const;
+export const EXPORT_TYPES = ['orders', 'products', 'inventory', 'customers', 'transactions', 'settlements', 'invoices', 'affiliates', 'affiliate-commissions'] as const;
 export type ExportType = typeof EXPORT_TYPES[number];
 const LIMIT = 10_000;
 
@@ -52,6 +52,16 @@ export async function buildMerchantExport(merchantId: string, type: ExportType, 
       { header: 'الحالة', key: 'status' }, { header: 'من', key: 'periodFrom', ...dateColumns }, { header: 'إلى', key: 'periodTo', ...dateColumns }, { header: 'الطلبات', key: 'orders' }, { header: 'الإجمالي', key: 'gross', ...moneyColumns }, { header: 'العمولة', key: 'commission', ...moneyColumns }, { header: 'الرسوم', key: 'fees', ...moneyColumns }, { header: 'الصافي', key: 'net', ...moneyColumns }, { header: 'تاريخ السداد', key: 'paidAt', ...dateColumns },
     ];
     rows = (await prisma.settlement.findMany({ where: { merchantId, ...(createdAt ? { createdAt } : {}) }, orderBy: { createdAt: 'desc' }, take: LIMIT })).map(s => ({ status: s.status, periodFrom: s.periodFrom, periodTo: s.periodTo, orders: s.totalOrders, gross: Number(s.grossAmount), commission: Number(s.commission), fees: Number(s.fees), net: Number(s.netAmount), paidAt: s.paidAt }));
+  } else if (type === 'affiliates') {
+    title = 'المسوّقون بالعمولة'; columns = [
+      { header: 'المسوّق', key: 'name', width: 26 }, { header: 'الهاتف', key: 'phone' }, { header: 'البريد', key: 'email', width: 26 }, { header: 'الرمز', key: 'code' }, { header: 'الحالة', key: 'status' }, { header: 'الزيارات', key: 'visits' }, { header: 'الطلبات المنسوبة', key: 'orders' }, { header: 'العمولات', key: 'commissions' }, { header: 'تاريخ الإضافة', key: 'createdAt', ...dateColumns },
+    ];
+    rows = (await prisma.storeAffiliate.findMany({ where: { merchantId, ...(createdAt ? { createdAt } : {}) }, include: { _count: { select: { visits: true, attributions: true, commissions: true } } }, orderBy: { createdAt: 'desc' }, take: LIMIT })).map(a => ({ name: a.name, phone: a.phone, email: a.email, code: a.code, status: a.status, visits: a._count.visits, orders: a._count.attributions, commissions: a._count.commissions, createdAt: a.createdAt }));
+  } else if (type === 'affiliate-commissions') {
+    title = 'عمولات المسوّقين'; columns = [
+      { header: 'المسوّق', key: 'affiliate', width: 26 }, { header: 'الرمز', key: 'code' }, { header: 'رقم الطلب', key: 'orderNumber' }, { header: 'المبلغ', key: 'amount', ...moneyColumns }, { header: 'العملة', key: 'currency' }, { header: 'الحالة', key: 'status' }, { header: 'نهاية التعليق', key: 'holdUntil', ...dateColumns }, { header: 'مرجع السداد', key: 'paymentRef' }, { header: 'تاريخ السداد', key: 'paidAt', ...dateColumns }, { header: 'تاريخ الإنشاء', key: 'createdAt', ...dateColumns },
+    ];
+    rows = (await prisma.storeAffiliateCommission.findMany({ where: { merchantId, ...(createdAt ? { createdAt } : {}) }, include: { affiliate: { select: { name: true, code: true } }, order: { select: { orderNumber: true } } }, orderBy: { createdAt: 'desc' }, take: LIMIT })).map(c => ({ affiliate: c.affiliate.name, code: c.affiliate.code, orderNumber: c.order.orderNumber, amount: Number(c.amount), currency: c.currency, status: c.status, holdUntil: c.holdUntil, paymentRef: c.paymentRef, paidAt: c.paidAt, createdAt: c.createdAt }));
   } else {
     title = 'الفواتير'; columns = [
       { header: 'رقم الفاتورة', key: 'invoiceNumber' }, { header: 'رقم الطلب', key: 'orderNumber' }, { header: 'الحالة', key: 'status' }, { header: 'العميل', key: 'customerName', width: 26 }, { header: 'الهاتف', key: 'customerPhone' }, { header: 'الإجمالي', key: 'total', ...moneyColumns }, { header: 'العملة', key: 'currency' }, { header: 'تاريخ الإصدار', key: 'issuedAt', ...dateColumns }, { header: 'تاريخ السداد', key: 'paidAt', ...dateColumns },

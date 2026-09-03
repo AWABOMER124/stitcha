@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { handleError } from '@/lib/errors/handler';
 import { normalizePrivateEvidence } from '@/services/storage/private-evidence-input';
@@ -7,10 +7,11 @@ import { placeOrder } from '@/modules/storefront/services/storefront.service';
 import { ValidationError } from '@/lib/errors';
 import type { PrivateEvidence } from '@/services/storage/private-evidence-input';
 import { ZodError } from 'zod';
+import { AFFILIATE_COOKIE } from '@/modules/store-affiliates/store-affiliates.service';
 
 export const runtime = 'nodejs';
 
-export async function POST(request: Request, context: RouteContext<'/api/store/[slug]/orders'>) {
+export async function POST(request: NextRequest, context: RouteContext<'/api/store/[slug]/orders'>) {
   try {
     const { slug } = await context.params;
     if (!checkRateLimit(`store-order:${slug}:${getClientIp(request)}`, 20, 60_000)) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 });
@@ -43,7 +44,7 @@ export async function POST(request: Request, context: RouteContext<'/api/store/[
       if (!(proofInput instanceof File)) throw new ValidationError('Transfer receipt is required');
       evidence = await normalizePrivateEvidence(proofInput);
     }
-    const result = await placeOrder(slug, data, evidence);
+    const result = await placeOrder(slug, data, evidence, request.cookies.get(AFFILIATE_COOKIE)?.value);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) return NextResponse.json({ error: error.issues[0]?.message ?? 'Invalid order' }, { status: 400 });

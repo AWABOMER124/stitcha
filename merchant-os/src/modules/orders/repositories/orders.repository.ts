@@ -4,6 +4,7 @@ import type { OrderFilterInput } from '../schemas/orders.schemas';
 import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 import { BusinessRuleError, ValidationError } from '@/lib/errors';
 import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
+import { attachStoreAffiliateAttribution, qualifyStoreAffiliateCommission, voidStoreAffiliateAttribution } from '@/modules/store-affiliates/store-affiliates.service';
 
 // ============================================================================
 // Orders Repository — Data access layer
@@ -124,6 +125,7 @@ export async function create(
       proofSize: number;
       proofSha256: string;
     };
+    affiliateToken?: string;
   }
 ) {
   const order = await prisma.$transaction(async (tx) => {
@@ -243,6 +245,12 @@ export async function create(
       include: orderIncludes,
     });
 
+    await attachStoreAffiliateAttribution(tx, {
+      merchantId,
+      orderId: createdOrder.id,
+      token: data.affiliateToken,
+    });
+
     await tx.customer.update({
       where: { id: data.customerId },
       data: {
@@ -301,6 +309,7 @@ export async function updateStatus(
     });
 
     if (status === 'CANCELLED' || status === 'REJECTED') {
+      await voidStoreAffiliateAttribution(tx, id, status === 'CANCELLED' ? 'ORDER_CANCELLED' : 'ORDER_REJECTED');
       const orderItems = await tx.orderItem.findMany({
         where: { orderId: id, productId: { not: null } },
         select: { productId: true, quantity: true },
@@ -335,7 +344,10 @@ export async function updateStatus(
       }
     }
 
-    if (status === 'DELIVERED') await evaluateMerchantReferralInTransaction(tx, merchantId);
+    if (status === 'DELIVERED') {
+      await evaluateMerchantReferralInTransaction(tx, merchantId);
+      await qualifyStoreAffiliateCommission(tx, id);
+    }
 
     const order = await tx.order.findUniqueOrThrow({ where: { id } });
     return serializePrismaObject(order);

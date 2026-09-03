@@ -1,5 +1,18 @@
 # Implementation log
 
+## 2026-09-03 — Storefront affiliate-sales MVP
+
+- Added merchant-owned, inactive-by-default affiliate programs and opaque
+  marketer links with scoped HttpOnly last-click attribution.
+- Snapshotted rate, currency, hold, payout threshold and trusted order subtotal
+  at checkout; delivery creates one idempotent pending commission.
+- Added cancellation/rejection voiding, payment-refund reversal, tenant-scoped
+  review, hold enforcement and referenced batch payout after the threshold.
+- Added `/dashboard/affiliates`, affiliate and commission Excel exports, and
+  updated public privacy/terms disclosures.
+- Added an eight-case isolated PostgreSQL audit; see
+  `STOREFRONT_AFFILIATES_PHASE2_2026-09-03.md` for the release boundary.
+
 ## 2026-09-03 — Merchant acquisition referrals, phase 1
 
 - Added immutable merchant-to-merchant attribution without reintroducing the

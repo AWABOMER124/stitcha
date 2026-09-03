@@ -206,6 +206,24 @@ enum ReferralRewardStatus {
   REJECTED
 }
 
+enum StoreAffiliateStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum StoreAffiliateAttributionStatus {
+  ATTRIBUTED
+  VOID
+}
+
+enum StoreAffiliateCommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+  REVERSED
+}
+
 enum StockMovementType {
   ADJUSTMENT
   SALE
@@ -908,6 +926,11 @@ model Merchant {
   referralsMade              MerchantReferral[]            @relation("ReferralReferrer")
   referralReceived           MerchantReferral?             @relation("ReferralReferred")
   referralRewards            MerchantReferralReward[]      @relation("ReferralRewardMerchant")
+  affiliateProgram           StoreAffiliateProgram?
+  storeAffiliates            StoreAffiliate[]
+  affiliateVisits            StoreAffiliateVisit[]
+  affiliateAttributions      StoreAffiliateAttribution[]
+  affiliateCommissions       StoreAffiliateCommission[]
 
   @@index([slug])
   @@index([status])
@@ -1010,6 +1033,136 @@ model MerchantReferralReward {
   @@index([referrerMerchantId, status, holdUntil])
   @@index([status, holdUntil])
   @@map("merchant_referral_rewards")
+}
+
+/// Merchant-owned storefront affiliate policy. It is created inactive so a
+/// merchant cannot incur commission liability before explicitly configuring it.
+model StoreAffiliateProgram {
+  id              String   @id @default(cuid())
+  merchantId      String   @unique
+  isActive        Boolean  @default(false)
+  commissionRate  Decimal  @default(0) @db.Decimal(5, 2)
+  attributionDays Int      @default(30)
+  holdDays        Int      @default(14)
+  minimumPayout   Decimal  @default(0) @db.Decimal(12, 2)
+  currency        String   @default("SDG")
+  terms           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  merchant     Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  affiliates   StoreAffiliate[]
+  visits       StoreAffiliateVisit[]
+  attributions StoreAffiliateAttribution[]
+
+  @@map("store_affiliate_programs")
+}
+
+model StoreAffiliate {
+  id         String               @id @default(cuid())
+  merchantId String
+  programId  String
+  name       String
+  phone      String
+  email      String?
+  code       String
+  status     StoreAffiliateStatus @default(ACTIVE)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  merchant     Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  program      StoreAffiliateProgram       @relation(fields: [programId], references: [id], onDelete: Cascade)
+  visits       StoreAffiliateVisit[]
+  attributions StoreAffiliateAttribution[]
+  commissions  StoreAffiliateCommission[]
+
+  @@unique([merchantId, code])
+  @@unique([merchantId, phone])
+  @@index([merchantId, status, createdAt])
+  @@map("store_affiliates")
+}
+
+/// One pseudonymous last-click token. The raw token exists only in the
+/// browser's HttpOnly cookie; the database stores its keyed fingerprint.
+model StoreAffiliateVisit {
+  id          String   @id @default(cuid())
+  merchantId  String
+  programId   String
+  affiliateId String
+  tokenHash   String   @unique
+  visitedAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  merchant     Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  program      StoreAffiliateProgram       @relation(fields: [programId], references: [id], onDelete: Cascade)
+  affiliate    StoreAffiliate              @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  attributions StoreAffiliateAttribution[]
+
+  @@index([merchantId, affiliateId, visitedAt])
+  @@index([expiresAt])
+  @@map("store_affiliate_visits")
+}
+
+/// Immutable order attribution with commercial terms snapshotted at checkout.
+model StoreAffiliateAttribution {
+  id                     String                          @id @default(cuid())
+  merchantId             String
+  programId              String
+  affiliateId            String
+  visitId                String?
+  orderId                String                          @unique
+  codeSnapshot           String
+  commissionRateSnapshot Decimal                         @db.Decimal(5, 2)
+  baseAmount             Decimal                         @db.Decimal(12, 2)
+  currencySnapshot       String
+  holdDaysSnapshot       Int
+  minimumPayoutSnapshot  Decimal                         @db.Decimal(12, 2)
+  status                 StoreAffiliateAttributionStatus @default(ATTRIBUTED)
+  attributedAt           DateTime                        @default(now())
+  voidedAt               DateTime?
+  voidReason             String?
+  createdAt              DateTime                        @default(now())
+  updatedAt              DateTime                        @updatedAt
+
+  merchant   Merchant                  @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  program    StoreAffiliateProgram     @relation(fields: [programId], references: [id], onDelete: Restrict)
+  affiliate  StoreAffiliate            @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  visit      StoreAffiliateVisit?      @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  order      Order                     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  commission StoreAffiliateCommission?
+
+  @@index([merchantId, affiliateId, status, attributedAt])
+  @@index([visitId])
+  @@map("store_affiliate_attributions")
+}
+
+model StoreAffiliateCommission {
+  id            String                         @id @default(cuid())
+  merchantId    String
+  affiliateId   String
+  attributionId String                         @unique
+  orderId       String                         @unique
+  amount        Decimal                        @db.Decimal(12, 2)
+  currency      String
+  status        StoreAffiliateCommissionStatus @default(PENDING)
+  holdUntil     DateTime
+  reviewedById  String?
+  reviewedAt    DateTime?
+  paidAt        DateTime?
+  paymentRef    String?
+  reversedAt    DateTime?
+  note          String?
+  createdAt     DateTime                       @default(now())
+  updatedAt     DateTime                       @updatedAt
+
+  merchant    Merchant                  @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  affiliate   StoreAffiliate            @relation(fields: [affiliateId], references: [id], onDelete: Restrict)
+  attribution StoreAffiliateAttribution @relation(fields: [attributionId], references: [id], onDelete: Restrict)
+  order       Order                     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([merchantId, status, holdUntil])
+  @@index([affiliateId, status, createdAt])
+  @@map("store_affiliate_commissions")
 }
 
 /// Join between User and Merchant — carries the user's role within a merchant
@@ -1606,18 +1759,20 @@ model Order {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant         Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  customer         Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  branch           Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  items            OrderItem[]
-  statusHistory    OrderStatusHistory[]
-  delivery         Delivery?
-  payment          Payment?
-  proofOfDelivery  ProofOfDelivery?
-  deliveryQuotes   DeliveryQuote[]
-  platformShipment PlatformShipment?
-  invoice          Invoice?
-  complaints       Complaint[]
+  merchant             Merchant                   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer             Customer                   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch               Branch?                    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  items                OrderItem[]
+  statusHistory        OrderStatusHistory[]
+  delivery             Delivery?
+  payment              Payment?
+  proofOfDelivery      ProofOfDelivery?
+  deliveryQuotes       DeliveryQuote[]
+  platformShipment     PlatformShipment?
+  invoice              Invoice?
+  complaints           Complaint[]
+  affiliateAttribution StoreAffiliateAttribution?
+  affiliateCommission  StoreAffiliateCommission?
 
   @@unique([merchantId, orderNumber])
   @@index([merchantId])

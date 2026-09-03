@@ -19,6 +19,13 @@ duplicate referrals, both qualification rules, reward idempotency and program
 pause behaviour. Run it with `vitest.referrals-audit.config.ts`; see
 [the phase-1 contract](../../docs/MERCHANT_REFERRALS_PHASE1_2026-09-03.md).
 
+The storefront affiliate-sales MVP has eight isolated cases in
+`store-affiliates.audit.ts` and writes `store-affiliates-results.json`. Run it
+with `vitest.store-affiliates-audit.config.ts`. It covers the public redirect
+cookie, trusted checkout attribution, concurrency, expiry, tenancy, cancellation,
+hold/threshold payout, refund reversal and pause/suspension controls. See
+[the phase-2 contract](../../docs/STOREFRONT_AFFILIATES_PHASE2_2026-09-03.md).
+
 ## Safety boundary
 
 - Use only the disposable local database below. The audit refuses other host/port/database combinations.

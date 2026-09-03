@@ -3,6 +3,7 @@ import { NotFoundError } from '@/lib/errors';
 import * as paymentsRepo from '../repositories/payments.repository';
 import type { RecordPaymentInput } from '../schemas/payments.schemas';
 import { serializePrismaObject } from '@/lib/serialization';
+import { voidStoreAffiliateAttribution } from '@/modules/store-affiliates/store-affiliates.service';
 
 // ============================================================================
 // Payments Service — Business logic
@@ -47,7 +48,11 @@ export async function markAsPaid(merchantId: string, id: string, transactionRef?
 
 /** Refund a payment — must belong to the calling merchant */
 export async function refund(merchantId: string, id: string) {
-  const payment = await paymentsRepo.updateStatus(id, merchantId, 'REFUNDED');
-  if (!payment) throw new NotFoundError('Payment');
-  return payment;
+  return prisma.$transaction(async tx => {
+    const payment = await tx.payment.findFirst({ where: { id, order: { merchantId } }, select: { id: true, orderId: true } });
+    if (!payment) throw new NotFoundError('Payment');
+    await tx.payment.update({ where: { id: payment.id }, data: { status: 'REFUNDED' } });
+    await voidStoreAffiliateAttribution(tx, payment.orderId, 'PAYMENT_REFUNDED');
+    return serializePrismaObject(await tx.payment.findUniqueOrThrow({ where: { id: payment.id } }));
+  });
 }

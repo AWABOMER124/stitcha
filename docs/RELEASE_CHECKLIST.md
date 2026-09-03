@@ -53,6 +53,10 @@
 
 ## Product and operations
 
+- [ ] Keep every storefront affiliate program paused until the merchant accepts
+      its rate, terms, attribution window, hold and payout threshold.
+- [ ] Run one affiliate canary through link, checkout, delivery, approval,
+      threshold payout and refund reversal; reconcile the payout reference.
 - [ ] Keep the merchant referral program paused until reward value, terms,
       qualification rule, hold period and finance-review owner are approved.
 - [ ] Run one referral canary through registration, account activation,

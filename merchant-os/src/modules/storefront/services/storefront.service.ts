@@ -55,7 +55,7 @@ export async function getStoreProduct(slug: string, productSlug: string) {
 }
 
 /** Place order from public storefront */
-export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?: PrivateEvidence) {
+export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?: PrivateEvidence, affiliateToken?: string) {
   const merchant = await storefrontRepo.getMerchantBySlug(slug);
   if (!merchant) throw new NotFoundError('Store');
 
@@ -149,6 +149,7 @@ export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?:
       deliveryLng: data.deliveryLng,
       items: orderItems,
       manualPayment,
+      affiliateToken,
     });
   } catch (error) {
     if (uploadedStorageKey) await privateStorageService.delete(uploadedStorageKey).catch(() => undefined);
