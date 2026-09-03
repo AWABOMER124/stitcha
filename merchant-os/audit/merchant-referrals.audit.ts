@@ -4,8 +4,9 @@ import prisma from '@/lib/db/prisma';
 import { POST as register } from '@/app/api/auth/register/route';
 import {
   REFERRAL_PROGRAM_ID, attachMerchantReferral, ensureMerchantReferralCode,
-  evaluateMerchantReferral, reviewReferralReward, updateReferralProgram,
+  evaluateMerchantReferral, reviewReferralCommission, updateReferralProgram,
 } from '@/modules/merchant-referrals/merchant-referrals.service';
+import { encryptSecret } from '@/lib/crypto/secret';
 
 const db = new URL(process.env.DATABASE_URL ?? 'http://unset');
 if (db.hostname !== '127.0.0.1' || db.port !== '55439' || db.pathname !== '/wasla_partner_audit') throw new Error('Dedicated local audit database required');
@@ -21,6 +22,7 @@ async function attach(sourceId: string, targetId: string, contact = identity(), 
 
 beforeAll(async () => {
   vi.stubEnv('AUTH_SECRET', 'wasla-local-audit-auth-not-production-20260903');
+  vi.stubEnv('SECRETS_ENCRYPTION_KEY', 'wasla-local-audit-encryption-not-production');
   vi.stubEnv('WHATSAPP_SIGNUP_VERIFICATION_ENABLED', 'false');
   await prisma.merchantPlan.upsert({ where: { code: 'FREE' }, update: {}, create: { code: 'FREE', name: 'Basic', monthlyPrice: 0, entitlements: {} } });
   await prisma.merchantPlan.upsert({ where: { code: 'PRO-AUDIT' }, update: {}, create: { code: 'PRO-AUDIT', name: 'Pro Audit', monthlyPrice: 10, entitlements: {} } });
@@ -73,16 +75,20 @@ describe('platform merchant referrals', () => {
   });
 
   it('R06 supports paid-Pro qualification and an auditable review lifecycle', async () => {
-    await updateReferralProgram({ isActive: true, qualificationRule: 'FIRST_PAID_PRO', rewardType: 'ACCOUNT_CREDIT', rewardValue: 5000, currency: 'SDG', holdDays: 1 });
+    await updateReferralProgram({ isActive: true, qualificationRule: 'FIRST_PAID_PRO', rewardType: 'CASH', rewardValue: 0, currency: 'SDG', holdDays: 1, commissionRate: 20, commissionMonths: 12, minimumPayout: 0 });
     const source = await merchant(); const target = await merchant(); const referral = await attach(source.id, target.id); const plan = await prisma.merchantPlan.findUniqueOrThrow({ where: { code: 'PRO-AUDIT' } });
     const account = await prisma.platformPaymentAccount.create({ data: { channel: 'BANKAK', label: 'Audit only', accountName: 'Audit', accountNumber: randomUUID(), monthlyAmount: 10 } });
-    await prisma.merchantSubscriptionPayment.create({ data: { merchantId: target.id, targetPlanId: plan.id, paymentAccountId: account.id, amount: 10, currency: 'SDG', channel: 'BANKAK', transactionRef: randomUUID(), proofStorageKey: 'audit/none', proofMimeType: 'image/png', proofSize: 1, proofSha256: randomUUID().replaceAll('-',''), status: 'VERIFIED' } });
-    const reward = await evaluateMerchantReferral(target.id); expect(reward?.type).toBe('ACCOUNT_CREDIT');
-    await expect(reviewReferralReward({ rewardId: reward!.id, reviewerId: 'audit', decision: 'APPROVE' })).rejects.toThrow();
-    const afterHold = new Date(reward!.holdUntil.getTime() + 1000);
-    expect((await reviewReferralReward({ rewardId: reward!.id, reviewerId: 'audit', decision: 'APPROVE' }, afterHold)).status).toBe('APPROVED');
-    await expect(reviewReferralReward({ rewardId: reward!.id, reviewerId: 'audit', decision: 'FULFILL' }, afterHold)).rejects.toThrow();
-    expect((await reviewReferralReward({ rewardId: reward!.id, reviewerId: 'audit', decision: 'FULFILL', fulfillmentRef: 'AUDIT-NOT-A-REAL-PAYOUT' }, afterHold)).status).toBe('FULFILLED');
+    const payment = await prisma.merchantSubscriptionPayment.create({ data: { merchantId: target.id, targetPlanId: plan.id, paymentAccountId: account.id, amount: 10, currency: 'SDG', channel: 'BANKAK', transactionRef: randomUUID(), proofStorageKey: 'audit/none', proofMimeType: 'image/png', proofSize: 1, proofSha256: randomUUID().replaceAll('-',''), status: 'VERIFIED' } });
+    const commission = await evaluateMerchantReferral(target.id, new Date(), payment.id); expect(commission && 'amount' in commission ? commission.amount.toString() : null).toBe('2');
+    await expect(reviewReferralCommission({ commissionId: commission!.id, reviewerId: 'audit', decision: 'APPROVE' })).rejects.toThrow();
+    const afterHold = new Date(commission!.holdUntil.getTime() + 1000);
+    const approved = await reviewReferralCommission({ commissionId: commission!.id, reviewerId: 'audit', decision: 'APPROVE' }, afterHold);
+    expect('status' in approved ? approved.status : null).toBe('APPROVED');
+    await expect(reviewReferralCommission({ commissionId: commission!.id, reviewerId: 'audit', decision: 'FULFILL', fulfillmentRef: 'BLOCKED' }, afterHold)).rejects.toThrow();
+    await prisma.merchantIdentityVerification.create({ data: { merchantId: source.id, legalName: 'Audit Referrer', documentType: 'NATIONAL_ID', documentNumberEncrypted: encryptSecret('AUDIT12345'), expiresAt: new Date('2035-01-01'), status: 'APPROVED', submittedAt: new Date(), reviewedAt: new Date(), reviewedById: 'audit' } });
+    await prisma.merchantReferralPayoutProfile.create({ data: { merchantId: source.id, method: 'BANKAK', accountNameEncrypted: encryptSecret('Audit Referrer'), accountNumberEncrypted: encryptSecret('123456789') } });
+    const fulfilled = await reviewReferralCommission({ commissionId: commission!.id, reviewerId: 'audit', decision: 'FULFILL', fulfillmentRef: 'AUDIT-NOT-A-REAL-PAYOUT' }, afterHold);
+    expect('count' in fulfilled ? fulfilled.count : 0).toBe(1);
     expect((await prisma.merchantReferral.findUniqueOrThrow({ where: { id: referral!.id } })).status).toBe('QUALIFIED');
   });
 

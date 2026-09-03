@@ -1,5 +1,6 @@
 export {
   getMerchantPlanSnapshot,
+  requireMerchantEntitlement,
   getPendingPlanChangeRequest,
   listPublicPlans,
   requestPlanChange,

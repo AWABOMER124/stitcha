@@ -224,6 +224,39 @@ enum StoreAffiliateCommissionStatus {
   REVERSED
 }
 
+enum IdentityDocumentType {
+  NATIONAL_ID
+  PASSPORT
+}
+
+enum IdentityVerificationStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum IdentityDocumentSide {
+  FRONT
+  BACK
+}
+
+enum PayoutMethod {
+  BANK_ACCOUNT
+  BANKAK
+  MYCASHY
+  OTHER
+}
+
+enum MerchantDomainStatus {
+  PENDING_DNS
+  VERIFIED
+  ACTIVE
+  REJECTED
+  DISABLED
+}
+
 enum StockMovementType {
   ADJUSTMENT
   SALE
@@ -893,44 +926,50 @@ model Merchant {
   updatedAt DateTime @updatedAt
 
   // Relations
-  distributor                Distributor?                  @relation(fields: [distributorId], references: [id], onDelete: SetNull)
-  commissionPlan             CommissionPlan?               @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
-  preferredDeliveryCompany   DeliveryCompany?              @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
-  users                      MerchantUser[]
-  branches                   Branch[]
-  products                   Product[]
-  categories                 Category[]
-  orders                     Order[]
-  customers                  Customer[]
-  inventoryItems             InventoryItem[]
-  storefrontSettings         StorefrontSettings?
-  notificationLogs           NotificationLog[]
-  roles                      Role[]
-  transactions               FinancialTransaction[]
-  settlements                Settlement[]
-  promoCodes                 PromoCode[]
-  loyaltyConfig              LoyaltyConfig?
-  conversations              Conversation[]
-  whatsappConfig             WhatsAppConfig?
-  featuredPlacements         FeaturedPlacement[]
-  subscription               MerchantSubscription?
-  planChangeRequests         MerchantPlanChangeRequest[]
-  subscriptionPayments       MerchantSubscriptionPayment[]
-  storePaymentAccounts       MerchantPaymentAccount[]
-  orderPaymentProofs         OrderPaymentProof[]
-  whatsappAiUsage            WhatsAppAiUsage[]
-  invoices                   Invoice[]
-  deliveryPartnerConnections MerchantDeliveryPartner[]
-  complaints                 Complaint[]
-  referralCode               MerchantReferralCode?
-  referralsMade              MerchantReferral[]            @relation("ReferralReferrer")
-  referralReceived           MerchantReferral?             @relation("ReferralReferred")
-  referralRewards            MerchantReferralReward[]      @relation("ReferralRewardMerchant")
-  affiliateProgram           StoreAffiliateProgram?
-  storeAffiliates            StoreAffiliate[]
-  affiliateVisits            StoreAffiliateVisit[]
-  affiliateAttributions      StoreAffiliateAttribution[]
-  affiliateCommissions       StoreAffiliateCommission[]
+  distributor                    Distributor?                         @relation(fields: [distributorId], references: [id], onDelete: SetNull)
+  commissionPlan                 CommissionPlan?                      @relation(fields: [commissionPlanId], references: [id], onDelete: SetNull)
+  preferredDeliveryCompany       DeliveryCompany?                     @relation("MerchantPreferredDeliveryCompany", fields: [preferredDeliveryCompanyId], references: [id], onDelete: SetNull)
+  users                          MerchantUser[]
+  branches                       Branch[]
+  products                       Product[]
+  categories                     Category[]
+  orders                         Order[]
+  customers                      Customer[]
+  inventoryItems                 InventoryItem[]
+  storefrontSettings             StorefrontSettings?
+  notificationLogs               NotificationLog[]
+  roles                          Role[]
+  transactions                   FinancialTransaction[]
+  settlements                    Settlement[]
+  promoCodes                     PromoCode[]
+  loyaltyConfig                  LoyaltyConfig?
+  conversations                  Conversation[]
+  whatsappConfig                 WhatsAppConfig?
+  featuredPlacements             FeaturedPlacement[]
+  subscription                   MerchantSubscription?
+  planChangeRequests             MerchantPlanChangeRequest[]
+  subscriptionPayments           MerchantSubscriptionPayment[]
+  storePaymentAccounts           MerchantPaymentAccount[]
+  orderPaymentProofs             OrderPaymentProof[]
+  whatsappAiUsage                WhatsAppAiUsage[]
+  invoices                       Invoice[]
+  deliveryPartnerConnections     MerchantDeliveryPartner[]
+  complaints                     Complaint[]
+  referralCode                   MerchantReferralCode?
+  referralsMade                  MerchantReferral[]                   @relation("ReferralReferrer")
+  referralReceived               MerchantReferral?                    @relation("ReferralReferred")
+  referralRewards                MerchantReferralReward[]             @relation("ReferralRewardMerchant")
+  referralCommissions            MerchantReferralCommission[]
+  affiliateProgram               StoreAffiliateProgram?
+  storeAffiliates                StoreAffiliate[]
+  affiliateVisits                StoreAffiliateVisit[]
+  affiliateAttributions          StoreAffiliateAttribution[]
+  affiliateCommissions           StoreAffiliateCommission[]
+  identityVerification           MerchantIdentityVerification?
+  referralPayoutProfile          MerchantReferralPayoutProfile?
+  customDomains                  MerchantDomain[]
+  affiliateIdentityVerifications StoreAffiliateIdentityVerification[]
+  affiliatePayoutProfiles        StoreAffiliatePayoutProfile[]
 
   @@index([slug])
   @@index([status])
@@ -950,6 +989,9 @@ model PlatformReferralProgram {
   rewardValue       Decimal                   @default(0) @db.Decimal(12, 2)
   currency          String?
   holdDays          Int                       @default(30)
+  commissionRate    Decimal                   @default(20) @db.Decimal(5, 2)
+  commissionMonths  Int                       @default(12)
+  minimumPayout     Decimal                   @default(0) @db.Decimal(12, 2)
   terms             String?
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
@@ -988,6 +1030,9 @@ model MerchantReferral {
   rewardValueSnapshot       Decimal                   @db.Decimal(12, 2)
   currencySnapshot          String?
   holdDaysSnapshot          Int
+  commissionRateSnapshot    Decimal                   @default(20) @db.Decimal(5, 2)
+  commissionMonthsSnapshot  Int                       @default(12)
+  minimumPayoutSnapshot     Decimal                   @default(0) @db.Decimal(12, 2)
   identityFingerprint       String
   status                    MerchantReferralStatus    @default(REGISTERED)
   registeredAt              DateTime                  @default(now())
@@ -998,11 +1043,12 @@ model MerchantReferral {
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
 
-  program          PlatformReferralProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
-  referralCode     MerchantReferralCode    @relation(fields: [referralCodeId], references: [id], onDelete: Restrict)
-  referrerMerchant Merchant                @relation("ReferralReferrer", fields: [referrerMerchantId], references: [id], onDelete: Restrict)
-  referredMerchant Merchant                @relation("ReferralReferred", fields: [referredMerchantId], references: [id], onDelete: Restrict)
+  program          PlatformReferralProgram      @relation(fields: [programId], references: [id], onDelete: Restrict)
+  referralCode     MerchantReferralCode         @relation(fields: [referralCodeId], references: [id], onDelete: Restrict)
+  referrerMerchant Merchant                     @relation("ReferralReferrer", fields: [referrerMerchantId], references: [id], onDelete: Restrict)
+  referredMerchant Merchant                     @relation("ReferralReferred", fields: [referredMerchantId], references: [id], onDelete: Restrict)
   reward           MerchantReferralReward?
+  commissions      MerchantReferralCommission[]
 
   @@index([referrerMerchantId, status, registeredAt])
   @@index([programId, status, registeredAt])
@@ -1035,6 +1081,38 @@ model MerchantReferralReward {
   @@map("merchant_referral_rewards")
 }
 
+/// Recurring acquisition commission created only from a verified, paid,
+/// non-FREE subscription invoice. Registration and free usage never earn cash.
+model MerchantReferralCommission {
+  id                    String               @id @default(cuid())
+  referralId            String
+  referrerMerchantId    String
+  subscriptionPaymentId String               @unique
+  grossAmount           Decimal              @db.Decimal(12, 2)
+  commissionRate        Decimal              @db.Decimal(5, 2)
+  amount                Decimal              @db.Decimal(12, 2)
+  currency              String
+  minimumPayoutSnapshot Decimal              @db.Decimal(12, 2)
+  status                ReferralRewardStatus @default(PENDING)
+  holdUntil             DateTime
+  reviewedById          String?
+  reviewedAt            DateTime?
+  fulfilledAt           DateTime?
+  fulfillmentRef        String?
+  reversedAt            DateTime?
+  note                  String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  referralRecord      MerchantReferral            @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  referrerMerchant    Merchant                    @relation(fields: [referrerMerchantId], references: [id], onDelete: Restrict)
+  subscriptionPayment MerchantSubscriptionPayment @relation(fields: [subscriptionPaymentId], references: [id], onDelete: Restrict)
+
+  @@index([referrerMerchantId, status, holdUntil])
+  @@index([referralId, createdAt])
+  @@map("merchant_referral_commissions")
+}
+
 /// Merchant-owned storefront affiliate policy. It is created inactive so a
 /// merchant cannot incur commission liability before explicitly configuring it.
 model StoreAffiliateProgram {
@@ -1059,27 +1137,175 @@ model StoreAffiliateProgram {
 }
 
 model StoreAffiliate {
-  id         String               @id @default(cuid())
-  merchantId String
-  programId  String
-  name       String
-  phone      String
-  email      String?
-  code       String
-  status     StoreAffiliateStatus @default(ACTIVE)
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
+  id                       String               @id @default(cuid())
+  merchantId               String
+  programId                String
+  name                     String
+  phone                    String
+  email                    String?
+  code                     String
+  status                   StoreAffiliateStatus @default(ACTIVE)
+  onboardingTokenHash      String?              @unique
+  onboardingTokenExpiresAt DateTime?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 
-  merchant     Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  program      StoreAffiliateProgram       @relation(fields: [programId], references: [id], onDelete: Cascade)
-  visits       StoreAffiliateVisit[]
-  attributions StoreAffiliateAttribution[]
-  commissions  StoreAffiliateCommission[]
+  merchant             Merchant                            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  program              StoreAffiliateProgram               @relation(fields: [programId], references: [id], onDelete: Cascade)
+  visits               StoreAffiliateVisit[]
+  attributions         StoreAffiliateAttribution[]
+  commissions          StoreAffiliateCommission[]
+  identityVerification StoreAffiliateIdentityVerification?
+  payoutProfile        StoreAffiliatePayoutProfile?
 
   @@unique([merchantId, code])
   @@unique([merchantId, phone])
   @@index([merchantId, status, createdAt])
   @@map("store_affiliates")
+}
+
+/// Merchant KYC record. Document numbers and files are never public: numbers
+/// are encrypted and file bytes live in private storage.
+model MerchantIdentityVerification {
+  id                      String                     @id @default(cuid())
+  merchantId              String                     @unique
+  legalName               String
+  documentType            IdentityDocumentType
+  documentNumberEncrypted String
+  expiresAt               DateTime
+  status                  IdentityVerificationStatus @default(DRAFT)
+  submittedAt             DateTime?
+  reviewedById            String?
+  reviewedAt              DateTime?
+  rejectionReason         String?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+
+  merchant  Merchant                   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  documents MerchantIdentityDocument[]
+
+  @@index([status, submittedAt])
+  @@map("merchant_identity_verifications")
+}
+
+model MerchantIdentityDocument {
+  id             String               @id @default(cuid())
+  verificationId String
+  side           IdentityDocumentSide
+  storageKey     String               @unique
+  fileName       String
+  mimeType       String
+  size           Int
+  sha256         String
+  createdAt      DateTime             @default(now())
+
+  verification MerchantIdentityVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@unique([verificationId, side])
+  @@index([verificationId])
+  @@map("merchant_identity_documents")
+}
+
+model StoreAffiliateIdentityVerification {
+  id                      String                     @id @default(cuid())
+  merchantId              String
+  affiliateId             String                     @unique
+  legalName               String
+  documentType            IdentityDocumentType
+  documentNumberEncrypted String
+  expiresAt               DateTime
+  status                  IdentityVerificationStatus @default(DRAFT)
+  submittedAt             DateTime?
+  reviewedById            String?
+  reviewedAt              DateTime?
+  rejectionReason         String?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+
+  merchant  Merchant                         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  affiliate StoreAffiliate                   @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  documents StoreAffiliateIdentityDocument[]
+
+  @@index([merchantId, status, submittedAt])
+  @@index([status, submittedAt])
+  @@map("store_affiliate_identity_verifications")
+}
+
+model StoreAffiliateIdentityDocument {
+  id             String               @id @default(cuid())
+  verificationId String
+  side           IdentityDocumentSide
+  storageKey     String               @unique
+  fileName       String
+  mimeType       String
+  size           Int
+  sha256         String
+  createdAt      DateTime             @default(now())
+
+  verification StoreAffiliateIdentityVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@unique([verificationId, side])
+  @@index([verificationId])
+  @@map("store_affiliate_identity_documents")
+}
+
+/// The merchant is the referrer in the current acquisition program. Financial
+/// coordinates are encrypted and only masked values are returned to the UI.
+model MerchantReferralPayoutProfile {
+  id                     String       @id @default(cuid())
+  merchantId             String       @unique
+  method                 PayoutMethod
+  bankName               String?
+  accountNameEncrypted   String
+  accountNumberEncrypted String
+  ibanEncrypted          String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@map("merchant_referral_payout_profiles")
+}
+
+model StoreAffiliatePayoutProfile {
+  id                     String       @id @default(cuid())
+  merchantId             String
+  affiliateId            String       @unique
+  method                 PayoutMethod
+  bankName               String?
+  accountNameEncrypted   String
+  accountNumberEncrypted String
+  ibanEncrypted          String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  merchant  Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  affiliate StoreAffiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("store_affiliate_payout_profiles")
+}
+
+/// A custom hostname remains inert until DNS ownership is verified and a
+/// platform operator activates it after TLS/routing validation.
+model MerchantDomain {
+  id                String               @id @default(cuid())
+  merchantId        String               @unique
+  hostname          String               @unique
+  verificationToken String
+  status            MerchantDomainStatus @default(PENDING_DNS)
+  dnsVerifiedAt     DateTime?
+  activatedAt       DateTime?
+  reviewedById      String?
+  rejectionReason   String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, status])
+  @@index([status, createdAt])
+  @@map("merchant_domains")
 }
 
 /// One pseudonymous last-click token. The raw token exists only in the
@@ -1311,10 +1537,11 @@ model MerchantSubscriptionPayment {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
 
-  merchant          Merchant                   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  targetPlan        MerchantPlan               @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
-  planChangeRequest MerchantPlanChangeRequest? @relation(fields: [planChangeRequestId], references: [id], onDelete: SetNull)
-  paymentAccount    PlatformPaymentAccount     @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
+  merchant           Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  targetPlan         MerchantPlan                @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
+  planChangeRequest  MerchantPlanChangeRequest?  @relation(fields: [planChangeRequestId], references: [id], onDelete: SetNull)
+  paymentAccount     PlatformPaymentAccount      @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
+  referralCommission MerchantReferralCommission?
 
   @@unique([paymentAccountId, transactionRef])
   @@unique([merchantId, proofSha256])

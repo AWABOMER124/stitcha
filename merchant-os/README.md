@@ -189,6 +189,7 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `AUTH_SECRET` | Yes | NextAuth session secret |
 | `NEXTAUTH_URL` | Yes | Public app URL, used by NextAuth |
 | `NEXT_PUBLIC_APP_URL` | Yes | Public app URL, used in emails/links (e.g. password reset) |
+| `CUSTOM_DOMAIN_CNAME_TARGET` | Pro custom domains | Canonical hostname shown to merchants; point it at Dokploy/Traefik before activating domains |
 | `APP_RELEASE` | Production | Deployed Git SHA returned by `/api/health` for release verification |
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | Durable public product uploads; if unset, attach a persistent volume to `/app/public/uploads` |
 | `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | Provider-specific | S3-compatible endpoint options for MinIO, Spaces, and similar services; a custom endpoint also requires `S3_CDN_URL` |
@@ -237,6 +238,8 @@ Automated unit and PostgreSQL integration suites run in CI. Supplement them with
 - `/dashboard/finance`, `/dashboard/reports` → load without error
 - `/dashboard/referrals` → copy the public registration link and verify that paused-program messaging is clear
 - `/admin/referrals` → configure terms, review reward states, and verify role restrictions
+- `/dashboard/verification` → upload a valid identity document, review it in `/admin/verifications`, and confirm private downloads are authorized and never cached
+- `/dashboard/domains` → request a Pro domain, verify TXT, add the hostname and TLS certificate in Dokploy, then activate it from `/admin/domains`
 - `/dashboard/affiliates` → create a pilot marketer, open their link, deliver an order, then verify hold and payout states
 - `/distributor/drivers` → add a driver, open their detail page
 - `/store/{merchantSlug}` with at least one priced product → loads, add to cart, checkout completes

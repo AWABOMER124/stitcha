@@ -33,7 +33,7 @@ describe('merchant SaaS entitlements', () => {
   it('fails safely to Basic when a merchant has no subscription row', async () => {
     prismaMock.merchantSubscription.findUnique.mockResolvedValue(null);
     await expect(getMerchantPlanSnapshot('merchant_1')).resolves.toMatchObject({
-      code: 'FREE', monthlyPrice: 0, entitlements: { maxActiveProducts: 100, advancedAnalytics: false },
+      code: 'FREE', monthlyPrice: 0, entitlements: { maxActiveProducts: 20, advancedAnalytics: false },
     });
   });
 
@@ -70,7 +70,7 @@ describe('merchant SaaS entitlements', () => {
 
   it('normalizes malformed entitlement values conservatively', () => {
     expect(parseEntitlements({ maxActiveProducts: 'all', apiAccess: 'yes', aiMonthlyCredits: -2 }))
-      .toMatchObject({ maxActiveProducts: 100, apiAccess: false, aiMonthlyCredits: 3 });
+      .toMatchObject({ maxActiveProducts: 20, apiAccess: false, aiMonthlyCredits: 0 });
   });
 
   it('lists only public active plans in configured order', async () => {

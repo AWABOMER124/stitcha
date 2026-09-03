@@ -4,6 +4,8 @@ import { getProductAction } from '@/modules/products/actions';
 import { getCategoriesAction } from '@/modules/categories/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { ProductForm } from '../../_components/product-form';
+import { getAuthContext } from '@/lib/permissions';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 
 export const metadata = { title: 'Edit Product — WASLA Commerce OS' };
 
@@ -13,11 +15,13 @@ interface PageProps {
 
 export default async function EditProductPage({ params }: PageProps) {
   const { id } = await params;
+  const auth = await getAuthContext();
 
-  const [productResult, categoriesResult, cookieStore] = await Promise.all([
+  const [productResult, categoriesResult, cookieStore, plan] = await Promise.all([
     getProductAction(id),
     getCategoriesAction(),
     cookies(),
+    getMerchantPlanSnapshot(auth.merchantId),
   ]);
 
   if (!productResult.success || !productResult.data) notFound();
@@ -40,7 +44,7 @@ export default async function EditProductPage({ params }: PageProps) {
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
         <ProductForm
           categories={categories}
-          aiImageEnabled={process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
+          aiImageEnabled={plan.entitlements.aiMonthlyCredits !== 0 && process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
           product={{
             id: product.id,
             name: product.name,

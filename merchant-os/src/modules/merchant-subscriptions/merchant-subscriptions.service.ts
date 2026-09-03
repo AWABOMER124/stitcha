@@ -1,5 +1,6 @@
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
-import { ConflictError, NotFoundError } from '@/lib/errors';
+import { BusinessRuleError, ConflictError, NotFoundError } from '@/lib/errors';
 import * as platformNotifications from '@/modules/platform-notifications/services/platform-notifications.service';
 import { FREE_ENTITLEMENTS, FREE_PLAN_CODE, parseEntitlements, type MerchantEntitlements } from './entitlements';
 
@@ -13,11 +14,14 @@ export interface MerchantPlanSnapshot {
   entitlements: MerchantEntitlements;
 }
 
+type Db = Prisma.TransactionClient | typeof prisma;
+
 export async function getMerchantPlanSnapshot(
   merchantId: string,
   now = new Date(),
+  tx: Db = prisma,
 ): Promise<MerchantPlanSnapshot> {
-  const subscription = await prisma.merchantSubscription.findUnique({
+  const subscription = await tx.merchantSubscription.findUnique({
     where: { merchantId },
     include: { plan: true },
   });
@@ -33,6 +37,18 @@ export async function getMerchantPlanSnapshot(
     isGrandfathered: subscription.isGrandfathered,
     entitlements: parseEntitlements(subscription.plan.entitlements),
   };
+}
+
+export async function requireMerchantEntitlement(
+  merchantId: string,
+  entitlement: keyof MerchantEntitlements,
+  message = 'هذه الميزة متاحة في باقة Pro',
+  tx: Db = prisma,
+) {
+  const plan = await getMerchantPlanSnapshot(merchantId, new Date(), tx);
+  const value = plan.entitlements[entitlement];
+  if (value === false || value === 0) throw new BusinessRuleError(message);
+  return plan;
 }
 
 export async function listPublicPlans() {

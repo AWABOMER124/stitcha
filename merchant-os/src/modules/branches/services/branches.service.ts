@@ -1,4 +1,6 @@
 import { NotFoundError, BusinessRuleError } from '@/lib/errors';
+import prisma from '@/lib/db/prisma';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import * as branchesRepo from '../repositories/branches.repository';
 import type { CreateBranchInput, UpdateBranchInput } from '../schemas/branches.schemas';
 
@@ -20,7 +22,18 @@ export async function getBranch(merchantId: string, id: string) {
 
 /** Create a new branch */
 export async function createBranch(merchantId: string, data: CreateBranchInput) {
-  return branchesRepo.create(merchantId, data);
+  return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'branches:' + merchantId}))`;
+    const plan = await getMerchantPlanSnapshot(merchantId, new Date(), tx);
+    const current = await tx.branch.count({ where: { merchantId } });
+    if (plan.entitlements.maxBranches !== -1 && current >= plan.entitlements.maxBranches) {
+      throw new BusinessRuleError(`باقتك تسمح بعدد ${plan.entitlements.maxBranches} من الفروع. رقِّ إلى Pro لإضافة فروع أخرى.`);
+    }
+    return tx.branch.create({
+      data: { merchantId, ...data },
+      include: { _count: { select: { merchantUsers: true } } },
+    });
+  });
 }
 
 /** Update an existing branch */

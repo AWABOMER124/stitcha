@@ -224,7 +224,13 @@ export async function reviewStoreAffiliateCommission(input: {
     const commission = await tx.storeAffiliateCommission.findFirst({
       where: { id: input.commissionId, merchantId: input.merchantId },
       include: {
-        affiliate: { select: { status: true } },
+        affiliate: {
+          select: {
+            status: true,
+            identityVerification: { select: { status: true, expiresAt: true } },
+            payoutProfile: { select: { id: true } },
+          },
+        },
       },
     });
     if (!commission) throw new NotFoundError('Affiliate commission');
@@ -241,6 +247,10 @@ export async function reviewStoreAffiliateCommission(input: {
     }
     requireCommissionStatus(commission.status, 'APPROVED');
     if (!input.paymentRef?.trim()) throw new ValidationError('مرجع السداد مطلوب');
+    if (commission.affiliate.identityVerification?.status !== 'APPROVED' || commission.affiliate.identityVerification.expiresAt <= now) {
+      throw new ConflictError('يجب تأكيد هوية المسوّق بوثيقة سارية قبل السداد');
+    }
+    if (!commission.affiliate.payoutProfile) throw new ConflictError('يجب إضافة بيانات سداد المسوّق قبل تنفيذ الدفعة');
     const approved = await tx.storeAffiliateCommission.findMany({
       where: { merchantId: input.merchantId, affiliateId: commission.affiliateId, currency: commission.currency, status: 'APPROVED' },
       select: { amount: true, attribution: { select: { minimumPayoutSnapshot: true } } },

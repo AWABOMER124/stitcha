@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import { buildMerchantExport, EXPORT_TYPES, type ExportType } from '@/modules/exports/exports.service';
+import { requireMerchantEntitlement } from '@/modules/merchant-subscriptions';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,7 @@ export async function GET(request: Request, context: RouteContext<'/api/exports/
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'exports:download');
+    await requireMerchantEntitlement(auth.merchantId, 'dataExport', 'تصدير البيانات متاح في باقة Pro');
     const { type } = await context.params;
     if (!EXPORT_TYPES.includes(type as ExportType)) return NextResponse.json({ error: 'Unknown export type' }, { status: 400 });
     const url = new URL(request.url);

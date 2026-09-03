@@ -2,6 +2,8 @@ import prisma from '@/lib/db/prisma';
 import { NotFoundError, BusinessRuleError } from '@/lib/errors';
 import * as productsRepo from '../repositories/products.repository';
 import type { CreateProductInput, UpdateProductInput, ProductFilterInput } from '../schemas/products.schemas';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
+import type { Prisma } from '@prisma/client';
 
 // ============================================================================
 // Products Service — Business logic
@@ -46,6 +48,7 @@ export async function createProduct(merchantId: string, data: CreateProductInput
 
   // Create product + inventory item atomically
   const product = await prisma.$transaction(async (tx) => {
+    if (data.isActive ?? true) await assertActiveProductCapacity(tx, merchantId);
     const newProduct = await tx.product.create({
       data: {
         merchantId,
@@ -86,7 +89,13 @@ export async function createProduct(merchantId: string, data: CreateProductInput
  * @throws NotFoundError if product doesn't exist
  */
 export async function updateProduct(merchantId: string, id: string, data: UpdateProductInput) {
-  await getProduct(merchantId, id); // ensure exists
+  const current = await getProduct(merchantId, id); // ensure exists
+  if (data.isActive === true && !current.isActive) {
+    return prisma.$transaction(async tx => {
+      await assertActiveProductCapacity(tx, merchantId);
+      return tx.product.update({ where: { id, merchantId }, data, include: { category: true } });
+    });
+  }
   return productsRepo.update(merchantId, id, data);
 }
 
@@ -120,5 +129,22 @@ export async function deleteProduct(merchantId: string, id: string) {
  */
 export async function toggleProductStatus(merchantId: string, id: string) {
   const product = await getProduct(merchantId, id);
+  if (!product.isActive) {
+    return prisma.$transaction(async tx => {
+      await assertActiveProductCapacity(tx, merchantId);
+      return tx.product.update({ where: { id, merchantId }, data: { isActive: true }, include: { category: true } });
+    });
+  }
   return productsRepo.update(merchantId, id, { isActive: !product.isActive });
+}
+
+async function assertActiveProductCapacity(tx: Prisma.TransactionClient, merchantId: string) {
+  // Serialize capacity claims so simultaneous imports/AI actions cannot both
+  // pass the FREE-plan limit.
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'active-products:' + merchantId}))`;
+  const plan = await getMerchantPlanSnapshot(merchantId, new Date(), tx);
+  const limit = plan.entitlements.maxActiveProducts;
+  if (limit === -1) return;
+  const active = await tx.product.count({ where: { merchantId, isActive: true } });
+  if (active >= limit) throw new BusinessRuleError(`بلغت الحد الأقصى للمنتجات النشطة (${limit}). رقِّ إلى باقة Pro لإضافة المزيد.`);
 }

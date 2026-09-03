@@ -86,6 +86,9 @@ export async function attachMerchantReferral(
       rewardValueSnapshot: program.rewardValue,
       currencySnapshot: program.currency,
       holdDaysSnapshot: program.holdDays,
+      commissionRateSnapshot: program.commissionRate,
+      commissionMonthsSnapshot: program.commissionMonths,
+      minimumPayoutSnapshot: program.minimumPayout,
       identityFingerprint: fingerprint,
       status: rejected ? 'REJECTED' : input.activated ? 'ACTIVATED' : 'REGISTERED',
       activatedAt: !rejected && input.activated ? new Date() : null,
@@ -106,25 +109,38 @@ export async function evaluateMerchantReferralInTransaction(
   tx: Prisma.TransactionClient,
   referredMerchantId: string,
   now = new Date(),
+  subscriptionPaymentId?: string,
 ) {
   const candidate = await tx.merchantReferral.findUnique({
     where: { referredMerchantId },
     select: { id: true, status: true },
   });
-  if (!candidate || candidate.status === 'REJECTED' || candidate.status === 'QUALIFIED') return null;
+  if (!candidate || candidate.status === 'REJECTED') return null;
   await tx.$queryRaw`SELECT id FROM merchant_referrals WHERE "referredMerchantId" = ${referredMerchantId} FOR UPDATE`;
   const referral = await tx.merchantReferral.findUnique({ where: { referredMerchantId } });
-  if (!referral || referral.status === 'REJECTED' || referral.status === 'QUALIFIED') return null;
+  if (!referral || referral.status === 'REJECTED') return null;
   const merchant = await tx.merchant.findUnique({ where: { id: referredMerchantId }, select: { status: true } });
   if (merchant?.status !== 'ACTIVE') return null;
   if (referral.status === 'REGISTERED') {
     await tx.merchantReferral.update({ where: { id: referral.id }, data: { status: 'ACTIVATED', activatedAt: now } });
   }
-  const qualifies = await hasQualification(tx, referredMerchantId, referral.qualificationRuleSnapshot);
-  if (!qualifies) return null;
+  let qualifiedAt = referral.qualifiedAt;
+  if (referral.status !== 'QUALIFIED') {
+    const qualifies = await hasQualification(tx, referredMerchantId, referral.qualificationRuleSnapshot);
+    if (!qualifies) return null;
+    qualifiedAt = now;
+    await tx.merchantReferral.update({ where: { id: referral.id }, data: { status: 'QUALIFIED', qualifiedAt } });
+  }
+  if (referral.qualificationRuleSnapshot === 'FIRST_PAID_PRO') {
+    // Paid-acquisition referrals are commission-only. Never fall through to the
+    // legacy one-time reward path when an audit/manual invocation has no payment.
+    return subscriptionPaymentId && qualifiedAt
+      ? createRecurringReferralCommission(tx, referral, subscriptionPaymentId, qualifiedAt, now)
+      : null;
+  }
+  if (referral.status === 'QUALIFIED') return null;
   const holdUntil = new Date(now);
   holdUntil.setUTCDate(holdUntil.getUTCDate() + referral.holdDaysSnapshot);
-  await tx.merchantReferral.update({ where: { id: referral.id }, data: { status: 'QUALIFIED', qualifiedAt: now } });
   return tx.merchantReferralReward.upsert({
     where: { referralId: referral.id },
     update: {},
@@ -139,8 +155,47 @@ export async function evaluateMerchantReferralInTransaction(
   });
 }
 
-export async function evaluateMerchantReferral(referredMerchantId: string, now = new Date()) {
-  return prisma.$transaction(tx => evaluateMerchantReferralInTransaction(tx, referredMerchantId, now));
+export async function evaluateMerchantReferral(referredMerchantId: string, now = new Date(), subscriptionPaymentId?: string) {
+  return prisma.$transaction(tx => evaluateMerchantReferralInTransaction(tx, referredMerchantId, now, subscriptionPaymentId));
+}
+
+async function createRecurringReferralCommission(
+  tx: Prisma.TransactionClient,
+  referral: {
+    id: string; referrerMerchantId: string; referredMerchantId: string; holdDaysSnapshot: number;
+    commissionRateSnapshot: Prisma.Decimal; commissionMonthsSnapshot: number; minimumPayoutSnapshot: Prisma.Decimal;
+  },
+  subscriptionPaymentId: string,
+  qualifiedAt: Date,
+  now: Date,
+) {
+  const eligibilityEndsAt = new Date(qualifiedAt);
+  eligibilityEndsAt.setUTCMonth(eligibilityEndsAt.getUTCMonth() + referral.commissionMonthsSnapshot);
+  if (now >= eligibilityEndsAt) return null;
+  const payment = await tx.merchantSubscriptionPayment.findFirst({
+    where: { id: subscriptionPaymentId, merchantId: referral.referredMerchantId, status: 'VERIFIED', targetPlan: { code: { not: 'FREE' } } },
+    select: { id: true, amount: true, currency: true },
+  });
+  if (!payment || payment.amount.lte(0)) return null;
+  const amount = payment.amount.mul(referral.commissionRateSnapshot).div(100).toDecimalPlaces(2);
+  if (amount.lte(0)) return null;
+  const holdUntil = new Date(now);
+  holdUntil.setUTCDate(holdUntil.getUTCDate() + referral.holdDaysSnapshot);
+  return tx.merchantReferralCommission.upsert({
+    where: { subscriptionPaymentId: payment.id },
+    update: {},
+    create: {
+      referralId: referral.id,
+      referrerMerchantId: referral.referrerMerchantId,
+      subscriptionPaymentId: payment.id,
+      grossAmount: payment.amount,
+      commissionRate: referral.commissionRateSnapshot,
+      amount,
+      currency: payment.currency,
+      minimumPayoutSnapshot: referral.minimumPayoutSnapshot,
+      holdUntil,
+    },
+  });
 }
 
 async function hasQualification(tx: Prisma.TransactionClient, merchantId: string, rule: ReferralQualificationRule) {
@@ -154,7 +209,7 @@ async function hasQualification(tx: Prisma.TransactionClient, merchantId: string
 }
 
 export async function getMerchantReferralDashboard(merchantId: string) {
-  const [program, code, referrals, rewards] = await Promise.all([
+  const [program, code, referrals, rewards, commissions] = await Promise.all([
     prisma.platformReferralProgram.findUnique({ where: { id: REFERRAL_PROGRAM_ID } }),
     ensureMerchantReferralCode(merchantId),
     prisma.merchantReferral.findMany({
@@ -165,12 +220,17 @@ export async function getMerchantReferralDashboard(merchantId: string) {
     prisma.merchantReferralReward.groupBy({
       by: ['status'], where: { referrerMerchantId: merchantId }, _count: { _all: true }, _sum: { value: true },
     }),
+    prisma.merchantReferralCommission.findMany({
+      where: { referrerMerchantId: merchantId },
+      include: { referralRecord: { select: { referredMerchant: { select: { name: true } } } } },
+      orderBy: { createdAt: 'desc' }, take: 100,
+    }),
   ]);
-  return { program, code, referrals, rewards };
+  return { program, code, referrals, rewards, commissions };
 }
 
 export async function getAdminReferralDashboard() {
-  const [program, referrals, rewards] = await Promise.all([
+  const [program, referrals, rewards, commissions] = await Promise.all([
     prisma.platformReferralProgram.findUniqueOrThrow({ where: { id: REFERRAL_PROGRAM_ID } }),
     prisma.merchantReferral.findMany({
       include: {
@@ -183,21 +243,60 @@ export async function getAdminReferralDashboard() {
       include: { referrerMerchant: { select: { name: true } }, referralRecord: { select: { referredMerchant: { select: { name: true } } } } },
       orderBy: { createdAt: 'desc' }, take: 200,
     }),
+    prisma.merchantReferralCommission.findMany({
+      include: { referrerMerchant: { select: { name: true } }, referralRecord: { select: { referredMerchant: { select: { name: true } } } } },
+      orderBy: { createdAt: 'desc' }, take: 200,
+    }),
   ]);
-  return { program, referrals, rewards };
+  return { program, referrals, rewards, commissions };
 }
 
 export async function updateReferralProgram(input: {
   isActive: boolean; qualificationRule: ReferralQualificationRule; rewardType: 'PRO_DAYS' | 'AI_CREDITS' | 'ACCOUNT_CREDIT' | 'CASH';
-  rewardValue: number; currency?: string; holdDays: number; terms?: string;
+  rewardValue: number; currency?: string; holdDays: number; commissionRate?: number; commissionMonths?: number; minimumPayout?: number; terms?: string;
 }) {
-  if (input.rewardValue < 0 || input.rewardValue > 1_000_000_000 || input.holdDays < 0 || input.holdDays > 180) throw new ValidationError('Referral terms are outside the allowed range');
-  if (input.isActive && input.rewardValue <= 0) throw new ValidationError('حدد قيمة مكافأة أكبر من صفر قبل التفعيل');
+  const commissionRate = input.commissionRate ?? 20;
+  const commissionMonths = input.commissionMonths ?? 12;
+  const minimumPayout = input.minimumPayout ?? 0;
+  if (input.rewardValue < 0 || input.rewardValue > 1_000_000_000 || input.holdDays < 0 || input.holdDays > 180 || commissionRate <= 0 || commissionRate > 100 || commissionMonths < 1 || commissionMonths > 24 || minimumPayout < 0) throw new ValidationError('Referral terms are outside the allowed range');
   const monetary = input.rewardType === 'CASH' || input.rewardType === 'ACCOUNT_CREDIT';
   const currency = monetary ? (input.currency?.trim().toUpperCase() || 'SDG') : null;
   return prisma.platformReferralProgram.update({
     where: { id: REFERRAL_PROGRAM_ID },
-    data: { ...input, currency, terms: input.terms?.trim() || null },
+    data: { ...input, commissionRate, commissionMonths, minimumPayout, currency, terms: input.terms?.trim() || null },
+  });
+}
+
+export async function reviewReferralCommission(input: {
+  commissionId: string; reviewerId: string; decision: 'APPROVE' | 'REJECT' | 'FULFILL'; note?: string; fulfillmentRef?: string;
+}, now = new Date()) {
+  return prisma.$transaction(async tx => {
+    const owned = await tx.merchantReferralCommission.findUnique({ where: { id: input.commissionId }, select: { referrerMerchantId: true } });
+    if (!owned) throw new NotFoundError('Referral commission');
+    await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${owned.referrerMerchantId} FOR UPDATE`;
+    const commission = await tx.merchantReferralCommission.findUnique({
+      where: { id: input.commissionId },
+      include: { referrerMerchant: { select: { identityVerification: { select: { status: true, expiresAt: true } }, referralPayoutProfile: { select: { id: true } } } } },
+    });
+    if (!commission) throw new NotFoundError('Referral commission');
+    if (input.decision === 'APPROVE') {
+      if (commission.status !== 'PENDING') throw new ConflictError('تمت مراجعة العمولة مسبقاً');
+      if (commission.holdUntil > now) throw new ConflictError('لم تنتهِ فترة تعليق العمولة');
+      return tx.merchantReferralCommission.update({ where: { id: commission.id }, data: { status: 'APPROVED', reviewedById: input.reviewerId, reviewedAt: now, note: input.note?.trim() || null } });
+    }
+    if (input.decision === 'REJECT') {
+      if (commission.status !== 'PENDING' || !input.note?.trim()) throw new ValidationError('سبب الرفض مطلوب أو تغيرت حالة العمولة');
+      return tx.merchantReferralCommission.update({ where: { id: commission.id }, data: { status: 'REJECTED', reviewedById: input.reviewerId, reviewedAt: now, note: input.note.trim() } });
+    }
+    if (commission.status !== 'APPROVED') throw new ConflictError('اعتمد العمولة أولاً');
+    if (!input.fulfillmentRef?.trim()) throw new ValidationError('مرجع التحويل مطلوب');
+    if (commission.referrerMerchant.identityVerification?.status !== 'APPROVED' || commission.referrerMerchant.identityVerification.expiresAt <= now) throw new ConflictError('يجب تأكيد هوية المسوّق بوثيقة سارية');
+    if (!commission.referrerMerchant.referralPayoutProfile) throw new ConflictError('بيانات سداد المسوّق غير مكتملة');
+    const approved = await tx.merchantReferralCommission.findMany({ where: { referrerMerchantId: commission.referrerMerchantId, currency: commission.currency, status: 'APPROVED' }, select: { amount: true, minimumPayoutSnapshot: true } });
+    const total = approved.reduce((sum, item) => sum + Number(item.amount), 0);
+    const threshold = Math.max(...approved.map(item => Number(item.minimumPayoutSnapshot)), 0);
+    if (total < threshold) throw new ConflictError('الرصيد لم يبلغ الحد الأدنى للسداد');
+    return tx.merchantReferralCommission.updateMany({ where: { referrerMerchantId: commission.referrerMerchantId, currency: commission.currency, status: 'APPROVED' }, data: { status: 'FULFILLED', fulfilledAt: now, fulfillmentRef: input.fulfillmentRef.trim(), note: input.note?.trim() || commission.note } });
   });
 }
 
@@ -208,7 +307,10 @@ export async function reviewReferralReward(input: {
     await tx.$queryRaw`SELECT id FROM merchant_referral_rewards WHERE id = ${input.rewardId} FOR UPDATE`;
     const reward = await tx.merchantReferralReward.findUnique({
       where: { id: input.rewardId },
-      include: { referralRecord: { select: { referredMerchant: { select: { status: true, isActive: true } } } } },
+      include: {
+        referralRecord: { select: { referredMerchant: { select: { status: true, isActive: true } } } },
+        referrerMerchant: { select: { identityVerification: { select: { status: true, expiresAt: true } }, referralPayoutProfile: { select: { id: true } } } },
+      },
     });
     if (!reward) throw new NotFoundError('Referral reward');
     if (input.decision === 'APPROVE') {
@@ -224,6 +326,12 @@ export async function reviewReferralReward(input: {
     }
     if (reward.status !== 'APPROVED') throw new ConflictError('اعتمد المكافأة أولاً');
     if (!input.fulfillmentRef?.trim()) throw new ValidationError('مرجع تنفيذ المكافأة مطلوب');
+    if ((reward.type === 'CASH' || reward.type === 'ACCOUNT_CREDIT') && (reward.referrerMerchant.identityVerification?.status !== 'APPROVED' || reward.referrerMerchant.identityVerification.expiresAt <= now)) {
+      throw new ConflictError('يجب تأكيد هوية المُحيل بوثيقة سارية قبل تنفيذ المكافأة المالية');
+    }
+    if ((reward.type === 'CASH' || reward.type === 'ACCOUNT_CREDIT') && !reward.referrerMerchant.referralPayoutProfile) {
+      throw new ConflictError('يجب إضافة بيانات سداد المُحيل قبل تنفيذ المكافأة المالية');
+    }
     return tx.merchantReferralReward.update({ where: { id: reward.id }, data: { status: 'FULFILLED', fulfilledAt: now, fulfillmentRef: input.fulfillmentRef.trim(), note: input.note?.trim() || reward.note } });
   });
 }

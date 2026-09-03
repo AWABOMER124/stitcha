@@ -1,5 +1,15 @@
 # Implementation log
 
+## 2026-09-03 — Basic limits, KYC, recurring referrals and Pro domains
+
+- Enforced the Basic plan at 20 active products, one branch and one active team account with transactional concurrency locks.
+- Gated storefront AI, AI image enhancement, WhatsApp AI, data export and custom domains through server-side subscription entitlements.
+- Added private merchant and storefront-affiliate KYC submissions, encrypted identity/payment fields, protected document downloads and admin approval.
+- Changed merchant acquisition referrals to a configurable recurring commission model (default 20% of verified Pro payments for 12 months) with hold, review, payout threshold and idempotency.
+- Added Pro custom-domain requests, TXT ownership verification, admin activation and hostname-based storefront routing. Dokploy hostname/TLS activation remains an explicit operator step.
+- Applied all 39 migrations to the isolated PostgreSQL audit database; unit tests passed 337/337, merchant referral audit 7/7, storefront affiliate audit 8/8, lint and the Next.js production build passed.
+- Production setup and acceptance steps are documented in `KYC_PRO_DOMAINS_RELEASE_2026-09-03.md`.
+
 ## 2026-09-03 — Storefront affiliate-sales MVP
 
 - Added merchant-owned, inactive-by-default affiliate programs and opaque

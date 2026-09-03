@@ -15,6 +15,7 @@ import * as categoriesService from '@/modules/categories/services/categories.ser
 import * as productsService from '@/modules/products/services/products.service';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import { normalizeStorefrontTheme } from '@/lib/storefront-theme';
+import { requireMerchantEntitlement } from '@/modules/merchant-subscriptions';
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -96,6 +97,7 @@ export async function generateStoreContentAction(prompt: string): Promise<Action
   try {
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
+    await requireMerchantEntitlement(session.user.merchantId, 'aiMonthlyCredits', 'إنشاء المتجر بالذكاء الاصطناعي متاح في باقة Pro');
     enforceRateLimit(`ai-generate:${session.user.merchantId}`, 20, 60 * 60_000);
     const result = await generateStoreContent(storeGenerationPromptSchema.parse(prompt));
     return { success: true, data: result };
@@ -118,6 +120,7 @@ export async function applyAiStoreContentAction(
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
     const merchantId = session.user.merchantId;
+    await requireMerchantEntitlement(merchantId, 'aiMonthlyCredits', 'إنشاء المتجر بالذكاء الاصطناعي متاح في باقة Pro');
     const safeContent = storeContentSchema.parse(content);
 
     await saveStorefrontSettingsAction({

@@ -53,6 +53,11 @@
 
 ## Product and operations
 
+- [ ] Verify a Basic merchant is blocked at product 21, branch 2 and team account 2, including simultaneous requests.
+- [ ] Mount durable private storage and verify KYC files survive a redeploy and are excluded from public URLs and backups are restorable.
+- [ ] Complete one merchant and one affiliate KYC review; confirm expired documents and unauthorized downloads are rejected.
+- [ ] Point `CUSTOM_DOMAIN_CNAME_TARGET` to Dokploy, complete TXT verification, issue TLS and run a Pro-domain canary before enabling merchant self-service broadly.
+- [ ] Confirm an expired Pro grace period disables paid endpoints and the custom-domain route without deleting merchant data.
 - [ ] Keep every storefront affiliate program paused until the merchant accepts
       its rate, terms, attribution window, hold and payout threshold.
 - [ ] Run one affiliate canary through link, checkout, delivery, approval,

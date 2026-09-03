@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { GET as openAffiliateLink } from '@/app/store/[slug]/affiliate/[code]/route';
 import { refund } from '@/modules/payments/services/payments.service';
+import { encryptSecret } from '@/lib/crypto/secret';
 import {
   AFFILIATE_COOKIE,
   affiliateTokenHash,
@@ -38,6 +39,8 @@ async function setup(options: { rate?: number; holdDays?: number; minimumPayout?
     terms: 'Synthetic audit only',
   });
   const affiliate = await createStoreAffiliate(store.id, { name: 'Audit Marketer', phone: `+249${randomUUID().replace(/\D/g, '').padEnd(9, '1').slice(0, 9)}` });
+  await prisma.storeAffiliateIdentityVerification.create({ data: { merchantId: store.id, affiliateId: affiliate.id, legalName: 'Audit Marketer', documentType: 'NATIONAL_ID', documentNumberEncrypted: encryptSecret('AUDIT12345'), expiresAt: new Date('2035-01-01'), status: 'APPROVED', submittedAt: new Date(), reviewedAt: new Date(), reviewedById: 'audit' } });
+  await prisma.storeAffiliatePayoutProfile.create({ data: { merchantId: store.id, affiliateId: affiliate.id, method: 'BANKAK', accountNameEncrypted: encryptSecret('Audit Marketer'), accountNumberEncrypted: encryptSecret('123456789') } });
   return { store, affiliate };
 }
 
@@ -60,7 +63,7 @@ async function attributedOrder(merchantId: string, token: string, status: 'NEW' 
   return { created, attribution };
 }
 
-beforeAll(() => vi.stubEnv('AUTH_SECRET', 'wasla-local-store-affiliate-audit-secret-20260903'));
+beforeAll(() => { vi.stubEnv('AUTH_SECRET', 'wasla-local-store-affiliate-audit-secret-20260903'); vi.stubEnv('SECRETS_ENCRYPTION_KEY', 'wasla-local-audit-encryption-not-production'); });
 afterAll(async () => { vi.unstubAllEnvs(); await prisma.$disconnect(); });
 
 describe('storefront affiliate commissions', () => {

@@ -27,6 +27,8 @@ function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
     { type: 'section', label: nav.entitiesSection },
     { type: 'link', label: nav.merchants, href: '/admin/merchants', icon: '🏪' },
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'الشكاوى', href: '/admin/complaints', icon: '🛟' }] : []),
+    ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'مراجعة الهوية', href: '/admin/verifications', icon: '🪪' }] : []),
+    ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'دومينات المتاجر', href: '/admin/domains', icon: '🔗' }] : []),
     { type: 'divider' },
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: 'Delivery partners', href: '/admin/delivery-partners', icon: '🚚' }] : []),
     { type: 'section', label: nav.financeReportsSection },

@@ -16,8 +16,8 @@ export interface MerchantEntitlements {
 }
 
 export const FREE_ENTITLEMENTS: MerchantEntitlements = Object.freeze({
-  maxActiveProducts: 100,
-  maxStaffUsers: 2,
+  maxActiveProducts: 20,
+  maxStaffUsers: 1,
   maxBranches: 1,
   customDomain: false,
   removeBranding: false,
@@ -25,7 +25,7 @@ export const FREE_ENTITLEMENTS: MerchantEntitlements = Object.freeze({
   crmAutomation: false,
   dataExport: false,
   apiAccess: false,
-  aiMonthlyCredits: 3,
+  aiMonthlyCredits: 0,
   whatsappAiAgent: false,
 });
 

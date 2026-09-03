@@ -1,11 +1,12 @@
 import prisma from '@/lib/db/prisma';
 import crypto from 'crypto';
-import { NotFoundError, ConflictError } from '@/lib/errors';
+import { NotFoundError, ConflictError, BusinessRuleError } from '@/lib/errors';
 import * as usersRepo from '../repositories/users.repository';
 import type { CreateUserInput } from '../schemas/users.schemas';
 import type { UserRole } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import { enqueueExternalNotification } from '@/services/jobs/notification.jobs';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 
 // ============================================================================
 // Users Service — Business logic
@@ -80,11 +81,31 @@ export async function inviteUser(merchantId: string, email: string, role: string
     isNewUser = true;
   }
 
-  if (isNewUser) {
-    await sendSetPasswordInvite(user!.id, user!.email, user!.name ?? email);
-  }
+  const membership = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'staff-users:' + merchantId}))`;
+    const existing = await tx.merchantUser.findUnique({
+      where: { userId_merchantId: { userId: user!.id, merchantId } },
+      select: { isActive: true },
+    });
+    if (!existing?.isActive) {
+      const [plan, current] = await Promise.all([
+        getMerchantPlanSnapshot(merchantId, new Date(), tx),
+        tx.merchantUser.count({ where: { merchantId, isActive: true } }),
+      ]);
+      if (plan.entitlements.maxStaffUsers !== -1 && current >= plan.entitlements.maxStaffUsers) {
+        throw new BusinessRuleError(`باقتك تسمح بعدد ${plan.entitlements.maxStaffUsers} من حسابات الفريق. رقِّ إلى Pro لإضافة مستخدمين آخرين.`);
+      }
+    }
+    return tx.merchantUser.upsert({
+      where: { userId_merchantId: { userId: user!.id, merchantId } },
+      create: { userId: user!.id, merchantId, role: role as UserRole, isActive: true },
+      update: { role: role as UserRole, isActive: true },
+      include: { user: true, merchant: true },
+    });
+  });
 
-  return usersRepo.linkToMerchant(user!.id, merchantId, role as UserRole);
+  if (isNewUser) await sendSetPasswordInvite(user!.id, user!.email, user!.name ?? email);
+  return membership;
 }
 
 /** Get all staff users for a distributor */

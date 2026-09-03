@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { normalizeProductImage } from '@/services/product-images/product-image-input';
 import { productImageEnhancementSchema } from '@/services/product-images/product-image.schemas';
 import { enhanceAndStoreProductImage } from '@/services/product-images/product-image.service';
+import { requireMerchantEntitlement } from '@/modules/merchant-subscriptions';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180;
@@ -12,6 +13,7 @@ export async function POST(request: Request) {
   try {
     const auth = await getAuthContext();
     requireAnyPermission(auth, ['products:create', 'products:update']);
+    await requireMerchantEntitlement(auth.merchantId, 'aiMonthlyCredits', 'تحسين الصور بالذكاء الاصطناعي متاح في باقة Pro');
     if (!checkRateLimit(`product-image-ai:${auth.merchantId}:${getClientIp(request)}`, 10, 60 * 60_000)) {
       return NextResponse.json({ error: 'AI image limit exceeded. Try again later.' }, { status: 429 });
     }

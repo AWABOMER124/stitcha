@@ -130,7 +130,7 @@ export async function reviewSubscriptionPayment(paymentId: string, reviewerId: s
       create: { merchantId: payment.merchantId, planId: payment.targetPlanId, status: 'ACTIVE', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, priceOverride: payment.amount, currencyOverride: payment.currency },
     });
     if (payment.planChangeRequestId) await tx.merchantPlanChangeRequest.update({ where: { id: payment.planChangeRequestId }, data: { status: 'COMPLETED', resolvedAt: now } });
-    await evaluateMerchantReferralInTransaction(tx, payment.merchantId, now);
+    await evaluateMerchantReferralInTransaction(tx, payment.merchantId, now, payment.id);
     return { success: true };
   });
 }
