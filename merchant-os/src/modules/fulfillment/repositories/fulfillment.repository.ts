@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import type { OrderStatus } from '@prisma/client';
 import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
+import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
 
 const ACTIVE_STATUSES: OrderStatus[] = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY'];
 
@@ -66,6 +67,8 @@ export async function advanceOrderStatus(
     await tx.orderStatusHistory.create({
       data: { orderId, status, note, changedById },
     });
+
+    if (status === 'DELIVERED') await evaluateMerchantReferralInTransaction(tx, merchantId);
 
     return serializePrismaObject(order);
   });

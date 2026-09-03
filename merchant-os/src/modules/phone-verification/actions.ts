@@ -4,6 +4,7 @@ import prisma from '@/lib/db/prisma';
 import * as service from './services/phone-verification.service';
 import { requestOtpSchema, verifyOtpSchema } from './schemas/phone-verification.schemas';
 import type { ActionResult } from '@/lib/types';
+import { activateMerchantReferral } from '@/modules/merchant-referrals/merchant-referrals.service';
 
 /**
  * Note: these actions intentionally don't require an authenticated session —
@@ -43,9 +44,12 @@ export async function verifyPhoneOtpAction(formData: {
       await prisma.distributor.update({ where: { id: activateDistributorId }, data: { status: 'ACTIVE' } });
     }
     if (activateMerchantId) {
-      await prisma.merchant.update({
-        where: { id: activateMerchantId },
-        data: { status: 'ACTIVE', registrationToken: null, registrationTokenExpiresAt: null },
+      await prisma.$transaction(async tx => {
+        await tx.merchant.update({
+          where: { id: activateMerchantId },
+          data: { status: 'ACTIVE', registrationToken: null, registrationTokenExpiresAt: null },
+        });
+        await activateMerchantReferral(activateMerchantId, tx);
       });
     }
 

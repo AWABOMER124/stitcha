@@ -4,6 +4,7 @@ const txMock = {
   merchantSubscriptionPayment: { findUnique: vi.fn(), updateMany: vi.fn() },
   merchantSubscription: { upsert: vi.fn() },
   merchantPlanChangeRequest: { update: vi.fn() },
+  merchantReferral: { findUnique: vi.fn() },
 };
 const prismaMock = {
   platformPaymentAccount: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -33,6 +34,7 @@ const evidence = {
 describe('manual subscription payments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    txMock.merchantReferral.findUnique.mockResolvedValue(null);
     privateStorageMock.upload.mockResolvedValue('private/merchant_1-subscription-payments/receipt.jpg');
     privateStorageMock.delete.mockResolvedValue(undefined);
   });

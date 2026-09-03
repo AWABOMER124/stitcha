@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -10,9 +10,11 @@ import { Check, Eye, EyeOff, MessageCircle, ShieldCheck, Store } from 'lucide-re
 /**
  * Merchant registration page for WASLA Commerce OS
  */
-export default function RegisterPage() {
+export default function RegisterPage({ searchParams }: { searchParams: Promise<{ ref?: string | string[] }> }) {
   const { dict, locale } = useLocale();
   const router = useRouter();
+  const rawReferral = use(searchParams).ref;
+  const referralCode = (Array.isArray(rawReferral) ? rawReferral[0] : rawReferral)?.trim().toUpperCase() ?? '';
   const [formData, setFormData] = useState({
     merchantName: "",
     ownerName: "",
@@ -21,6 +23,7 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
     businessType: "RESTAURANT",
+    referralCode: /^[A-Z0-9-]{4,32}$/.test(referralCode) ? referralCode : "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -255,6 +258,17 @@ export default function RegisterPage() {
               required
               className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="referralCode" className="block text-sm font-medium text-[var(--foreground)]">
+              {locale === 'ar' ? 'رمز إحالة التاجر (اختياري)' : 'Merchant referral code (optional)'}
+            </label>
+            <input id="referralCode" type="text" value={formData.referralCode}
+              onChange={(e) => updateField('referralCode', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 32))}
+              placeholder="WSL-XXXXXXXXXX" dir="ltr" autoComplete="off"
+              className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 text-sm uppercase outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20" />
+            {formData.referralCode && <p className="text-xs text-[var(--muted-foreground)]">{locale === 'ar' ? 'سيتم التحقق من الرمز وحفظ الإحالة عند إنشاء المتجر.' : 'The code will be verified and attributed when the store is created.'}</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

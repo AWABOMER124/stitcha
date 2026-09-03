@@ -3,6 +3,7 @@ import type { OrderStatus, Prisma, DeliveryMethod, PaymentMethod } from '@prisma
 import type { OrderFilterInput } from '../schemas/orders.schemas';
 import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization';
 import { BusinessRuleError, ValidationError } from '@/lib/errors';
+import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
 
 // ============================================================================
 // Orders Repository — Data access layer
@@ -333,6 +334,8 @@ export async function updateStatus(
         });
       }
     }
+
+    if (status === 'DELIVERED') await evaluateMerchantReferralInTransaction(tx, merchantId);
 
     const order = await tx.order.findUniqueOrThrow({ where: { id } });
     return serializePrismaObject(order);

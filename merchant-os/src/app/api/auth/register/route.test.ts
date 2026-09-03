@@ -72,6 +72,6 @@ describe('POST /api/auth/register', () => {
     expect(txMock.merchant.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ status: 'ACTIVE', registrationToken: null }),
     });
-    await expect(response.json()).resolves.toEqual({ slug: 'store-1', verificationRequired: false });
+    await expect(response.json()).resolves.toEqual({ slug: 'store-1', verificationRequired: false, referralAccepted: false });
   });
 });

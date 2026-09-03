@@ -53,6 +53,11 @@
 
 ## Product and operations
 
+- [ ] Keep the merchant referral program paused until reward value, terms,
+      qualification rule, hold period and finance-review owner are approved.
+- [ ] Run one referral canary through registration, account activation,
+      qualification, hold, approval and referenced fulfilment; reconcile the
+      recorded reward with the benefit actually delivered.
 - [ ] Keep `PLATFORM_DELIVERY_ENABLED=false` until the delivery cutover review.
 - [ ] Reconcile legacy delivery-company/courier counts and manually classify
       every distributor-fleet driver with an explicit contractual owner.

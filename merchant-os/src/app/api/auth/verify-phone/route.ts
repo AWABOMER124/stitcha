@@ -5,6 +5,7 @@ import prisma from '@/lib/db/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { getPendingDirectRegistration } from '@/modules/phone-verification/direct-registration';
 import { verifyOtp } from '@/modules/phone-verification/services/phone-verification.service';
+import { activateMerchantReferral } from '@/modules/merchant-referrals/merchant-referrals.service';
 
 const schema = z.object({
   verificationToken: z.string().min(32).max(200),
@@ -24,13 +25,15 @@ export async function POST(req: Request) {
   try {
     const { merchant, owner } = await getPendingDirectRegistration(parsed.data.verificationToken);
     await verifyOtp(owner.id, parsed.data.code);
-    await prisma.merchant.update({
-      where: { id: merchant.id },
-      data: { status: 'ACTIVE', registrationToken: null, registrationTokenExpiresAt: null },
+    await prisma.$transaction(async tx => {
+      await tx.merchant.update({
+        where: { id: merchant.id },
+        data: { status: 'ACTIVE', registrationToken: null, registrationTokenExpiresAt: null },
+      });
+      await activateMerchantReferral(merchant.id, tx);
     });
     return NextResponse.json({ verified: true, email: owner.email, slug: merchant.slug });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'فشل تأكيد الرقم' }, { status: 400 });
   }
 }
-

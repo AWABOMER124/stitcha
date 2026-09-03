@@ -12,6 +12,13 @@ concurrent recovery-token consumption, direct logo uploads, protected pages,
 sandbox isolation, printable labels, signed callbacks, cancellation and key rotation.
 See [implementation and deployment limits](../../docs/PARTNER_PORTAL_UPGRADE_2026-08-31.md).
 
+The merchant-referral phase has a separate 7-case suite in
+`merchant-referrals.audit.ts` and writes `merchant-referrals-results.json`. It
+covers opaque-code concurrency, real registration attribution, invalid/self/
+duplicate referrals, both qualification rules, reward idempotency and program
+pause behaviour. Run it with `vitest.referrals-audit.config.ts`; see
+[the phase-1 contract](../../docs/MERCHANT_REFERRALS_PHASE1_2026-09-03.md).
+
 ## Safety boundary
 
 - Use only the disposable local database below. The audit refuses other host/port/database combinations.

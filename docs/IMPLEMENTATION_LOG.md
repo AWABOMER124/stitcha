@@ -1,5 +1,21 @@
 # Implementation log
 
+## 2026-09-03 — Merchant acquisition referrals, phase 1
+
+- Added immutable merchant-to-merchant attribution without reintroducing the
+  retired distributor model.
+- Added opaque share codes, registration-link capture, activation after account
+  verification, first-delivered-order or first-paid-Pro qualification, and an
+  idempotent pending-reward ledger.
+- Added self/duplicate-identity controls, policy snapshots, hold periods,
+  permissioned review and mandatory fulfilment references.
+- Added merchant and platform-admin referral workspaces. The singleton program
+  is migrated inactive and must be explicitly configured before use.
+- Verified the complete 36-migration chain and a 7/7 isolated PostgreSQL audit;
+  331 standard tests, TypeScript and scoped lint checks passed.
+- Documented the release boundary and deferred storefront product affiliates in
+  `MERCHANT_REFERRALS_PHASE1_2026-09-03.md`.
+
 ## 2026-08-27 — Practical delivery readiness
 
 - Closed the missing-coordinate gap: public storefront checkout can capture a customer location with browser permission, mobile order input accepts a validated coordinate pair, and WhatsApp ordering accepts Meta location messages.

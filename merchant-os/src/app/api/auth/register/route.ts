@@ -6,6 +6,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { formatPhoneNumber } from '@/lib/utils/formatting';
 import { sendOtp } from '@/modules/phone-verification/services/phone-verification.service';
+import { attachMerchantReferral } from '@/modules/merchant-referrals/merchant-referrals.service';
 
 const directMerchantRegistrationSchema = z.object({
   merchantName: z.string().trim().min(2).max(120),
@@ -14,6 +15,7 @@ const directMerchantRegistrationSchema = z.object({
   phone: z.string().trim().min(9).max(24),
   password: z.string().min(8).max(128),
   businessType: z.enum(['RESTAURANT', 'CAFE', 'GROCERY', 'PHARMACY', 'RETAIL', 'OTHER']).default('RETAIL'),
+  referralCode: z.string().trim().max(32).optional(),
 });
 
 export async function POST(req: Request) {
@@ -105,11 +107,19 @@ export async function POST(req: Request) {
       data: { merchantId: newMerchant.id },
     });
 
-    return { merchant: newMerchant, user };
+    const referral = await attachMerchantReferral(tx, {
+      code: parsed.data.referralCode,
+      referredMerchantId: newMerchant.id,
+      email: normalizedEmail,
+      phone,
+      activated: !verificationEnabled,
+    });
+
+    return { merchant: newMerchant, user, referralAccepted: !!referral && referral.status !== 'REJECTED' };
   });
 
   if (!verificationEnabled) {
-    return NextResponse.json({ slug: registration.merchant.slug, verificationRequired: false }, { status: 201 });
+    return NextResponse.json({ slug: registration.merchant.slug, verificationRequired: false, referralAccepted: registration.referralAccepted }, { status: 201 });
   }
 
   let otpSent = true;
@@ -128,6 +138,7 @@ export async function POST(req: Request) {
     phone,
     expiresInMinutes: 10,
     otpSent,
+    referralAccepted: registration.referralAccepted,
     ...(warning && { warning }),
   }, { status: 201 });
 }
