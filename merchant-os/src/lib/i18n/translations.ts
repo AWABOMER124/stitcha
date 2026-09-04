@@ -184,6 +184,7 @@ export interface Dictionary {
     finance: string;
     customerSubscriptions: string;
     subscriptionPayments: string;
+    plans: string;
     aiUsage: string;
     referrals: string;
     systemSection: string;
@@ -1895,6 +1896,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       finance: 'Finance',
       customerSubscriptions: 'Customer Subscriptions',
       subscriptionPayments: 'Subscription Payments',
+      plans: 'Plans & Entitlements',
       aiUsage: 'AI Usage & Cost',
       referrals: 'Merchant Referrals',
       systemSection: 'System',
@@ -3592,6 +3594,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       finance: 'المالية',
       customerSubscriptions: 'اشتراكات العملاء',
       subscriptionPayments: 'مدفوعات الاشتراكات',
+      plans: 'الباقات والصلاحيات',
       aiUsage: 'استخدام وتكلفة AI',
       referrals: 'إحالات التجار',
       systemSection: 'النظام',
