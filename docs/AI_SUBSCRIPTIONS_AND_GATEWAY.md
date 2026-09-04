@@ -65,20 +65,20 @@ POST /api/v1/wasla/projects
 Authorization: Bearer <short-lived-service-jwt>
 ```
 
-AI Core returns the validated payload plus `request_id`, `project_id`, and `version_id`. Wasla records those identifiers in the AI usage operation metadata for audit and support correlation.
+AI Core returns the validated payload plus `request_id`, `project_id`, and `version_id`. Wasla records those identifiers in the AI usage operation metadata and in its merchant-owned project/version tables for audit, preview history, and support correlation. A merchant can only read or apply versions belonging to their own tenant.
 
 Partial AI Core configuration fails closed. If neither AI Core variable is configured, the existing direct Anthropic store generator remains available as a controlled compatibility path.
 
 ## Deployment order
 
 1. Back up the Wasla PostgreSQL database.
-2. Deploy commit containing migration `20260904120000_add_ai_usage_and_growth_plan`.
+2. Deploy the commits containing migrations `20260904120000_add_ai_usage_and_growth_plan` and `20260904143000_add_ai_store_projects`.
 3. Confirm Prisma migrations complete before the web process becomes ready.
 4. Deploy AI Core with migrations 010 through 012 already applied.
 5. Set the matching `AI_CORE_SECRET_WASLA` on both services and `AI_CORE_BASE_URL` on Wasla.
 6. Restart both services so secrets are loaded.
 7. Call AI Core `/api/v1/health`, then generate one draft from a controlled Pro test merchant.
-8. Verify one committed `ai_usage_operations` row and the matching `project_id` in AI Core.
+8. Verify one committed `ai_usage_operations` row, one local `merchant_ai_store_projects` row/version, and the matching `project_id` in AI Core.
 9. Force one provider failure and verify that the operation is released and the merchant quota is unchanged.
 
 Do not enable the production integration before AI Core has `OPENAI_API_KEY`, its database migrations, HTTPS, and a daily spend cap.
@@ -92,9 +92,17 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 
 ## Remaining AI product work
 
-- Contextual upgrade prompts at the exact exhausted feature.
-- Admin plan/entitlement editor. The AI operations and cost dashboard is available at `/admin/ai-usage`.
-- Persisted Store Project linkage in Wasla, project history, restore, and safe conversational patches.
+- Contextual upgrade prompts at every exhausted feature (the subscription page already shows current usage).
+- Safe restore semantics and conversational patches for persisted Store Projects. Project linkage, immutable generated payloads, merchant history, tenant checks, and single-application claiming are implemented.
 - Read-only merchant copilot for sales, delayed orders, stock, and customer insights.
 - Billing-provider abstraction and signed webhook events.
 - Retire the legacy `WhatsAppAiUsage` table after production reconciliation confirms the unified ledger is authoritative.
+
+## Operations screens
+
+- `/admin/plans`: edit database-backed prices, visibility, activation, commerce limits, and all AI/WhatsApp entitlements. Requires `platform:subscriptions:manage`.
+- `/admin/ai-usage`: inspect monthly operations, provider usage, estimated cost, and failures.
+- `/dashboard/subscription`: merchant plan and quota visibility.
+- `/dashboard/storefront/ai`: generate, retain, preview, and safely apply merchant-owned store drafts.
+
+Plan codes are immutable in the admin interface. Disabling a plan stops new public selection without deleting or silently downgrading existing subscriptions.

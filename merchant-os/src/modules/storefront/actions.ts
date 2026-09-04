@@ -9,14 +9,22 @@ import { placeOrderSchema } from './schemas/storefront.schemas';
 import * as storefrontService from './services/storefront.service';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 import { generateStoreContentWithMetadata } from '@/services/ai/ai-store-content.service';
-import type { StoreContentResult } from '@/services/ai/types';
-import { storeContentSchema, storeGenerationPromptSchema } from '@/services/ai/store-content.schema';
+import { storeGenerationPromptSchema } from '@/services/ai/store-content.schema';
 import * as categoriesService from '@/modules/categories/services/categories.service';
 import * as productsService from '@/modules/products/services/products.service';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import { normalizeStorefrontTheme } from '@/lib/storefront-theme';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import { AI_FEATURE_KEYS, runMeteredAiOperation } from '@/modules/ai-usage';
+import {
+  claimAiStoreDraftForApplication,
+  failAiStoreDraftApplication,
+  finishAiStoreDraftApplication,
+  saveGeneratedAiStoreProject,
+  type AiStoreDraft,
+} from './services/ai-store-projects.service';
+
+type AiStoreDraftView = Omit<AiStoreDraft, 'createdAt'> & { createdAt: string };
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
 
@@ -93,11 +101,11 @@ export async function saveStorefrontSettingsAction(data: {
   }
 }
 
-/** Generate a draft store (name/content/catalog) from a prompt — preview only, writes nothing. */
+/** Generate and persist a versioned draft store (name/content/catalog) for preview. */
 export async function generateStoreContentAction(
   prompt: string,
   idempotencyKey?: string,
-): Promise<ActionResult<StoreContentResult>> {
+): Promise<ActionResult<AiStoreDraftView>> {
   try {
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
@@ -119,7 +127,7 @@ export async function generateStoreContentAction(
     }
     enforceRateLimit(`ai-generate:${merchantId}`, 20, 60 * 60_000);
     const safePrompt = storeGenerationPromptSchema.parse(prompt);
-    const result = await runMeteredAiOperation({
+    const generated = await runMeteredAiOperation({
       merchantId,
       featureKey,
       period: usesMonthlyQuota ? 'MONTHLY' : 'LIFETIME',
@@ -133,9 +141,15 @@ export async function generateStoreContentAction(
         businessType: merchant?.businessType?.toLowerCase(),
         language: 'ar',
       });
-      return { value: generated.content, usage: generated.usage };
+      return { value: generated, usage: generated.usage };
     });
-    return { success: true, data: result };
+    const draft = await saveGeneratedAiStoreProject({
+      merchantId,
+      actorId: session.user.id,
+      prompt: safePrompt,
+      generated,
+    });
+    return { success: true, data: { ...draft, createdAt: draft.createdAt.toISOString() } };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'فشل التوليد' };
   }
@@ -149,18 +163,22 @@ export async function generateStoreContentAction(
  * merchant can freely edit afterward, never overwrites anything.
  */
 export async function applyAiStoreContentAction(
-  content: StoreContentResult
-): Promise<ActionResult<{ categoriesCreated: number; productsCreated: number }>> {
+  projectId: string,
+): Promise<ActionResult<{ categoriesCreated: number; productsCreated: number; status: 'APPLIED' | 'PARTIAL' }>> {
+  let claimedVersionId: string | undefined;
   try {
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
     const merchantId = session.user.merchantId;
-    const safeContent = storeContentSchema.parse(content);
+    const claimed = await claimAiStoreDraftForApplication(merchantId, projectId);
+    claimedVersionId = claimed.versionId;
+    const safeContent = claimed.content;
 
-    await saveStorefrontSettingsAction({
+    const settingsResult = await saveStorefrontSettingsAction({
       theme: { primaryColor: safeContent.primaryColor } as Prisma.InputJsonValue,
       welcomeText: safeContent.welcomeText,
     });
+    if (!settingsResult.success) throw new Error(settingsResult.error || 'فشل حفظ إعدادات المتجر');
 
     let categoriesCreated = 0;
     let productsCreated = 0;
@@ -194,10 +212,18 @@ export async function applyAiStoreContentAction(
       }
     }
 
+    const status = await finishAiStoreDraftApplication(claimed.versionId, {
+      categoriesCreated,
+      productsCreated,
+      categoriesRequested: safeContent.categories.length,
+      productsRequested: safeContent.categories.reduce((total, category) => total + category.products.length, 0),
+    });
     revalidatePath('/dashboard/storefront');
+    revalidatePath('/dashboard/storefront/ai');
     revalidatePath('/dashboard/products');
-    return { success: true, data: { categoriesCreated, productsCreated } };
+    return { success: true, data: { categoriesCreated, productsCreated, status } };
   } catch (error) {
+    if (claimedVersionId) await failAiStoreDraftApplication(claimedVersionId).catch(() => undefined);
     return { success: false, error: error instanceof Error ? error.message : 'فشل التطبيق' };
   }
 }

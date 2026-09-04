@@ -965,6 +965,7 @@ model Merchant {
   whatsappAiUsage                WhatsAppAiUsage[]
   aiUsageBuckets                 AiUsageBucket[]
   aiUsageOperations              AiUsageOperation[]
+  aiStoreProjects                MerchantAiStoreProject[]
   invoices                       Invoice[]
   deliveryPartnerConnections     MerchantDeliveryPartner[]
   complaints                     Complaint[]
@@ -990,6 +991,50 @@ model Merchant {
   @@index([distributorId])
   @@index([commissionPlanId])
   @@map("merchants")
+}
+
+enum AiStoreVersionStatus {
+  DRAFT
+  APPLYING
+  APPLIED
+  PARTIAL
+}
+
+model MerchantAiStoreProject {
+  id                   String   @id @default(cuid())
+  merchantId           String
+  gatewayProjectId     String?  @unique
+  prompt               String
+  provider             String
+  providerRequestId    String?
+  currentVersionNumber Int      @default(1)
+  createdById          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  merchant Merchant                 @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  versions MerchantAiStoreVersion[]
+
+  @@index([merchantId, createdAt])
+  @@map("merchant_ai_store_projects")
+}
+
+model MerchantAiStoreVersion {
+  id                 String               @id @default(cuid())
+  projectId          String
+  gatewayVersionId   String?              @unique
+  versionNumber      Int
+  content            Json
+  status             AiStoreVersionStatus @default(DRAFT)
+  appliedAt          DateTime?
+  applicationSummary Json?
+  createdAt          DateTime             @default(now())
+
+  project MerchantAiStoreProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, versionNumber])
+  @@index([projectId, createdAt])
+  @@map("merchant_ai_store_versions")
 }
 
 /// Platform-owned merchant acquisition policy. The single `merchant-growth`

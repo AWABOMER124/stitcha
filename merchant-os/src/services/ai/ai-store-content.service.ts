@@ -12,6 +12,11 @@ import { BusinessRuleError } from '@/lib/errors';
 export interface GeneratedStoreContent {
   content: StoreContentResult;
   usage: AiProviderUsage;
+  project?: {
+    gatewayProjectId: string;
+    gatewayVersionId: string;
+    versionNumber: number;
+  };
 }
 
 export async function generateStoreContentWithMetadata(
@@ -27,6 +32,11 @@ export async function generateStoreContentWithMetadata(
     const generated = await new AiCoreStoreContentProvider().generate(safePrompt, context);
     return {
       content: generated.content,
+      project: {
+        gatewayProjectId: generated.projectId,
+        gatewayVersionId: generated.versionId,
+        versionNumber: generated.versionNumber,
+      },
       usage: {
         provider: 'ai-core',
         providerRequestId: generated.requestId,
