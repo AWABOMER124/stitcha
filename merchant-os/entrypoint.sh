@@ -10,5 +10,9 @@ set -e
 echo "▶ Running database migrations..."
 npx prisma migrate deploy
 
+if [ -z "$S3_BUCKET" ] && [ "$PUBLIC_UPLOADS_PERSISTENT" != "true" ]; then
+  echo "⚠ Public uploads use local disk without a declared persistent volume. Set PUBLIC_UPLOADS_PERSISTENT=true only after mounting /app/public/uploads."
+fi
+
 echo "▶ Starting application..."
 exec node node_modules/next/dist/bin/next start

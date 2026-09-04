@@ -1699,6 +1699,8 @@ export interface Dictionary {
     chooseImage: string;
     imageInvalid: string;
     imageFailed: string;
+    imageUploaded: string;
+    imageUploadInProgress: string;
     imageReuseFailed: string;
     improveAgain: string;
     removeImage: string;
@@ -3402,6 +3404,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       chooseImage: 'Choose a JPEG, PNG, or WebP image up to 5MB',
       imageInvalid: 'Use a JPEG, PNG, or WebP image no larger than 5MB.',
       imageFailed: 'Image processing failed.',
+      imageUploaded: 'Image uploaded and will be saved with the product.',
+      imageUploadInProgress: 'Wait for the image upload to finish before saving the product.',
       imageReuseFailed: 'This stored image could not be loaded for another edit. Upload the original file instead.',
       improveAgain: 'Improve',
       removeImage: 'Remove image',
@@ -5103,6 +5107,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       chooseImage: 'اختر صورة JPEG أو PNG أو WebP بحجم أقصى 5MB',
       imageInvalid: 'استخدم صورة JPEG أو PNG أو WebP لا تتجاوز 5MB.',
       imageFailed: 'فشلت معالجة الصورة.',
+      imageUploaded: 'تم رفع الصورة وستُحفظ مع المنتج.',
+      imageUploadInProgress: 'انتظر اكتمال رفع الصورة قبل حفظ المنتج.',
       imageReuseFailed: 'تعذر تحميل الصورة المحفوظة لتحسينها مجدداً. ارفع الملف الأصلي بدلاً منها.',
       improveAgain: 'تحسين',
       removeImage: 'حذف الصورة',

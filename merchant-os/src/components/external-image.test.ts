@@ -10,4 +10,9 @@ describe('public image URL normalization', () => {
     expect(normalizePublicImageUrl('uploads/store/logo.webp')).toBe('/uploads/store/logo.webp');
     expect(normalizePublicImageUrl('http://cdn.example.com/logo.webp')).toBe('https://cdn.example.com/logo.webp');
   });
+
+  it('trims persisted URLs and secures protocol-relative CDN images', () => {
+    expect(normalizePublicImageUrl('  /uploads/store/product.webp  ')).toBe('/uploads/store/product.webp');
+    expect(normalizePublicImageUrl('//cdn.example.com/product.webp')).toBe('https://cdn.example.com/product.webp');
+  });
 });

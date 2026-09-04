@@ -81,6 +81,12 @@ uses `wassla-public-uploads` mounted at `/app/public/uploads` and
 writable from the unprivileged application container after every infrastructure
 change and restart.
 
+After mounting the public volume, set `PUBLIC_UPLOADS_PERSISTENT=true`. The
+health endpoint reports `storage.provider` and `storage.durabilityDeclared`, and
+the container prints a startup warning when neither S3 nor a declared persistent
+public volume is configured. This flag is an operational assertion, not a
+replacement for mounting and restart-testing the volume.
+
 ## Private receipt storage
 
 Payment receipts are private and must not use the public image bucket. Configure

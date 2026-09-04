@@ -38,12 +38,17 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>(product?.images ?? []);
+  const [imageBusy, setImageBusy] = useState(false);
 
   const isEdit = !!product?.id;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (imageBusy) {
+      setError(t.imageUploadInProgress);
+      return;
+    }
 
     const fd = new FormData(e.currentTarget);
 
@@ -113,7 +118,7 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
         />
       </div>
 
-      <ProductImageStudio images={images} onChange={setImages} copy={t} aiEnabled={aiImageEnabled} upgradeRequired={aiImageUpgradeRequired} />
+      <ProductImageStudio images={images} onChange={setImages} copy={t} aiEnabled={aiImageEnabled} upgradeRequired={aiImageUpgradeRequired} onBusyChange={setImageBusy} />
 
       {/* Category */}
       <div className="space-y-1.5">
@@ -216,13 +221,13 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
         </a>
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || imageBusy}
           className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:bg-[var(--primary)]/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isPending ? (
+          {isPending || imageBusy ? (
             <>
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              {t.saving}
+              {imageBusy ? t.uploadingImage : t.saving}
             </>
           ) : (
             isEdit ? t.saveChanges : t.createProduct

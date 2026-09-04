@@ -8,8 +8,10 @@ const externalLoader: ImageLoader = ({ src }) => src;
 type ExternalImageProps = Omit<ImageProps, 'loader' | 'unoptimized'>;
 
 export function normalizePublicImageUrl(src: string): string {
+  const value = src.trim();
+  if (value.startsWith('//')) return `https:${value}`;
   try {
-    const parsed = new URL(src);
+    const parsed = new URL(value);
     if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(parsed.hostname) && parsed.pathname.startsWith('/uploads/')) {
       return `${parsed.pathname}${parsed.search}`;
     }
@@ -17,9 +19,9 @@ export function normalizePublicImageUrl(src: string): string {
       parsed.protocol = 'https:';
       return parsed.toString();
     }
-    return src;
+    return value;
   } catch {
-    return src.startsWith('uploads/') ? `/${src}` : src;
+    return value.startsWith('uploads/') ? `/${value}` : value;
   }
 }
 

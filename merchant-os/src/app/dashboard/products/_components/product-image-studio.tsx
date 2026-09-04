@@ -11,20 +11,22 @@ interface ProductImageStudioProps {
   copy: Dictionary['productFormPage'];
   aiEnabled: boolean;
   upgradeRequired: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeRequired }: ProductImageStudioProps) {
+export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeRequired, onBusyChange }: ProductImageStudioProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourcePreview, setSourcePreview] = useState('');
   const [mode, setMode] = useState<ProductImageMode>('CLEAN_WHITE');
   const [scene, setScene] = useState('');
   const [busy, setBusy] = useState<'upload' | 'enhance' | ''>('');
+  const [uploadedSourceUrl, setUploadedSourceUrl] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => () => { if (sourcePreview.startsWith('blob:')) URL.revokeObjectURL(sourcePreview); }, [sourcePreview]);
 
-  function chooseFile(file?: File) {
+  function chooseFile(file?: File, autoUpload = false, existingUrl = '') {
     setError('');
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
@@ -34,13 +36,15 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
     if (sourcePreview.startsWith('blob:')) URL.revokeObjectURL(sourcePreview);
     setSourceFile(file);
     setSourcePreview(URL.createObjectURL(file));
+    setUploadedSourceUrl(existingUrl);
+    if (autoUpload) void send('upload', file);
   }
 
-  async function send(endpoint: 'upload' | 'enhance') {
-    if (!sourceFile || images.length >= 10) return;
-    setBusy(endpoint); setError('');
+  async function send(endpoint: 'upload' | 'enhance', selectedFile = sourceFile) {
+    if (!selectedFile || images.length >= 10) return;
+    setBusy(endpoint); onBusyChange?.(true); setError('');
     const form = new FormData();
-    form.append('image', sourceFile);
+    form.append('image', selectedFile);
     if (endpoint === 'enhance') {
       form.append('mode', mode);
       form.append('scene', scene);
@@ -49,11 +53,12 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
       const response = await fetch(`/api/products/images/${endpoint}`, { method: 'POST', body: form });
       const payload = await response.json() as { url?: string; error?: string };
       if (!response.ok || !payload.url) throw new Error(payload.error || copy.imageFailed);
-      onChange([...images, payload.url]);
+      onChange(images.includes(payload.url) ? images : [...images, payload.url]);
+      if (endpoint === 'upload') setUploadedSourceUrl(payload.url);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : copy.imageFailed);
     } finally {
-      setBusy('');
+      setBusy(''); onBusyChange?.(false);
     }
   }
 
@@ -63,7 +68,7 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
       const response = await fetch(url);
       if (!response.ok) throw new Error();
       const blob = await response.blob();
-      chooseFile(new File([blob], 'product.webp', { type: blob.type || 'image/webp' }));
+      chooseFile(new File([blob], 'product.webp', { type: blob.type || 'image/webp' }), false, url);
     } catch {
       setError(copy.imageReuseFailed);
     }
@@ -98,7 +103,7 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
             <img src={sourcePreview} alt={copy.sourcePreviewAlt} className="h-full w-full object-contain" />
           ) : <span className="px-4 text-xs font-semibold leading-5 text-[var(--muted-foreground)]">{copy.chooseImage}</span>}
         </button>
-        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0])} />
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0], true)} />
 
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
@@ -114,12 +119,13 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
             <textarea value={scene} onChange={(event) => setScene(event.target.value)} maxLength={500} rows={3} placeholder={copy.scenePlaceholder} className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]" />
           )}
           <p className="text-xs leading-5 text-[var(--muted-foreground)]">{aiEnabled ? copy.aiImageNotice : upgradeRequired ? copy.aiImageUpgradeRequired : copy.aiImageUnavailable}</p>
+          {uploadedSourceUrl && <p role="status" className="text-xs font-bold text-emerald-700">✓ {copy.imageUploaded}</p>}
           {upgradeRequired && <Link href="/dashboard/subscription" className="inline-flex text-xs font-bold text-[var(--primary)] underline underline-offset-4">{copy.aiUpgradeLink}</Link>}
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => send('enhance')} disabled={!aiEnabled || !sourceFile || !!busy || images.length >= 10} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
               {busy === 'enhance' ? copy.enhancingImage : copy.enhanceImage}
             </button>
-            <button type="button" onClick={() => send('upload')} disabled={!sourceFile || !!busy || images.length >= 10} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] disabled:opacity-50">
+            <button type="button" onClick={() => send('upload')} disabled={!sourceFile || !!uploadedSourceUrl || !!busy || images.length >= 10} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] disabled:opacity-50">
               {busy === 'upload' ? copy.uploadingImage : copy.useOriginal}
             </button>
           </div>
