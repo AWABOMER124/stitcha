@@ -73,9 +73,23 @@ describe('AI usage accounting', () => {
 
     await expect(reserveAiUsage({
       merchantId: 'merchant_1', featureKey: AI_FEATURE_KEYS.STORE_GENERATION_MONTHLY,
-      period: 'MONTHLY', limit: 5, idempotencyKey: 'request_2',
-    })).rejects.toThrow('استهلكت الحد المتاح');
+      period: 'MONTHLY', limit: 5, idempotencyKey: 'request_2', now: new Date('2026-09-04T10:00:00Z'),
+    })).rejects.toMatchObject({
+      code: 'USAGE_LIMIT_REACHED',
+      details: { limit_key: AI_FEATURE_KEYS.STORE_GENERATION_MONTHLY, used: 5, limit: 5, reset_at: '2026-10-01T00:00:00.000Z', upgrade_required: true },
+    });
     expect(txMock.aiUsageOperation.create).not.toHaveBeenCalled();
+  });
+
+  it('returns a feature-level upgrade contract when the configured allowance is zero', async () => {
+    await expect(reserveAiUsage({
+      merchantId: 'merchant_1', featureKey: AI_FEATURE_KEYS.MERCHANT_CHAT_MONTHLY,
+      period: 'MONTHLY', limit: 0, idempotencyKey: 'request_disabled',
+    })).rejects.toMatchObject({
+      code: 'FEATURE_NOT_AVAILABLE',
+      details: { feature: AI_FEATURE_KEYS.MERCHANT_CHAT_MONTHLY, upgrade_required: true },
+    });
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it('commits a reservation and records provider usage', async () => {

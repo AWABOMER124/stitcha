@@ -13,6 +13,8 @@ export {
   BusinessRuleError,
   TenantError,
   RateLimitError,
+  FeatureNotAvailableError,
+  UsageLimitReachedError,
 } from './app-error';
 
 export { handleError, handleActionError } from './handler';

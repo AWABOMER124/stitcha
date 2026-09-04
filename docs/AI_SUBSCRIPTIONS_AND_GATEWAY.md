@@ -108,6 +108,12 @@ The billing layer exposes one provider contract for checkout, subscription creat
 
 External webhook infrastructure is prepared but deliberately not exposed without a real provider adapter. A provider must verify its signature before any persistence. Verified events are SHA-256 fingerprinted rather than stored raw, claimed atomically, deduplicated by provider event ID, matched to a server-stored external subscription ID, and applied together with the subscription audit event in one transaction. Failed events remain retryable and never trust a browser-supplied merchant, plan, price, or status.
 
+## Upgrade errors and product analytics
+
+Server-side entitlement failures use stable machine-readable codes. `FEATURE_NOT_AVAILABLE` includes the feature key and `upgrade_required`; `USAGE_LIMIT_REACHED` includes the usage key, used units, configured limit, next reset time, and `upgrade_required`. API endpoints can preserve their existing human-readable `error` while using these fields for contextual upgrade UI. Provider token counts and costs remain admin-only.
+
+Structured `product_event` logs cover AI operation started/completed/failed, AI limit reached, and upgrade clicked. The persistent AI operation ledger remains the authoritative source for generation conversion and average AI cost, plan-change requests record upgrade intent, and subscription events record successful commercial transitions. These events contain tenant identifiers and operational IDs but no secrets, raw payment payloads, or customer PII.
+
 ## Operations screens
 
 - `/admin/plans`: edit database-backed monthly/yearly prices, visibility, activation, commerce limits, and all AI/WhatsApp entitlements. Requires `platform:subscriptions:manage`.

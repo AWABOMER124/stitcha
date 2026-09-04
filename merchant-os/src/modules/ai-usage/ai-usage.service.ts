@@ -1,8 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
-import { BusinessRuleError, NotFoundError } from '@/lib/errors';
+import { BusinessRuleError, FeatureNotAvailableError, NotFoundError, UsageLimitReachedError } from '@/lib/errors';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import type { MerchantEntitlements } from '@/modules/merchant-subscriptions';
+import { logger } from '@/lib/logger';
 
 export const AI_FEATURE_KEYS = Object.freeze({
   STORE_GENERATION_LIFETIME: 'ai.store_generation.lifetime',
@@ -77,7 +78,10 @@ export async function reserveAiUsage(input: ReserveAiUsageInput): Promise<AiUsag
   if (!Number.isInteger(units) || units <= 0) throw new BusinessRuleError('وحدة استهلاك الذكاء الاصطناعي غير صالحة');
   if (!Number.isInteger(input.limit) || input.limit < -1) throw new BusinessRuleError('حد استخدام الذكاء الاصطناعي غير صالح');
   if (!input.idempotencyKey.trim()) throw new BusinessRuleError('مفتاح العملية مطلوب');
-  if (input.limit === 0) throw quotaExceeded();
+  if (input.limit === 0) {
+    logAiLimitReached(input, 0, null);
+    throw new FeatureNotAvailableError(input.featureKey);
+  }
 
   const now = input.now ?? new Date();
   const periodKey = aiUsagePeriodKey(input.period, now);
@@ -114,7 +118,8 @@ export async function reserveAiUsage(input: ReserveAiUsageInput): Promise<AiUsag
     });
 
     if (input.limit !== -1 && bucket.usedUnits + bucket.reservedUnits + units > input.limit) {
-      throw quotaExceeded();
+      logAiLimitReached(input, bucket.usedUnits + bucket.reservedUnits, input.period === 'MONTHLY' ? nextUtcMonth(now) : null);
+      throw quotaExceeded(input.featureKey, bucket.usedUnits + bucket.reservedUnits, input.limit, input.period, now);
     }
 
     const updatedBucket = await tx.aiUsageBucket.update({
@@ -277,16 +282,19 @@ export async function runMeteredAiOperation<T>(
   if (reservation.status !== 'RESERVED') {
     throw new BusinessRuleError('لا يمكن إعادة استخدام عملية ذكاء اصطناعي منتهية');
   }
+  logger.info('product_event', { event: 'ai_operation_started', merchantId: input.merchantId, feature: input.featureKey, operationId: reservation.operationId });
 
   try {
     const result = await execute();
     await commitAiUsage(reservation.operationId, result.usage);
+    logger.info('product_event', { event: 'ai_operation_completed', merchantId: input.merchantId, feature: input.featureKey, operationId: reservation.operationId });
     return result.value;
   } catch (error) {
     await releaseAiUsage(reservation.operationId, {
       code: errorCode(error),
       message: error instanceof Error ? error.message : 'AI operation failed',
     }).catch((releaseError) => console.error('[ai-usage] Failed to release reservation:', releaseError));
+    logger.info('product_event', { event: 'ai_operation_failed', merchantId: input.merchantId, feature: input.featureKey, operationId: reservation.operationId, code: errorCode(error) });
     throw error;
   }
 }
@@ -341,6 +349,22 @@ function errorCode(error: unknown): string | undefined {
     : undefined;
 }
 
-function quotaExceeded() {
-  return new BusinessRuleError('استهلكت الحد المتاح لهذه الميزة. يمكنك الترقية أو الانتظار حتى بداية الفترة التالية.');
+function quotaExceeded(featureKey: AiFeatureKey, used: number, limit: number, period: AiUsagePeriod, now: Date) {
+  return new UsageLimitReachedError({
+    limitKey: featureKey,
+    used,
+    limit,
+    resetAt: period === 'MONTHLY' ? nextUtcMonth(now) : null,
+  });
+}
+
+function nextUtcMonth(now: Date) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+}
+
+function logAiLimitReached(input: ReserveAiUsageInput, used: number, resetAt: Date | null) {
+  logger.info('product_event', {
+    event: 'ai_limit_reached', merchantId: input.merchantId, feature: input.featureKey,
+    used, limit: input.limit, resetAt: resetAt?.toISOString() ?? null,
+  });
 }

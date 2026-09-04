@@ -12,6 +12,7 @@ export interface ErrorResponse {
     code: string;
     message: string;
     statusCode: number;
+    [key: string]: unknown;
   };
 }
 
@@ -32,6 +33,7 @@ export function handleError(err: unknown): ErrorResponse {
         code: err.code,
         message: err.message,
         statusCode: err.statusCode,
+        ...(err.details ?? {}),
       },
     };
   }

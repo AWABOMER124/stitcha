@@ -3,6 +3,7 @@ import prisma from '@/lib/db/prisma';
 import { BusinessRuleError, ConflictError, NotFoundError } from '@/lib/errors';
 import * as platformNotifications from '@/modules/platform-notifications/services/platform-notifications.service';
 import { FREE_ENTITLEMENTS, FREE_PLAN_CODE, parseEntitlements, type MerchantEntitlements } from './entitlements';
+import { logger } from '@/lib/logger';
 
 export interface MerchantPlanSnapshot {
   code: string;
@@ -130,6 +131,10 @@ export async function requestPlanChange(
     });
     return request;
   }
+
+  logger.info('product_event', {
+    event: 'upgrade_clicked', merchantId, targetPlanCode: targetPlan.code, requestId: request.id,
+  });
 
   await platformNotifications.sendNotification({
     type: 'SYSTEM',

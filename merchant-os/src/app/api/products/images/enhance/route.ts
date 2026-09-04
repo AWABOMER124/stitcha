@@ -6,6 +6,7 @@ import { productImageEnhancementSchema } from '@/services/product-images/product
 import { enhanceAndStoreProductImage } from '@/services/product-images/product-image.service';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import { AI_FEATURE_KEYS, runMeteredAiOperation } from '@/modules/ai-usage';
+import { AppError } from '@/lib/errors';
 
 export const runtime = 'nodejs';
 export const maxDuration = 180;
@@ -35,6 +36,9 @@ export async function POST(request: Request) {
     }));
     return NextResponse.json({ url }, { status: 201 });
   } catch (error) {
+    if (error instanceof AppError) {
+      return NextResponse.json({ error: error.message, code: error.code, ...(error.details ?? {}) }, { status: error.statusCode });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : 'AI image enhancement failed' }, { status: 400 });
   }
 }

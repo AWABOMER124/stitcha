@@ -7,14 +7,34 @@ export class AppError extends Error {
   public readonly statusCode: number;
   public readonly code: string;
   public readonly isOperational: boolean;
+  public readonly details?: Record<string, unknown>;
 
-  constructor(message: string, statusCode: number, code: string, isOperational = true) {
+  constructor(message: string, statusCode: number, code: string, isOperational = true, details?: Record<string, unknown>) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
     this.isOperational = isOperational;
+    this.details = details;
     Object.setPrototypeOf(this, new.target.prototype);
     Error.captureStackTrace?.(this, this.constructor);
+  }
+}
+
+export class FeatureNotAvailableError extends AppError {
+  constructor(feature: string, message = 'هذه الميزة غير متاحة في باقتك الحالية') {
+    super(message, 403, 'FEATURE_NOT_AVAILABLE', true, { feature, upgrade_required: true });
+  }
+}
+
+export class UsageLimitReachedError extends AppError {
+  constructor(input: { limitKey: string; used: number; limit: number; resetAt: Date | null }, message = 'استهلكت الحد المتاح لهذه الميزة. يمكنك الترقية أو الانتظار حتى بداية الفترة التالية.') {
+    super(message, 429, 'USAGE_LIMIT_REACHED', true, {
+      limit_key: input.limitKey,
+      used: input.used,
+      limit: input.limit,
+      reset_at: input.resetAt?.toISOString() ?? null,
+      upgrade_required: true,
+    });
   }
 }
 
