@@ -38,6 +38,22 @@ export function DashboardHomeClient({
 }) {
   const { dict, locale } = useLocale();
   const t = dict.dashboardHome;
+  const ar = locale === 'ar';
+  const quickActions = ar ? [
+    ['🧮', 'الفواتير', 'أنشئ وشارك فواتير الطلبات', '/dashboard/invoices'],
+    ['📣', 'التسويق بالعمولة', 'فعّل المسوقين وتابع العمولات', '/dashboard/affiliates'],
+    ['🪪', 'تأكيد الهوية', 'أكمل بيانات KYC لمتجرك', '/dashboard/verification'],
+    ['🔗', 'الدومين الخاص', 'اربط نطاقك على باقة Pro', '/dashboard/domains'],
+    ['📊', 'تصدير البيانات', 'نزّل ملفات Excel التشغيلية', '/dashboard/exports'],
+    ['💎', 'الباقة والميزات', 'راجع حدود Basic ومزايا Pro', '/dashboard/subscription'],
+  ] : [
+    ['🧮', 'Invoices', 'Create and share order invoices', '/dashboard/invoices'],
+    ['📣', 'Affiliate marketing', 'Manage marketers and commissions', '/dashboard/affiliates'],
+    ['🪪', 'Identity verification', 'Complete your store KYC', '/dashboard/verification'],
+    ['🔗', 'Custom domain', 'Connect your domain on Pro', '/dashboard/domains'],
+    ['📊', 'Data exports', 'Download operational Excel files', '/dashboard/exports'],
+    ['💎', 'Plan and features', 'Review Basic limits and Pro benefits', '/dashboard/subscription'],
+  ];
 
   return (
     <div className="space-y-6">
@@ -59,6 +75,21 @@ export function DashboardHomeClient({
           variant={lowStockCount > 0 ? 'destructive' : 'default'}
         />
       </div>
+
+      <section>
+        <div className="mb-3">
+          <h2 className="text-lg font-bold text-[var(--foreground)]">{ar ? 'أدوات النمو والتشغيل' : 'Growth and operations tools'}</h2>
+          <p className="text-sm text-[var(--muted-foreground)]">{ar ? 'وصول سريع إلى أحدث أدوات وصلة لمتجرك.' : 'Quick access to Wasla’s latest tools for your store.'}</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {quickActions.map(([icon, title, description, href]) => (
+            <Link key={href} href={href} className="group flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--primary)]/50">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--muted)] text-lg">{icon}</span>
+              <span><strong className="text-sm text-[var(--foreground)] group-hover:text-[var(--primary)]">{title}</strong><span className="mt-1 block text-xs leading-5 text-[var(--muted-foreground)]">{description}</span></span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)]">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">

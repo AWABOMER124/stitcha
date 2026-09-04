@@ -116,21 +116,30 @@ export interface Dictionary {
     inventory: string;
     storefrontSection: string;
     storefrontSettings: string;
+    customDomain: string;
     customize: string;
     aiGenerator: string;
+    paymentMethods: string;
     inbox: string;
+    complaints: string;
     financeSection: string;
     financeDashboard: string;
     transactions: string;
     settlements: string;
+    invoices: string;
+    dataExport: string;
     crmSection: string;
     crm: string;
     promos: string;
     loyalty: string;
+    affiliates: string;
+    referrals: string;
+    verification: string;
     operationsSection: string;
     branches: string;
     staff: string;
     delivery: string;
+    deliveryPartners: string;
     reports: string;
     notifications: string;
     subscription: string;
@@ -166,9 +175,16 @@ export interface Dictionary {
     entitiesSection: string;
     distributors: string;
     merchants: string;
+    complaints: string;
+    verifications: string;
+    domains: string;
+    marketers: string;
+    deliveryPartners: string;
     financeReportsSection: string;
     finance: string;
     customerSubscriptions: string;
+    subscriptionPayments: string;
+    referrals: string;
     systemSection: string;
     users: string;
     settings: string;
@@ -1810,21 +1826,30 @@ export const dictionaries: Record<Locale, Dictionary> = {
       inventory: 'Inventory',
       storefrontSection: 'Online Store',
       storefrontSettings: 'Storefront Settings',
+      customDomain: 'Custom Domain',
       customize: 'Customize Branding',
       aiGenerator: 'AI Generator',
+      paymentMethods: 'Store Payment Methods',
       inbox: 'Inbox',
+      complaints: 'Complaints',
       financeSection: 'Finance',
       financeDashboard: 'Finance Dashboard',
       transactions: 'Transactions',
       settlements: 'Settlements',
+      invoices: 'Invoices',
+      dataExport: 'Data Export',
       crmSection: 'Customers',
       crm: 'CRM',
       promos: 'Promo Codes',
       loyalty: 'Loyalty Points',
+      affiliates: 'Affiliate Marketing',
+      referrals: 'Merchant Referrals',
+      verification: 'Identity Verification',
       operationsSection: 'Operations',
       branches: 'Branches',
       staff: 'Staff',
       delivery: 'Delivery',
+      deliveryPartners: 'Delivery Partners',
       reports: 'Reports',
       notifications: 'Notifications',
       subscription: 'Plan & Billing',
@@ -1860,9 +1885,16 @@ export const dictionaries: Record<Locale, Dictionary> = {
       entitiesSection: 'Entities',
       distributors: 'Distributors',
       merchants: 'Merchants',
+      complaints: 'Complaints',
+      verifications: 'Identity Reviews',
+      domains: 'Store Domains',
+      marketers: 'Marketer Applications',
+      deliveryPartners: 'Delivery Partners',
       financeReportsSection: 'Finance & Reports',
       finance: 'Finance',
       customerSubscriptions: 'Customer Subscriptions',
+      subscriptionPayments: 'Subscription Payments',
+      referrals: 'Merchant Referrals',
       systemSection: 'System',
       users: 'Users',
       settings: 'Settings',
@@ -3490,21 +3522,30 @@ export const dictionaries: Record<Locale, Dictionary> = {
       inventory: 'المخزون',
       storefrontSection: 'المتجر الإلكتروني',
       storefrontSettings: 'إعدادات المتجر',
+      customDomain: 'الدومين الخاص',
       customize: 'تخصيص الهوية',
       aiGenerator: 'مولّد AI',
+      paymentMethods: 'طرق دفع المتجر',
       inbox: 'صندوق الوارد',
+      complaints: 'الشكاوى',
       financeSection: 'المالية',
       financeDashboard: 'لوحة المالية',
       transactions: 'المعاملات المالية',
       settlements: 'التسويات',
+      invoices: 'الفواتير',
+      dataExport: 'تصدير البيانات',
       crmSection: 'إدارة العملاء',
       crm: 'إدارة العملاء (CRM)',
       promos: 'أكواد الخصم',
       loyalty: 'نقاط الولاء',
+      affiliates: 'التسويق بالعمولة',
+      referrals: 'إحالة التجار',
+      verification: 'تأكيد الهوية',
       operationsSection: 'عمليات',
       branches: 'الفروع',
       staff: 'الموظفون',
       delivery: 'التوصيل',
+      deliveryPartners: 'شركاء التوصيل',
       reports: 'التقارير',
       notifications: 'الإشعارات',
       subscription: 'الاشتراك والباقات',
@@ -3540,9 +3581,16 @@ export const dictionaries: Record<Locale, Dictionary> = {
       entitiesSection: 'الكيانات',
       distributors: 'الموزعون',
       merchants: 'التجار',
+      complaints: 'الشكاوى',
+      verifications: 'مراجعة الهوية',
+      domains: 'دومينات المتاجر',
+      marketers: 'طلبات المسوقين',
+      deliveryPartners: 'شركاء التوصيل',
       financeReportsSection: 'المالية والتقارير',
       finance: 'المالية',
       customerSubscriptions: 'اشتراكات العملاء',
+      subscriptionPayments: 'مدفوعات الاشتراكات',
+      referrals: 'إحالات التجار',
       systemSection: 'النظام',
       users: 'المستخدمون',
       settings: 'الإعدادات',

@@ -39,7 +39,7 @@ type Activity = {
 
 export default async function AdminDashboardPage() {
   await requirePlatformPermission(PLATFORM_PERMISSIONS.DASHBOARD);
-  const [statsResult, activityResult, openComplaints, pendingPartnerApps] =
+  const [statsResult, activityResult, openComplaints, pendingPartnerApps, pendingMerchantKyc, pendingAffiliateKyc, verifiedDomains, pendingMarketers] =
     await Promise.all([
       getPlatformStatsAction(),
       getRecentActivityAction(),
@@ -49,6 +49,10 @@ export default async function AdminDashboardPage() {
       prisma.deliveryPartner.count({
         where: { OR: [{ status: "PENDING" }, { appStatus: "SUBMITTED" }] },
       }),
+      prisma.merchantIdentityVerification.count({ where: { status: "PENDING" } }),
+      prisma.storeAffiliateIdentityVerification.count({ where: { status: "PENDING" } }),
+      prisma.merchantDomain.count({ where: { status: "VERIFIED" } }),
+      prisma.marketerApplication.count({ where: { type: "MERCHANT_ACQUISITION", status: "PENDING" } }),
     ]);
   const stats = statsResult.success ? (statsResult.data as Stats) : null;
   const activity = activityResult.success
@@ -97,13 +101,34 @@ export default async function AdminDashboardPage() {
       "اعتماد الحساب أو نشر التطبيق",
       "/admin/delivery-partners",
     ],
+    [
+      "🪪",
+      "مراجعات الهوية",
+      pendingMerchantKyc + pendingAffiliateKyc,
+      `${pendingMerchantKyc} تاجر · ${pendingAffiliateKyc} مسوّق`,
+      "/admin/verifications",
+    ],
+    [
+      "🔗",
+      "دومينات جاهزة للتفعيل",
+      verifiedDomains,
+      "تحتاج فحص التوجيه وSSL",
+      "/admin/domains",
+    ],
+    [
+      "📣",
+      "طلبات مسوقين جديدة",
+      pendingMarketers,
+      "طلبات استقطاب التجار",
+      "/admin/marketers",
+    ],
   ];
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-bold">مركز تشغيل وصلة</h1>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          صورة مباشرة عن التجار والطلبات والاشتراكات.
+          صورة مباشرة عن التجار والطلبات والاشتراكات ومهام التشغيل الجديدة.
         </p>
       </header>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
