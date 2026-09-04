@@ -28,9 +28,10 @@ interface ProductFormProps {
   categories: Category[];
   product?: ProductFormData;
   aiImageEnabled?: boolean;
+  aiImageUpgradeRequired?: boolean;
 }
 
-export function ProductForm({ categories, product, aiImageEnabled = false }: ProductFormProps) {
+export function ProductForm({ categories, product, aiImageEnabled = false, aiImageUpgradeRequired = false }: ProductFormProps) {
   const { dict } = useLocale();
   const t = dict.productFormPage;
   const router = useRouter();
@@ -112,7 +113,7 @@ export function ProductForm({ categories, product, aiImageEnabled = false }: Pro
         />
       </div>
 
-      <ProductImageStudio images={images} onChange={setImages} copy={t} aiEnabled={aiImageEnabled} />
+      <ProductImageStudio images={images} onChange={setImages} copy={t} aiEnabled={aiImageEnabled} upgradeRequired={aiImageUpgradeRequired} />
 
       {/* Category */}
       <div className="space-y-1.5">

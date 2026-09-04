@@ -1707,6 +1707,8 @@ export interface Dictionary {
     scenePlaceholder: string;
     aiImageNotice: string;
     aiImageUnavailable: string;
+    aiImageUpgradeRequired: string;
+    aiUpgradeLink: string;
     enhanceImage: string;
     enhancingImage: string;
     useOriginal: string;
@@ -3407,6 +3409,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       scenePlaceholder: 'Describe the setting, for example: a warm specialty coffee counter with soft morning light…',
       aiImageNotice: 'The AI is instructed to preserve the real product, packaging, colors, logos, and text. Always review the result before saving.',
       aiImageUnavailable: 'Original image upload is ready. AI enhancement becomes available after the server key and feature flag are configured.',
+      aiImageUpgradeRequired: 'AI image enhancement is not included in your plan, or this month’s allowance is exhausted.',
+      aiUpgradeLink: 'Compare plans and upgrade',
       enhanceImage: 'Enhance with AI',
       enhancingImage: 'Enhancing…',
       useOriginal: 'Use original',
@@ -5105,6 +5109,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       scenePlaceholder: 'صف الخلفية، مثال: طاولة قهوة مختصة دافئة بإضاءة صباحية ناعمة…',
       aiImageNotice: 'يُطلب من الذكاء الاصطناعي الحفاظ على المنتج الحقيقي وتغليفه وألوانه وشعاره ونصوصه. راجع النتيجة دائماً قبل الحفظ.',
       aiImageUnavailable: 'رفع الصورة الأصلية جاهز. يتاح التحسين بالذكاء الاصطناعي بعد إعداد مفتاح الخادم وتفعيل الميزة.',
+      aiImageUpgradeRequired: 'تحسين الصور بالذكاء الاصطناعي غير متاح في باقتك أو تم استهلاك الحصة الشهرية.',
+      aiUpgradeLink: 'قارن الباقات وطوّر اشتراكك',
       enhanceImage: 'تحسين بالذكاء الاصطناعي',
       enhancingImage: 'جاري التحسين…',
       useOriginal: 'استخدام الأصلية',

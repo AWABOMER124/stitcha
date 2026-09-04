@@ -13,7 +13,7 @@ interface StoreDraft {
   createdAt: string;
 }
 
-export function AiGeneratorClient({ initialDrafts }: { initialDrafts: StoreDraft[] }) {
+export function AiGeneratorClient({ initialDrafts, generationDisabledReason }: { initialDrafts: StoreDraft[]; generationDisabledReason?: string }) {
   const { dict } = useLocale();
   const t = dict.storefrontAiPage;
   const [prompt, setPrompt] = useState('');
@@ -59,7 +59,9 @@ export function AiGeneratorClient({ initialDrafts }: { initialDrafts: StoreDraft
         <p className="text-sm text-violet-600">{t.howItWorksDesc}</p>
       </div>
 
-      <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
+      {generationDisabledReason && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" dir="rtl">{generationDisabledReason} <a href="/dashboard/subscription" className="font-bold underline underline-offset-4">قارن الباقات وطوّر اشتراكك</a></div>}
+
+      {!generationDisabledReason && <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 space-y-4">
         <div>
           <label className="text-sm font-medium text-[var(--foreground)] block mb-2">{t.promptLabel}</label>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={4} className="w-full border border-[var(--border)] rounded-xl px-4 py-3 text-sm bg-[var(--background)] text-[var(--foreground)] outline-none focus:border-[var(--primary)] resize-none" placeholder={t.promptPlaceholder} />
@@ -80,7 +82,7 @@ export function AiGeneratorClient({ initialDrafts }: { initialDrafts: StoreDraft
             </span>
           ) : t.generateButton}
         </button>
-      </div>
+      </div>}
 
       {error && <div className="bg-red-50 border border-red-100 rounded-2xl p-4 text-sm text-red-600">{error}</div>}
 

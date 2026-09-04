@@ -92,7 +92,6 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 
 ## Remaining AI product work
 
-- Contextual upgrade prompts at every exhausted feature (the subscription page already shows current usage).
 - Safe restore semantics and conversational patches for persisted Store Projects. Project linkage, immutable generated payloads, merchant history, tenant checks, and single-application claiming are implemented.
 - Read-only merchant copilot for sales, delayed orders, stock, and customer insights.
 - Billing-provider abstraction and signed webhook events.
@@ -104,5 +103,7 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 - `/admin/ai-usage`: inspect monthly operations, provider usage, estimated cost, and failures.
 - `/dashboard/subscription`: merchant plan and quota visibility.
 - `/dashboard/storefront/ai`: generate, retain, preview, and safely apply merchant-owned store drafts.
+
+Store generation and product-image enhancement now surface contextual upgrade links when the current plan has no allowance or the active allowance has been exhausted. Existing generated drafts remain accessible after exhaustion.
 
 Plan codes are immutable in the admin interface. Disabling a plan stops new public selection without deleting or silently downgrading existing subscriptions.

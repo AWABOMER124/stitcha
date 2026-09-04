@@ -6,6 +6,7 @@ import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/
 import { ProductForm } from '../../_components/product-form';
 import { getAuthContext } from '@/lib/permissions';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
+import { AI_FEATURE_KEYS, getMerchantAiUsageSummary } from '@/modules/ai-usage';
 
 export const metadata = { title: 'Edit Product — WASLA Commerce OS' };
 
@@ -17,11 +18,12 @@ export default async function EditProductPage({ params }: PageProps) {
   const { id } = await params;
   const auth = await getAuthContext();
 
-  const [productResult, categoriesResult, cookieStore, plan] = await Promise.all([
+  const [productResult, categoriesResult, cookieStore, plan, usage] = await Promise.all([
     getProductAction(id),
     getCategoriesAction(),
     cookies(),
     getMerchantPlanSnapshot(auth.merchantId),
+    getMerchantAiUsageSummary(auth.merchantId),
   ]);
 
   if (!productResult.success || !productResult.data) notFound();
@@ -33,6 +35,8 @@ export default async function EditProductPage({ params }: PageProps) {
   }));
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = dictionaries[locale].productFormPage;
+  const imageUsage = usage.find((item) => item.key === AI_FEATURE_KEYS.IMAGE_ENHANCEMENT_MONTHLY);
+  const aiImageUpgradeRequired = plan.entitlements.aiImageEnhancementsMonthly === 0 || imageUsage?.remainingUnits === 0;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -44,7 +48,8 @@ export default async function EditProductPage({ params }: PageProps) {
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
         <ProductForm
           categories={categories}
-          aiImageEnabled={plan.entitlements.aiImageEnhancementsMonthly !== 0 && process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
+          aiImageUpgradeRequired={aiImageUpgradeRequired}
+          aiImageEnabled={!aiImageUpgradeRequired && process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
           product={{
             id: product.id,
             name: product.name,

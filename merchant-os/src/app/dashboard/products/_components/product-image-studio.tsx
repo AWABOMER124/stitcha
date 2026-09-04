@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import type { Dictionary } from '@/lib/i18n/translations';
 import type { ProductImageMode } from '@/services/product-images/product-image.schemas';
 
@@ -9,9 +10,10 @@ interface ProductImageStudioProps {
   onChange: (images: string[]) => void;
   copy: Dictionary['productFormPage'];
   aiEnabled: boolean;
+  upgradeRequired: boolean;
 }
 
-export function ProductImageStudio({ images, onChange, copy, aiEnabled }: ProductImageStudioProps) {
+export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeRequired }: ProductImageStudioProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourcePreview, setSourcePreview] = useState('');
@@ -111,7 +113,8 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled }: Produc
           {mode === 'LIFESTYLE' && (
             <textarea value={scene} onChange={(event) => setScene(event.target.value)} maxLength={500} rows={3} placeholder={copy.scenePlaceholder} className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]" />
           )}
-          <p className="text-xs leading-5 text-[var(--muted-foreground)]">{aiEnabled ? copy.aiImageNotice : copy.aiImageUnavailable}</p>
+          <p className="text-xs leading-5 text-[var(--muted-foreground)]">{aiEnabled ? copy.aiImageNotice : upgradeRequired ? copy.aiImageUpgradeRequired : copy.aiImageUnavailable}</p>
+          {upgradeRequired && <Link href="/dashboard/subscription" className="inline-flex text-xs font-bold text-[var(--primary)] underline underline-offset-4">{copy.aiUpgradeLink}</Link>}
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => send('enhance')} disabled={!aiEnabled || !sourceFile || !!busy || images.length >= 10} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
               {busy === 'enhance' ? copy.enhancingImage : copy.enhanceImage}
