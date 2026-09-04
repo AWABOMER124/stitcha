@@ -963,6 +963,8 @@ model Merchant {
   storePaymentAccounts           MerchantPaymentAccount[]
   orderPaymentProofs             OrderPaymentProof[]
   whatsappAiUsage                WhatsAppAiUsage[]
+  aiUsageBuckets                 AiUsageBucket[]
+  aiUsageOperations              AiUsageOperation[]
   invoices                       Invoice[]
   deliveryPartnerConnections     MerchantDeliveryPartner[]
   complaints                     Complaint[]
@@ -1923,6 +1925,13 @@ enum MerchantSubscriptionStatus {
   PAST_DUE
   GRACE_PERIOD
   CANCELLED
+}
+
+enum AiUsageOperationStatus {
+  RESERVED
+  COMMITTED
+  RELEASED
+  EXPIRED
 }
 
 enum MerchantPlanChangeRequestStatus {
@@ -2945,4 +2954,60 @@ model WhatsAppAiUsage {
   @@unique([merchantId, periodKey])
   @@index([periodKey])
   @@map("whatsapp_ai_usage")
+}
+
+/// Atomic entitlement usage bucket owned by Wasla. AI providers execute the
+/// operation, but Wasla remains the source of truth for merchant quotas.
+model AiUsageBucket {
+  id            String @id @default(cuid())
+  merchantId    String
+  featureKey    String
+  periodKey     String
+  limitSnapshot Int
+  usedUnits     Int    @default(0)
+  reservedUnits Int    @default(0)
+
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  merchant   Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  operations AiUsageOperation[]
+
+  @@unique([merchantId, featureKey, periodKey])
+  @@index([merchantId, periodKey])
+  @@map("ai_usage_buckets")
+}
+
+/// Idempotent lifecycle record for one billable AI operation. Provider cost is
+/// tracked separately from merchant quota so failed provider calls can release
+/// merchant units while preserving the platform's real cost record.
+model AiUsageOperation {
+  id                String                 @id @default(cuid())
+  merchantId        String
+  bucketId          String
+  featureKey        String
+  idempotencyKey    String
+  status            AiUsageOperationStatus @default(RESERVED)
+  units             Int                    @default(1)
+  provider          String?
+  providerRequestId String?
+  model             String?
+  inputTokens       Int?
+  outputTokens      Int?
+  estimatedCostUsd  Decimal?               @db.Decimal(12, 6)
+  failureCode       String?
+  failureMessage    String?
+  metadata          Json?
+  expiresAt         DateTime
+  committedAt       DateTime?
+  releasedAt        DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  merchant Merchant      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  bucket   AiUsageBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, featureKey, idempotencyKey])
+  @@index([status, expiresAt])
+  @@index([merchantId, createdAt])
+  @@map("ai_usage_operations")
 }
