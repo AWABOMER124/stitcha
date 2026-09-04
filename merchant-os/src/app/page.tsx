@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
-import { ArrowLeft, BadgeCheck, BarChart3, Bot, Check, CreditCard, Megaphone, MessageCircle, PackageCheck, Palette, ShoppingBag, Sparkles, Store, Truck, Users } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Bot, Check, CreditCard, FileSpreadsheet, Globe2, Megaphone, MessageCircle, PackageCheck, Palette, ShieldCheck, ShoppingBag, Sparkles, Store, Truck, Users, X } from 'lucide-react';
 import { auth } from '@/lib/auth/config';
 import { LocaleProvider } from '@/lib/i18n/context';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { WaslaMark } from '@/components/brand/wasla-logo';
 import { PublicFooter, PublicHeader } from '@/components/marketing/public-chrome';
+import { listPublicPlans } from '@/modules/merchant-subscriptions';
 
 export const metadata: Metadata = {
   title: 'أنشئ متجرك الإلكتروني مجاناً',
@@ -26,15 +27,20 @@ const content = {
       ['دفع مرن','بنكك وماي كاشي والدفع عند الاستلام مع مطابقة الإشعار.'],
       ['توصيل متصل','اطلب عروض شركات التوصيل وتابع الشحنة والمندوب.'],
       ['ذكاء اصطناعي عملي','اكتب المحتوى وحسّن الصور وشغّل مساعد واتساب.'],
-      ['تقارير واضحة','افهم مبيعاتك ومنتجاتك وعملاءك من أرقام مفيدة.'],
+      ['فواتير وتصدير','أنشئ فواتير الطلبات وصدّر بيانات التشغيل إلى Excel في Pro.'],
+      ['هوية موثقة','ارفع مستندات نشاطك وتابع مراجعة الهوية من داخل المنصة.'],
+      ['دومينك الخاص','اربط نطاق متجرك الخاص مع باقة Pro وحافظ على حضور علامتك.'],
     ],
     stepsTitle: 'ثلاث خطوات وتبدأ البيع', steps: [['أنشئ حسابك','أدخل بيانات نشاطك الأساسية.'],['جهّز متجرك','أضف المنتجات والصور وطرق الدفع.'],['شارك وابدأ البيع','انشر رابطك وتابع الطلبات من وصلة.']],
     aiKicker: 'شريك ذكي داخل عملك', aiTitle: 'ذكاء اصطناعي ينجز، لا يستعرض', aiLead: 'محتوى أسرع، صور منتجات أفضل، ومساعد واتساب يفهم كتالوجك ويساعد في إنشاء الطلبات.',
     affiliateKicker: 'دخل مبني على نتيجة حقيقية', affiliateTitle: 'سوّق لوصلة أو لمنتجات المتاجر', affiliateLead: 'برنامجان واضحان للمسوّقين: استقطب تجاراً واشترك في نمو وصلة، أو اختر متجراً وسوّق منتجاته مقابل عمولة يحددها التاجر.',
     acquireTitle: 'استقطاب التجار', acquireText: 'لا توجد عمولة على التسجيل المجاني؛ يبدأ الاستحقاق عند دفع التاجر لاشتراك Pro حسب سياسة البرنامج.',
     productsTitle: 'تسويق المنتجات', productsText: 'رابط خاص، إسناد للطلبات، عمولة بعد التسليم وفترة تعليق، وتوثيق هوية قبل السداد.', marketerCta: 'سجّل كمسوّق',
-    free: 'الأساسية', freePrice: 'مجاناً دائماً', pro: 'الاحترافية', proPrice: 'اشتراك شهري', priceLead: 'ابدأ بلا مخاطرة وادفع فقط عندما تحتاج أدوات نمو وتشغيل متقدمة.',
-    freeItems: ['متجر إلكتروني كامل','منتجات وطلبات وعملاء','تحويلات وإشعارات دفع','إدارة أساسية للتوصيل'], proItems: ['كل ميزات الأساسية','تخصيص وتقارير متقدمة','الذكاء الاصطناعي','واتساب وتشغيل احترافي'],
+    free: 'الأساسية', freePrice: 'مجاناً دائماً', pro: 'الاحترافية Pro', proPrice: '10 دولار / شهرياً', priceLead: 'ابدأ مجاناً حتى 20 منتجاً. انتقل إلى Pro عندما تحتاج النمو والأتمتة وربط خدماتك.',
+    freeItems: ['متجر إلكتروني ورابط جاهز','حتى 20 منتجاً نشطاً','الطلبات والعملاء والفواتير','فرع واحد وحساب فريق واحد','التحويلات وإشعارات الدفع','إدارة التوصيل الأساسية'],
+    freeUnavailable: ['بدون ذكاء اصطناعي أو وكيل واتساب','بدون تصدير Excel أو دومين خاص'],
+    proItems: ['كل ميزات الباقة الأساسية','منتجات غير محدودة و5 حسابات فريق','حتى 3 فروع','100 عملية ذكاء اصطناعي شهرياً','وكيل واتساب الذكي','تصدير Excel وتحليلات متقدمة','دومين خاص وإزالة علامة وصلة','API وأتمتة العملاء'],
+    popular: 'الأفضل للنمو', freeCta: 'ابدأ مجاناً', proCta: 'طوّر إلى Pro', currencyNote: 'سعر Pro مرجعي بالدولار؛ يظهر مبلغ السداد المحلي المثبّت قبل التحصيل.',
     final: 'جاهز توصل تجارتك بالسوق؟', finalLead: 'ابدأ الآن مجاناً. لا تحتاج خبرة تقنية ولا بطاقة بنكية.',
   },
   en: {
@@ -49,26 +55,36 @@ const content = {
       ['Flexible payments','Bankak, MyCashy and COD with receipt verification.'],
       ['Connected delivery','Request partner quotes and track shipments and couriers.'],
       ['Practical AI','Write copy, improve images and enable a WhatsApp agent.'],
-      ['Clear reporting','Understand your sales, products and customers.'],
+      ['Invoices and exports','Create order invoices and export operational data to Excel on Pro.'],
+      ['Verified identity','Submit business documents and track identity review inside Wasla.'],
+      ['Your own domain','Connect a custom storefront domain on Pro and strengthen your brand.'],
     ],
     stepsTitle: 'Three steps to start selling', steps: [['Create your account','Add your essential business details.'],['Prepare your store','Add products, images and payments.'],['Share and sell','Publish your link and run orders in Wasla.']],
     aiKicker: 'An intelligent operating partner', aiTitle: 'AI that gets work done', aiLead: 'Faster content, better product photos, and a WhatsApp agent grounded in your catalog that can help create orders.',
     affiliateKicker: 'Income tied to verified results', affiliateTitle: 'Promote Wasla or store products', affiliateLead: 'Two clear paths: bring merchants into Wasla, or choose a store and promote its products under that merchant’s commission policy.',
     acquireTitle: 'Merchant acquisition', acquireText: 'Free signup earns nothing; eligibility starts only after the merchant pays for Pro under the program terms.',
     productsTitle: 'Product affiliate', productsText: 'A tracked link, order attribution, commission after delivery and hold, and identity verification before payout.', marketerCta: 'Apply as a marketer',
-    free: 'Basic', freePrice: 'Free forever', pro: 'Professional', proPrice: 'Monthly plan', priceLead: 'Start without risk and pay only when you need advanced growth and operations tools.',
-    freeItems: ['Complete online store','Products, orders and customers','Transfers and receipts','Basic delivery management'], proItems: ['Everything in Basic','Advanced design and reports','AI tools','WhatsApp and pro operations'],
+    free: 'Basic', freePrice: 'Free forever', pro: 'Professional Pro', proPrice: '$10 / month', priceLead: 'Start free with up to 20 products. Move to Pro when you need growth, automation and integrations.',
+    freeItems: ['Online store with a shareable link','Up to 20 active products','Orders, customers and invoices','One branch and one staff seat','Transfers and payment receipts','Basic delivery management'],
+    freeUnavailable: ['No AI or WhatsApp agent','No Excel export or custom domain'],
+    proItems: ['Everything in Basic','Unlimited products and 5 staff seats','Up to 3 branches','100 AI actions every month','AI-powered WhatsApp agent','Excel exports and advanced analytics','Custom domain and branding removal','API access and CRM automation'],
+    popular: 'Best for growth', freeCta: 'Start free', proCta: 'Upgrade to Pro', currencyNote: 'Pro is priced in USD; a locked local-currency amount is shown before collection.',
     final: 'Ready to connect your business to the market?', finalLead: 'Start free today. No technical experience or bank card required.',
   },
 } as const;
 
-const icons = [Palette, PackageCheck, CreditCard, Truck, Bot, BarChart3];
+const icons = [Palette, PackageCheck, CreditCard, Truck, Bot, FileSpreadsheet, ShieldCheck, Globe2];
 
 export default async function HomePage() {
-  const [session, cookieStore] = await Promise.all([auth(), cookies()]);
+  const [session, cookieStore, plans] = await Promise.all([auth(), cookies(), listPublicPlans().catch(() => [])]);
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = content[locale];
   const accountHref = !session?.user ? '/register' : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
+  const upgradeHref = session?.user?.merchantId ? '/dashboard/subscription' : '/register';
+  const freePlan = plans.find((plan) => plan.code === 'FREE');
+  const proPlan = plans.find((plan) => plan.code === 'PRO');
+  const freePrice = freePlan ? formatPlanPrice(freePlan.monthlyPrice, freePlan.currency, locale) : t.freePrice;
+  const proPrice = proPlan ? formatPlanPrice(proPlan.monthlyPrice, proPlan.currency, locale) : t.proPrice;
 
   return <LocaleProvider initialLocale={locale}><div className="min-h-screen overflow-hidden bg-white text-[#07111f] dark:bg-[#07111f] dark:text-white">
     <PublicHeader locale={locale} accountHref={accountHref} signedIn={Boolean(session?.user)} />
@@ -89,7 +105,7 @@ export default async function HomePage() {
 
       <section className="px-5 pb-20 lg:px-8 lg:pb-28 dark:bg-[#091522]"><div className="mx-auto grid max-w-7xl overflow-hidden rounded-[2rem] bg-[#087d82] text-white lg:grid-cols-2"><div className="p-9 lg:p-16"><Bot className="h-9 w-9"/><p className="mt-6 text-sm font-bold text-emerald-100">{t.aiKicker}</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">{t.aiTitle}</h2><p className="mt-5 leading-8 text-emerald-50/90">{t.aiLead}</p></div><div className="grid content-center gap-4 bg-[#06666a] p-9 lg:p-16">{[t.cards[4][0],t.cards[2][0],t.cards[3][0]].map(x=><div key={x} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4"><Check className="h-5 w-5"/><span className="font-bold">{x}</span></div>)}</div></div></section>
 
-      <section id="pricing" className="bg-slate-50 py-20 lg:py-28 dark:bg-[#07111f]"><div className="mx-auto max-w-5xl px-5 lg:px-8"><h2 className="text-center text-3xl font-black sm:text-4xl">{t.pricing}</h2><p className="mx-auto mt-4 max-w-xl text-center text-slate-500">{t.priceLead}</p><div className="mt-12 grid gap-5 md:grid-cols-2"><Plan title={t.free} price={t.freePrice} items={t.freeItems} href={accountHref} cta={t.start}/><Plan title={t.pro} price={t.proPrice} items={t.proItems} href={accountHref} cta={t.start} featured/></div></div></section>
+      <section id="pricing" className="bg-slate-50 py-20 lg:py-28 dark:bg-[#07111f]"><div className="mx-auto max-w-5xl px-5 lg:px-8"><h2 className="text-center text-3xl font-black sm:text-4xl">{t.pricing}</h2><p className="mx-auto mt-4 max-w-2xl text-center leading-7 text-slate-500">{t.priceLead}</p><div className="mt-12 grid items-stretch gap-5 md:grid-cols-2"><Plan title={t.free} price={freePrice} items={t.freeItems} unavailable={t.freeUnavailable} href={accountHref} cta={t.freeCta}/><Plan title={t.pro} price={proPrice} items={t.proItems} href={upgradeHref} cta={t.proCta} badge={t.popular} featured/></div><p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-6 text-slate-500">{t.currencyNote}</p></div></section>
 
       <section className="px-5 py-20"><div className="mx-auto max-w-5xl rounded-[2rem] bg-[#07111f] px-6 py-14 text-center text-white shadow-2xl"><ShoppingBag className="mx-auto h-10 w-10 text-[#13C4A3]"/><h2 className="mt-6 text-3xl font-black sm:text-4xl">{t.final}</h2><p className="mt-4 text-slate-400">{t.finalLead}</p><Link href={accountHref} className="mt-8 inline-flex rounded-2xl bg-[#13C4A3] px-7 py-4 font-bold">{session?.user?t.dashboard:t.start}</Link></div></section>
     </main>
@@ -99,4 +115,10 @@ export default async function HomePage() {
 
 function DashboardPreview({locale}:{locale:Locale}) { const ar=locale==='ar'; return <div className="mx-auto w-full max-w-xl rounded-[2rem] border border-slate-300 bg-white p-3 shadow-[0_18px_50px_rgba(7,17,31,0.12)] dark:border-white/15 dark:bg-[#0d1b2a]"><div className="rounded-[1.4rem] border border-slate-100 bg-white p-5 dark:border-white/10 dark:bg-[#102235]"><div className="flex items-center gap-3"><WaslaMark/><div><p className="text-sm font-bold">{ar?'لوحة متجرك':'Your dashboard'}</p><p className="text-xs text-slate-400">wassla-sd.shop/store/your-store</p></div></div><div className="mt-6 grid grid-cols-3 gap-3">{[[ar?'مبيعات اليوم':'Sales today','48,500'],[ar?'طلبات':'Orders','12'],[ar?'منتجات':'Products','84']].map(([a,b])=><div key={a} className="rounded-2xl border border-slate-100 bg-[#f8faf9] p-4 dark:border-white/10 dark:bg-white/5"><p className="text-[10px] text-slate-500">{a}</p><p className="mt-2 text-lg font-black">{b}</p></div>)}</div><div className="mt-4 grid gap-3 sm:grid-cols-[1.4fr_.6fr]"><div className="rounded-2xl border border-slate-100 p-4 dark:border-white/10"><div className="flex justify-between text-xs font-bold"><span>{ar?'طلب جديد #1048':'New order #1048'}</span><span className="text-amber-600">NEW</span></div><div className="mt-5 h-2 rounded-full bg-slate-100"><div className="h-2 w-4/5 rounded-full bg-[#13C4A3]"/></div><div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-[11px] font-bold text-emerald-700"><CreditCard className="h-4 w-4"/>{ar?'تم رفع إشعار التحويل':'Receipt uploaded'}</div></div><div className="flex flex-col justify-between rounded-2xl bg-[#07111f] p-4 text-white"><MessageCircle className="h-7 w-7 text-[#13C4A3]"/><div><p className="text-xs text-slate-400">WhatsApp AI</p><p className="font-bold">24/7</p></div></div></div></div></div> }
 
-function Plan({title,price,items,href,cta,featured=false}:{title:string;price:string;items:readonly string[];href:string;cta:string;featured?:boolean}) { return <article className={`rounded-3xl border p-8 ${featured?'border-[#13C4A3] bg-[#07111f] text-white':'border-slate-200 bg-white dark:border-white/10 dark:bg-white/5'}`}><p className="font-bold text-[#13C4A3]">{title}</p><p className="mt-3 text-3xl font-black">{price}</p><ul className="mt-7 space-y-3">{items.map(x=><li key={x} className="flex gap-2 text-sm"><Check className="h-5 w-5 text-[#13C4A3]"/>{x}</li>)}</ul><Link href={href} className={`mt-8 flex justify-center rounded-xl px-5 py-3 text-sm font-bold ${featured?'bg-[#13C4A3] text-white':'bg-slate-100 dark:bg-white/10'}`}>{cta}</Link></article> }
+function Plan({title,price,items,unavailable=[],href,cta,badge,featured=false}:{title:string;price:string;items:readonly string[];unavailable?:readonly string[];href:string;cta:string;badge?:string;featured?:boolean}) { return <article className={`relative flex h-full flex-col rounded-3xl border p-8 ${featured?'border-[#13C4A3] bg-[#07111f] text-white shadow-xl shadow-emerald-950/10':'border-slate-200 bg-white dark:border-white/10 dark:bg-white/5'}`}>{badge&&<span className="absolute -top-3 end-6 rounded-full bg-[#13C4A3] px-3 py-1 text-xs font-black text-white">{badge}</span>}<p className="font-bold text-[#13C4A3]">{title}</p><p className="mt-3 text-3xl font-black">{price}</p><ul className="mt-7 space-y-3">{items.map(x=><li key={x} className="flex gap-2 text-sm leading-6"><Check className="mt-0.5 h-5 w-5 shrink-0 text-[#13C4A3]"/>{x}</li>)}{unavailable.map(x=><li key={x} className="flex gap-2 text-sm leading-6 text-slate-400"><X className="mt-0.5 h-5 w-5 shrink-0"/>{x}</li>)}</ul><Link href={href} className={`mt-auto flex justify-center rounded-xl px-5 py-3 text-sm font-bold ${featured?'bg-[#13C4A3] text-white hover:bg-[#10ad91]':'bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15'}`}>{cta}</Link></article> }
+
+function formatPlanPrice(amount:number, currency:string, locale:Locale):string {
+  if (amount === 0) return locale === 'ar' ? 'مجاناً دائماً' : 'Free forever';
+  const formatted = new Intl.NumberFormat(locale === 'ar' ? 'ar-SD' : 'en-US', { maximumFractionDigits: 2 }).format(amount);
+  return locale === 'ar' ? `${formatted} ${currency} / شهرياً` : `${currency} ${formatted} / month`;
+}
