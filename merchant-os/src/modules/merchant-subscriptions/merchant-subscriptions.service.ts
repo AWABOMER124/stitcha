@@ -8,8 +8,11 @@ export interface MerchantPlanSnapshot {
   code: string;
   name: string;
   monthlyPrice: number;
+  yearlyPrice: number | null;
   currency: string;
-  status: 'ACTIVE' | 'PAST_DUE' | 'GRACE_PERIOD' | 'CANCELLED';
+  status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'GRACE_PERIOD' | 'CANCELLED';
+  billingInterval: 'MONTHLY' | 'YEARLY' | 'CUSTOM';
+  trialEndsAt: Date | null;
   isGrandfathered: boolean;
   entitlements: MerchantEntitlements;
 }
@@ -32,10 +35,13 @@ export async function getMerchantPlanSnapshot(
     code: subscription.plan.code,
     name: subscription.plan.name,
     monthlyPrice: Number(subscription.priceOverride ?? subscription.plan.monthlyPrice),
+    yearlyPrice: subscription.plan.yearlyPrice == null ? null : Number(subscription.plan.yearlyPrice),
     currency: subscription.currencyOverride ?? subscription.plan.currency,
     status: subscription.status,
+    billingInterval: subscription.billingInterval ?? 'MONTHLY',
+    trialEndsAt: subscription.trialEndsAt ?? null,
     isGrandfathered: subscription.isGrandfathered,
-    entitlements: parseEntitlements(subscription.plan.entitlements),
+    entitlements: mergeEntitlements(subscription.plan.entitlements, subscription.entitlementOverrides),
   };
 }
 
@@ -61,6 +67,7 @@ export async function listPublicPlans() {
     name: plan.name,
     description: plan.description,
     monthlyPrice: Number(plan.monthlyPrice),
+    yearlyPrice: plan.yearlyPrice == null ? null : Number(plan.yearlyPrice),
     currency: plan.currency,
     entitlements: parseEntitlements(plan.entitlements),
   }));
@@ -139,12 +146,16 @@ function isUniqueConflict(error: unknown): boolean {
 
 function isEffective(
   subscription: {
-    status: 'ACTIVE' | 'PAST_DUE' | 'GRACE_PERIOD' | 'CANCELLED';
+    status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'GRACE_PERIOD' | 'CANCELLED';
     graceEndsAt: Date | null;
+    trialEndsAt: Date | null;
   },
   now: Date,
 ): boolean {
   if (subscription.status === 'ACTIVE') return true;
+  if (subscription.status === 'TRIALING') {
+    return subscription.trialEndsAt !== null && subscription.trialEndsAt > now;
+  }
   return subscription.status === 'GRACE_PERIOD'
     && subscription.graceEndsAt !== null
     && subscription.graceEndsAt > now;
@@ -155,9 +166,22 @@ function freeSnapshot(): MerchantPlanSnapshot {
     code: FREE_PLAN_CODE,
     name: 'Basic',
     monthlyPrice: 0,
+    yearlyPrice: null,
     currency: 'USD',
     status: 'ACTIVE',
+    billingInterval: 'MONTHLY',
+    trialEndsAt: null,
     isGrandfathered: false,
     entitlements: { ...FREE_ENTITLEMENTS },
   };
+}
+
+function mergeEntitlements(plan: Prisma.JsonValue, overrides: Prisma.JsonValue | null): MerchantEntitlements {
+  const base = isJsonObject(plan) ? plan : {};
+  const custom = isJsonObject(overrides) ? overrides : {};
+  return parseEntitlements({ ...base, ...custom });
+}
+
+function isJsonObject(value: Prisma.JsonValue | null): value is Prisma.JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

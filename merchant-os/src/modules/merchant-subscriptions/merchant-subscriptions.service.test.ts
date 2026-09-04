@@ -43,15 +43,18 @@ describe('merchant SaaS entitlements', () => {
       graceEndsAt: null,
       priceOverride: 0,
       currencyOverride: 'USD',
+      billingInterval: 'CUSTOM',
+      trialEndsAt: null,
+      entitlementOverrides: { maxActiveProducts: 500 },
       isGrandfathered: true,
       plan: {
-        code: 'PRO', name: 'Pro', monthlyPrice: 10, currency: 'USD',
+        code: 'PRO', name: 'Pro', monthlyPrice: 10, yearlyPrice: 100, currency: 'USD',
         entitlements: { maxActiveProducts: -1, advancedAnalytics: true, apiAccess: true },
       },
     });
     await expect(getMerchantPlanSnapshot('merchant_1')).resolves.toMatchObject({
-      code: 'PRO', monthlyPrice: 0, isGrandfathered: true,
-      entitlements: { maxActiveProducts: -1, advancedAnalytics: true, apiAccess: true },
+      code: 'PRO', monthlyPrice: 0, yearlyPrice: 100, billingInterval: 'CUSTOM', isGrandfathered: true,
+      entitlements: { maxActiveProducts: 500, advancedAnalytics: true, apiAccess: true },
     });
   });
 
@@ -59,10 +62,11 @@ describe('merchant SaaS entitlements', () => {
     prismaMock.merchantSubscription.findUnique.mockResolvedValue({
       status: 'GRACE_PERIOD',
       graceEndsAt: new Date('2026-08-01T00:00:00Z'),
+      trialEndsAt: null,
       priceOverride: null,
       currencyOverride: null,
       isGrandfathered: false,
-      plan: { code: 'PRO', name: 'Pro', monthlyPrice: 10, currency: 'USD', entitlements: {} },
+      plan: { code: 'PRO', name: 'Pro', monthlyPrice: 10, yearlyPrice: null, currency: 'USD', entitlements: {} },
     });
     await expect(getMerchantPlanSnapshot('merchant_1', new Date('2026-08-26T00:00:00Z')))
       .resolves.toMatchObject({ code: 'FREE', monthlyPrice: 0 });
@@ -75,7 +79,7 @@ describe('merchant SaaS entitlements', () => {
 
   it('lists only public active plans in configured order', async () => {
     prismaMock.merchantPlan.findMany.mockResolvedValue([{
-      code: 'FREE', name: 'Basic', description: 'Basic plan', monthlyPrice: 0,
+      code: 'FREE', name: 'Basic', description: 'Basic plan', monthlyPrice: 0, yearlyPrice: null,
       currency: 'USD', entitlements: { maxActiveProducts: 100 },
     }]);
     await expect(listPublicPlans()).resolves.toEqual([
@@ -85,6 +89,18 @@ describe('merchant SaaS entitlements', () => {
       where: { isActive: true, isPublic: true },
       orderBy: [{ sortOrder: 'asc' }, { monthlyPrice: 'asc' }],
     });
+  });
+
+  it('allows a paid-plan trial only until its configured end time', async () => {
+    prismaMock.merchantSubscription.findUnique.mockResolvedValue({
+      status: 'TRIALING', trialEndsAt: new Date('2026-09-10T00:00:00Z'), graceEndsAt: null,
+      priceOverride: null, currencyOverride: null, billingInterval: 'MONTHLY', entitlementOverrides: null, isGrandfathered: false,
+      plan: { code: 'GROWTH', name: 'Growth', monthlyPrice: 5, yearlyPrice: 50, currency: 'USD', entitlements: { aiStoreEditsMonthly: 100 } },
+    });
+    await expect(getMerchantPlanSnapshot('merchant_1', new Date('2026-09-05T00:00:00Z')))
+      .resolves.toMatchObject({ code: 'GROWTH', status: 'TRIALING', trialEndsAt: new Date('2026-09-10T00:00:00Z') });
+    await expect(getMerchantPlanSnapshot('merchant_1', new Date('2026-09-11T00:00:00Z')))
+      .resolves.toMatchObject({ code: 'FREE', status: 'ACTIVE' });
   });
 
   it('creates one idempotent Pro upgrade request and notifies platform operations', async () => {

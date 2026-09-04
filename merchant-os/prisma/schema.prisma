@@ -1522,6 +1522,7 @@ model MerchantPlan {
   name         String
   description  String?
   monthlyPrice Decimal  @default(0) @db.Decimal(10, 2)
+  yearlyPrice  Decimal? @db.Decimal(10, 2)
   currency     String   @default("USD")
   entitlements Json
   isPublic     Boolean  @default(true)
@@ -1545,7 +1546,10 @@ model MerchantSubscription {
   merchantId            String                     @unique
   planId                String
   status                MerchantSubscriptionStatus @default(ACTIVE)
+  billingInterval        SubscriptionBillingInterval @default(MONTHLY)
   startsAt              DateTime                   @default(now())
+  trialStartedAt        DateTime?
+  trialEndsAt           DateTime?
   currentPeriodStartsAt DateTime?
   currentPeriodEndsAt   DateTime?
   graceEndsAt           DateTime?
@@ -1553,6 +1557,10 @@ model MerchantSubscription {
   cancelledAt           DateTime?
   priceOverride         Decimal?                   @db.Decimal(10, 2)
   currencyOverride      String?
+  entitlementOverrides   Json?
+  billingProvider        String?
+  externalCustomerId     String?
+  externalSubscriptionId String?                    @unique
   isGrandfathered       Boolean                    @default(false)
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
@@ -1562,6 +1570,7 @@ model MerchantSubscription {
 
   @@index([planId, status])
   @@index([status, currentPeriodEndsAt])
+  @@index([billingProvider, externalCustomerId])
   @@map("merchant_subscriptions")
 }
 
@@ -1966,10 +1975,17 @@ enum CustomerSubscriptionStatus {
 }
 
 enum MerchantSubscriptionStatus {
+  TRIALING
   ACTIVE
   PAST_DUE
   GRACE_PERIOD
   CANCELLED
+}
+
+enum SubscriptionBillingInterval {
+  MONTHLY
+  YEARLY
+  CUSTOM
 }
 
 enum AiUsageOperationStatus {

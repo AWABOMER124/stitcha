@@ -17,7 +17,7 @@ const flagLabels: Record<(typeof PLAN_BOOLEAN_FIELDS)[number], string> = {
 };
 
 export interface EditablePlan {
-  id: string; code: string; name: string; description: string; monthlyPrice: number; currency: string;
+  id: string; code: string; name: string; description: string; monthlyPrice: number; yearlyPrice: number | null; currency: string;
   sortOrder: number; isPublic: boolean; isActive: boolean; entitlements: MerchantEntitlements;
 }
 
@@ -34,9 +34,10 @@ export function PlanEditor({ plan }: { plan: EditablePlan }) {
           <label className="flex items-center gap-2"><input type="checkbox" name="isPublic" defaultChecked={plan.isPublic} /> عامة</label>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
         <label className="text-sm font-semibold md:col-span-2">اسم الباقة<input className={input} name="name" defaultValue={plan.name} required /></label>
         <label className="text-sm font-semibold">السعر الشهري<input className={input} name="monthlyPrice" type="number" min="0" step="0.01" defaultValue={plan.monthlyPrice} required /></label>
+        <label className="text-sm font-semibold">السعر السنوي<input className={input} name="yearlyPrice" type="number" min="0" step="0.01" defaultValue={plan.yearlyPrice ?? ''} placeholder="غير مفعّل" /></label>
         <label className="text-sm font-semibold">العملة<input className={input} name="currency" maxLength={3} defaultValue={plan.currency} required /></label>
         <label className="text-sm font-semibold md:col-span-3">الوصف<input className={input} name="description" defaultValue={plan.description} /></label>
         <label className="text-sm font-semibold">ترتيب العرض<input className={input} name="sortOrder" type="number" min="0" defaultValue={plan.sortOrder} /></label>

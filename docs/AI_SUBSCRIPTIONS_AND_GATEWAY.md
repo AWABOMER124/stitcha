@@ -75,7 +75,7 @@ Partial AI Core configuration fails closed. If neither AI Core variable is confi
 ## Deployment order
 
 1. Back up the Wasla PostgreSQL database.
-2. Deploy the commits containing migrations `20260904120000_add_ai_usage_and_growth_plan` and `20260904143000_add_ai_store_projects`.
+2. Deploy the commits containing migrations `20260904120000_add_ai_usage_and_growth_plan`, `20260904143000_add_ai_store_projects`, and `20260904170000_subscription_billing_foundation`.
 3. Confirm Prisma migrations complete before the web process becomes ready.
 4. Deploy AI Core with migrations 010 through 012 already applied.
 5. Set the matching `AI_CORE_SECRET_WASLA` on both services and `AI_CORE_BASE_URL` on Wasla.
@@ -98,9 +98,16 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 - Billing-provider abstraction and signed webhook events.
 - Retire the legacy `WhatsAppAiUsage` table after production reconciliation confirms the unified ledger is authoritative.
 
+## Subscription lifecycle foundation
+
+Plans now support an optional configurable yearly price while monthly billing remains the only launched checkout path. Merchant subscriptions can record `MONTHLY`, `YEARLY`, or `CUSTOM` billing intervals, provider/customer/subscription references, and an explicit trial window. Trials are not granted automatically: a `TRIALING` subscription is effective only before its server-controlled `trialEndsAt`, then access safely falls back to Basic.
+
+`entitlementOverrides` provides tenant-specific contract limits and feature flags without creating a new plan or changing other merchants. Platform staff with subscription-management permission can set or clear these overrides from the merchant detail page. Effective entitlements are always merged and evaluated server-side; no browser-supplied plan or tenant identity is trusted.
+
 ## Operations screens
 
-- `/admin/plans`: edit database-backed prices, visibility, activation, commerce limits, and all AI/WhatsApp entitlements. Requires `platform:subscriptions:manage`.
+- `/admin/plans`: edit database-backed monthly/yearly prices, visibility, activation, commerce limits, and all AI/WhatsApp entitlements. Requires `platform:subscriptions:manage`.
+- `/admin/merchants/{id}`: inspect a merchant and apply or clear tenant-specific entitlement overrides.
 - `/admin/ai-usage`: inspect monthly operations, provider usage, estimated cost, and failures.
 - `/dashboard/subscription`: merchant plan and quota visibility.
 - `/dashboard/storefront/ai`: generate, retain, preview, and safely apply merchant-owned store drafts.

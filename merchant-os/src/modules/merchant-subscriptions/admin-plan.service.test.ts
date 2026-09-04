@@ -4,10 +4,11 @@ import { PLAN_BOOLEAN_FIELDS, PLAN_LIMIT_FIELDS } from './plan-fields';
 
 const prismaMock = {
   merchantPlan: { findMany: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
+  merchantSubscription: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
 };
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
 
-const { listAdminMerchantPlans, updateAdminMerchantPlan } = await import('./admin-plan.service');
+const { listAdminMerchantPlans, updateAdminMerchantPlan, updateMerchantEntitlementOverrides } = await import('./admin-plan.service');
 
 describe('admin merchant-plan management', () => {
   beforeEach(() => Object.values(prismaMock.merchantPlan).forEach((fn) => fn.mockReset()));
@@ -15,7 +16,7 @@ describe('admin merchant-plan management', () => {
   it('lists private and inactive plans for platform administration', async () => {
     prismaMock.merchantPlan.findMany.mockResolvedValue([{
       id: 'plan_1', code: 'BUSINESS', name: 'Business', description: null,
-      monthlyPrice: 0, currency: 'USD', sortOrder: 3, isPublic: false, isActive: false, entitlements: {},
+      monthlyPrice: 0, yearlyPrice: null, currency: 'USD', sortOrder: 3, isPublic: false, isActive: false, entitlements: {},
     }]);
     await expect(listAdminMerchantPlans()).resolves.toEqual([
       expect.objectContaining({ code: 'BUSINESS', isPublic: false, isActive: false }),
@@ -29,12 +30,12 @@ describe('admin merchant-plan management', () => {
     const flags = Object.fromEntries(PLAN_BOOLEAN_FIELDS.map((key) => [key, FREE_ENTITLEMENTS[key]]));
 
     await updateAdminMerchantPlan({
-      id: 'cm12345678901234567890123', name: 'Growth', description: 'For growing stores', monthlyPrice: 5,
+      id: 'cm12345678901234567890123', name: 'Growth', description: 'For growing stores', monthlyPrice: 5, yearlyPrice: 50,
       currency: 'usd', sortOrder: 2, isPublic: true, isActive: true, limits, flags,
     });
 
     expect(prismaMock.merchantPlan.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ currency: 'USD', entitlements: expect.objectContaining({ futureFeature: true, maxActiveProducts: 20 }) }),
+      data: expect.objectContaining({ currency: 'USD', yearlyPrice: 50, entitlements: expect.objectContaining({ futureFeature: true, maxActiveProducts: 20 }) }),
     }));
   });
 
@@ -42,9 +43,23 @@ describe('admin merchant-plan management', () => {
     const limits = Object.fromEntries(PLAN_LIMIT_FIELDS.map((key) => [key, 0]));
     const flags = Object.fromEntries(PLAN_BOOLEAN_FIELDS.map((key) => [key, false]));
     await expect(updateAdminMerchantPlan({
-      id: 'cm12345678901234567890123', name: 'Growth', description: '', monthlyPrice: -1,
+      id: 'cm12345678901234567890123', name: 'Growth', description: '', monthlyPrice: -1, yearlyPrice: null,
       currency: 'US', sortOrder: 1, isPublic: true, isActive: true, limits, flags,
     })).rejects.toThrow();
     expect(prismaMock.merchantPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('stores tenant-specific limits and feature overrides without changing the plan', async () => {
+    prismaMock.merchantSubscription.findUniqueOrThrow.mockResolvedValue({ entitlementOverrides: { futureFlag: true } });
+    prismaMock.merchantSubscription.update.mockResolvedValue({ id: 'subscription_1' });
+    const limits = Object.fromEntries(PLAN_LIMIT_FIELDS.map((key) => [key, FREE_ENTITLEMENTS[key]]));
+    const flags = Object.fromEntries(PLAN_BOOLEAN_FIELDS.map((key) => [key, FREE_ENTITLEMENTS[key]]));
+
+    await updateMerchantEntitlementOverrides({ merchantId: 'cm12345678901234567890123', clear: false, limits, flags });
+
+    expect(prismaMock.merchantSubscription.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { merchantId: 'cm12345678901234567890123' },
+      data: { entitlementOverrides: expect.objectContaining({ futureFlag: true, maxActiveProducts: 20 }) },
+    }));
   });
 });
