@@ -1,6 +1,8 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { BusinessRuleError, NotFoundError } from '@/lib/errors';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
+import type { MerchantEntitlements } from '@/modules/merchant-subscriptions';
 
 export const AI_FEATURE_KEYS = Object.freeze({
   STORE_GENERATION_LIFETIME: 'ai.store_generation.lifetime',
@@ -13,6 +15,21 @@ export const AI_FEATURE_KEYS = Object.freeze({
 
 export type AiFeatureKey = typeof AI_FEATURE_KEYS[keyof typeof AI_FEATURE_KEYS];
 export type AiUsagePeriod = 'LIFETIME' | 'MONTHLY';
+
+export const AI_FEATURE_CATALOG: ReadonlyArray<{
+  key: AiFeatureKey;
+  entitlement: keyof MerchantEntitlements;
+  period: AiUsagePeriod;
+  labelAr: string;
+  labelEn: string;
+}> = Object.freeze([
+  { key: AI_FEATURE_KEYS.STORE_GENERATION_LIFETIME, entitlement: 'aiStoreGenerationsLifetime', period: 'LIFETIME', labelAr: 'توليد المتجر مدى الحياة', labelEn: 'Lifetime store generation' },
+  { key: AI_FEATURE_KEYS.STORE_GENERATION_MONTHLY, entitlement: 'aiStoreGenerationsMonthly', period: 'MONTHLY', labelAr: 'توليد المتجر', labelEn: 'Store generations' },
+  { key: AI_FEATURE_KEYS.STORE_EDIT_MONTHLY, entitlement: 'aiStoreEditsMonthly', period: 'MONTHLY', labelAr: 'تعديلات المتجر الذكية', labelEn: 'AI store edits' },
+  { key: AI_FEATURE_KEYS.MERCHANT_CHAT_MONTHLY, entitlement: 'aiMerchantChatsMonthly', period: 'MONTHLY', labelAr: 'محادثات مساعد التاجر', labelEn: 'Merchant copilot chats' },
+  { key: AI_FEATURE_KEYS.IMAGE_ENHANCEMENT_MONTHLY, entitlement: 'aiImageEnhancementsMonthly', period: 'MONTHLY', labelAr: 'تحسين صور المنتجات', labelEn: 'Product image enhancements' },
+  { key: AI_FEATURE_KEYS.WHATSAPP_CONVERSATION_MONTHLY, entitlement: 'whatsappAiConversationsMonthly', period: 'MONTHLY', labelAr: 'ردود واتساب الذكية', labelEn: 'WhatsApp AI replies' },
+]);
 
 export interface AiProviderUsage {
   provider?: string;
@@ -193,6 +210,60 @@ export async function expireAiUsageReservations(now = new Date(), batchSize = 50
     }
     return released;
   });
+}
+
+export async function getMerchantAiUsageSummary(merchantId: string, now = new Date()) {
+  const plan = await getMerchantPlanSnapshot(merchantId, now);
+  const monthlyKey = aiUsagePeriodKey('MONTHLY', now);
+  const buckets = await prisma.aiUsageBucket.findMany({
+    where: { merchantId, periodKey: { in: ['lifetime', monthlyKey] } },
+  });
+  const byKey = new Map(buckets.map(bucket => [`${bucket.featureKey}:${bucket.periodKey}`, bucket]));
+
+  return AI_FEATURE_CATALOG.map(feature => {
+    const limitValue = plan.entitlements[feature.entitlement];
+    const limit = typeof limitValue === 'number' ? limitValue : 0;
+    const periodKey = aiUsagePeriodKey(feature.period, now);
+    const bucket = byKey.get(`${feature.key}:${periodKey}`);
+    return {
+      ...feature,
+      periodKey,
+      limit,
+      usedUnits: bucket?.usedUnits ?? 0,
+      reservedUnits: bucket?.reservedUnits ?? 0,
+      remainingUnits: limit === -1 ? -1 : Math.max(0, limit - (bucket?.usedUnits ?? 0) - (bucket?.reservedUnits ?? 0)),
+    };
+  });
+}
+
+export async function getPlatformAiUsageOverview(now = new Date()) {
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [totals, breakdown, recent] = await Promise.all([
+    prisma.aiUsageOperation.aggregate({
+      where: { createdAt: { gte: monthStart } },
+      _count: { _all: true },
+      _sum: { inputTokens: true, outputTokens: true, estimatedCostUsd: true },
+    }),
+    prisma.aiUsageOperation.groupBy({
+      by: ['featureKey', 'status'],
+      where: { createdAt: { gte: monthStart } },
+      _count: { _all: true },
+    }),
+    prisma.aiUsageOperation.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      include: { merchant: { select: { name: true, slug: true } } },
+    }),
+  ]);
+  return {
+    monthStart,
+    totalOperations: totals._count._all,
+    inputTokens: totals._sum.inputTokens ?? 0,
+    outputTokens: totals._sum.outputTokens ?? 0,
+    estimatedCostUsd: Number(totals._sum.estimatedCostUsd ?? 0),
+    breakdown,
+    recent: recent.map(item => ({ ...item, estimatedCostUsd: Number(item.estimatedCostUsd ?? 0) })),
+  };
 }
 
 export async function runMeteredAiOperation<T>(

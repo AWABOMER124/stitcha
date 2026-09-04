@@ -37,6 +37,7 @@ function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
       { type: 'link' as const, label: nav.finance, href: '/admin/finance', icon: '💰' },
       { type: 'link' as const, label: nav.customerSubscriptions, href: '/admin/customer-subscriptions', icon: '⭐' },
       { type: 'link' as const, label: nav.subscriptionPayments, href: '/admin/subscription-payments', icon: '🧾' },
+      { type: 'link' as const, label: nav.aiUsage, href: '/admin/ai-usage', icon: '✨' },
       { type: 'link' as const, label: nav.referrals, href: '/admin/referrals', icon: '🤝' },
     ] : []),
     { type: 'divider' },

@@ -10,6 +10,7 @@ import {
 import { UpgradeButton } from './upgrade-button';
 import { ManualPaymentForm } from './manual-payment-form';
 import { listActivePaymentAccounts, listMerchantPayments } from '@/modules/subscription-payments/subscription-payments.service';
+import { getMerchantAiUsageSummary } from '@/modules/ai-usage';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,12 +33,13 @@ export default async function SubscriptionPage() {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
   const locale = (await cookies()).get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'ar';
-  const [current, plans, pending, paymentAccounts, payments] = await Promise.all([
+  const [current, plans, pending, paymentAccounts, payments, aiUsage] = await Promise.all([
     getMerchantPlanSnapshot(session.user.merchantId),
     listPublicPlans(),
     getPendingPlanChangeRequest(session.user.merchantId),
     listActivePaymentAccounts(),
     listMerchantPayments(session.user.merchantId),
+    getMerchantAiUsageSummary(session.user.merchantId),
   ]);
   const ar = locale === 'ar';
 
@@ -67,6 +69,30 @@ export default async function SubscriptionPage() {
               : `Your ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} upgrade request is under review.`}
           </p>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5" aria-labelledby="ai-usage-title">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 id="ai-usage-title" className="text-lg font-black text-[var(--foreground)]">{ar ? 'استخدام الذكاء الاصطناعي' : 'AI usage'}</h2>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">{ar ? 'الحصص الشهرية تتجدد تلقائياً، والتوليد المجاني يُمنح مرة واحدة.' : 'Monthly allowances reset automatically; the free generation is available once.'}</p>
+          </div>
+          <span className="text-xs font-semibold text-[var(--muted-foreground)]">{aiUsage.find(item => item.period === 'MONTHLY')?.periodKey}</span>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {aiUsage.filter(item => item.limit !== 0).map(item => {
+            const consumed = item.usedUnits + item.reservedUnits;
+            const percent = item.limit === -1 ? 0 : Math.min(100, Math.round((consumed / item.limit) * 100));
+            return <div key={item.key} className="rounded-xl border border-[var(--border)] p-4">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <strong>{ar ? item.labelAr : item.labelEn}</strong>
+                <span className="text-[var(--muted-foreground)]">{item.usedUnits} / {item.limit === -1 ? (ar ? 'غير محدود' : 'Unlimited') : item.limit}</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--muted)]"><div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${percent}%` }} /></div>
+              {item.reservedUnits > 0 && <p className="mt-2 text-xs text-amber-700">{ar ? `${item.reservedUnits} قيد التنفيذ` : `${item.reservedUnits} in progress`}</p>}
+            </div>;
+          })}
+        </div>
       </section>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">

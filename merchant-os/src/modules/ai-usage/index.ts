@@ -1,8 +1,11 @@
 export {
   AI_FEATURE_KEYS,
+  AI_FEATURE_CATALOG,
   aiUsagePeriodKey,
   commitAiUsage,
   expireAiUsageReservations,
+  getMerchantAiUsageSummary,
+  getPlatformAiUsageOverview,
   releaseAiUsage,
   reserveAiUsage,
   runMeteredAiOperation,

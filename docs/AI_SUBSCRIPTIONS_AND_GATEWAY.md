@@ -92,8 +92,8 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 
 ## Remaining AI product work
 
-- Merchant usage bars and contextual upgrade prompts.
-- Admin plan/entitlement editor and AI cost dashboard.
+- Contextual upgrade prompts at the exact exhausted feature.
+- Admin plan/entitlement editor. The AI operations and cost dashboard is available at `/admin/ai-usage`.
 - Persisted Store Project linkage in Wasla, project history, restore, and safe conversational patches.
 - Read-only merchant copilot for sales, delayed orders, stock, and customer insights.
 - Billing-provider abstraction and signed webhook events.
