@@ -9,6 +9,7 @@ import { placeOrderSchema } from './schemas/storefront.schemas';
 import * as storefrontService from './services/storefront.service';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 import { generateStoreContentWithMetadata } from '@/services/ai/ai-store-content.service';
+import { AiCoreStoreContentProvider, isAiCoreStoreGenerationConfigured } from '@/services/ai/providers/ai-core-store-content.provider';
 import { storeGenerationPromptSchema } from '@/services/ai/store-content.schema';
 import * as categoriesService from '@/modules/categories/services/categories.service';
 import * as productsService from '@/modules/products/services/products.service';
@@ -20,6 +21,9 @@ import {
   claimAiStoreDraftForApplication,
   failAiStoreDraftApplication,
   finishAiStoreDraftApplication,
+  getMerchantAiStoreProjectLink,
+  getMerchantAiStoreVersionLink,
+  saveAiStoreProjectVersion,
   saveGeneratedAiStoreProject,
   type AiStoreDraft,
 } from './services/ai-store-projects.service';
@@ -27,6 +31,10 @@ import {
 type AiStoreDraftView = Omit<AiStoreDraft, 'createdAt'> & { createdAt: string };
 
 type ActionResult<T> = { success: true; data: T } | { success: false; error: string };
+
+function draftView(draft: AiStoreDraft): AiStoreDraftView {
+  return { ...draft, createdAt: draft.createdAt.toISOString() };
+}
 
 async function getRequestIp(): Promise<string> {
   const h = await headers();
@@ -149,7 +157,7 @@ export async function generateStoreContentAction(
       prompt: safePrompt,
       generated,
     });
-    return { success: true, data: { ...draft, createdAt: draft.createdAt.toISOString() } };
+    return { success: true, data: draftView(draft) };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'فشل التوليد' };
   }
@@ -163,14 +171,14 @@ export async function generateStoreContentAction(
  * merchant can freely edit afterward, never overwrites anything.
  */
 export async function applyAiStoreContentAction(
-  projectId: string,
+  versionId: string,
 ): Promise<ActionResult<{ categoriesCreated: number; productsCreated: number; status: 'APPLIED' | 'PARTIAL' }>> {
   let claimedVersionId: string | undefined;
   try {
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
     const merchantId = session.user.merchantId;
-    const claimed = await claimAiStoreDraftForApplication(merchantId, projectId);
+    const claimed = await claimAiStoreDraftForApplication(merchantId, versionId);
     claimedVersionId = claimed.versionId;
     const safeContent = claimed.content;
 
@@ -225,6 +233,85 @@ export async function applyAiStoreContentAction(
   } catch (error) {
     if (claimedVersionId) await failAiStoreDraftApplication(claimedVersionId).catch(() => undefined);
     return { success: false, error: error instanceof Error ? error.message : 'فشل التطبيق' };
+  }
+}
+
+export async function refineAiStoreProjectAction(
+  projectId: string,
+  prompt: string,
+  idempotencyKey?: string,
+): Promise<ActionResult<AiStoreDraftView>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
+    if (!isAiCoreStoreGenerationConfigured()) return { success: false, error: 'التعديل الذكي غير مهيأ بعد' };
+    const merchantId = session.user.merchantId;
+    const safePrompt = storeGenerationPromptSchema.parse(prompt);
+    const requestKey = idempotencyKey?.trim() || crypto.randomUUID();
+    if (requestKey.length < 8 || requestKey.length > 120) return { success: false, error: 'معرّف طلب التعديل غير صالح' };
+    enforceRateLimit(`ai-store-edit:${merchantId}`, 30, 60 * 60_000);
+    const [plan, link] = await Promise.all([
+      getMerchantPlanSnapshot(merchantId),
+      getMerchantAiStoreProjectLink(merchantId, projectId),
+    ]);
+    const generated = await runMeteredAiOperation({
+      merchantId,
+      featureKey: AI_FEATURE_KEYS.STORE_EDIT_MONTHLY,
+      period: 'MONTHLY',
+      limit: plan.entitlements.aiStoreEditsMonthly,
+      idempotencyKey: requestKey,
+    }, async () => {
+      const result = await new AiCoreStoreContentProvider().refine(link.gatewayProjectId, safePrompt, {
+        merchantId,
+        actorId: session.user.id || merchantId,
+        language: 'ar',
+      });
+      return {
+        value: result,
+        usage: {
+          provider: 'ai-core', providerRequestId: result.requestId,
+          metadata: { projectId: result.projectId, versionId: result.versionId, versionNumber: result.versionNumber },
+        },
+      };
+    });
+    const draft = await saveAiStoreProjectVersion({
+      merchantId,
+      projectId: link.projectId,
+      gatewayVersionId: generated.versionId,
+      versionNumber: generated.versionNumber,
+      content: generated.content,
+    });
+    revalidatePath('/dashboard/storefront/ai');
+    return { success: true, data: draftView(draft) };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'فشل تعديل المتجر' };
+  }
+}
+
+export async function restoreAiStoreVersionAction(versionId: string): Promise<ActionResult<AiStoreDraftView>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
+    if (!isAiCoreStoreGenerationConfigured()) return { success: false, error: 'استعادة الإصدارات غير مهيأة بعد' };
+    const merchantId = session.user.merchantId;
+    enforceRateLimit(`ai-store-restore:${merchantId}`, 30, 60 * 60_000);
+    const link = await getMerchantAiStoreVersionLink(merchantId, versionId);
+    const restored = await new AiCoreStoreContentProvider().restore(link.gatewayProjectId, link.gatewayVersionId, {
+      merchantId,
+      actorId: session.user.id || merchantId,
+      language: 'ar',
+    });
+    const draft = await saveAiStoreProjectVersion({
+      merchantId,
+      projectId: link.projectId,
+      gatewayVersionId: restored.versionId,
+      versionNumber: restored.versionNumber,
+      content: restored.content,
+    });
+    revalidatePath('/dashboard/storefront/ai');
+    return { success: true, data: draftView(draft) };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'فشل استعادة الإصدار' };
   }
 }
 

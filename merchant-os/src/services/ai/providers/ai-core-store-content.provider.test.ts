@@ -53,4 +53,27 @@ describe('AI Core store content provider', () => {
       merchantId: 'merchant_1', actorId: 'user_1',
     })).rejects.toThrow('مسودة غير صالحة');
   });
+
+  it('sends conversational edits and restores through server-authenticated project routes', async () => {
+    process.env.AI_CORE_BASE_URL = 'https://ai.example.test';
+    process.env.AI_CORE_SECRET_WASLA = 'a-secure-test-secret';
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status: 'ok', request_id: 'edit_request', version_id: 'version_2', version_number: 2, payload: validPayload,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status: 'ok', request_id: 'restore_request', version_id: 'version_3', version_number: 3, payload: validPayload,
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const provider = new AiCoreStoreContentProvider();
+    const context = { merchantId: 'merchant_1', actorId: 'user_1' };
+
+    await provider.refine('project/1', 'اجعل اللون أزرق', context);
+    await provider.restore('project/1', 'version_1', context);
+
+    expect(fetchMock.mock.calls[0][0]).toBe('https://ai.example.test/api/v1/wasla/projects/project%2F1/patch');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ patch_type: 'ai_refine', patch_data: { prompt: 'اجعل اللون أزرق' } });
+    expect(fetchMock.mock.calls[1][0]).toBe('https://ai.example.test/api/v1/wasla/projects/project%2F1/restore');
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ version_id: 'version_1' });
+  });
 });

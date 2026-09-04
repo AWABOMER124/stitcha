@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useLocale } from '@/lib/i18n/context';
-import { generateStoreContentAction, applyAiStoreContentAction } from '@/modules/storefront/actions';
+import { generateStoreContentAction, applyAiStoreContentAction, refineAiStoreProjectAction, restoreAiStoreVersionAction } from '@/modules/storefront/actions';
 import type { StoreContentResult } from '@/services/ai/types';
 
 interface StoreDraft {
@@ -13,7 +13,7 @@ interface StoreDraft {
   createdAt: string;
 }
 
-export function AiGeneratorClient({ initialDrafts, generationDisabledReason }: { initialDrafts: StoreDraft[]; generationDisabledReason?: string }) {
+export function AiGeneratorClient({ initialDrafts, generationDisabledReason, editDisabledReason }: { initialDrafts: StoreDraft[]; generationDisabledReason?: string; editDisabledReason?: string }) {
   const { dict } = useLocale();
   const t = dict.storefrontAiPage;
   const [prompt, setPrompt] = useState('');
@@ -23,6 +23,9 @@ export function AiGeneratorClient({ initialDrafts, generationDisabledReason }: {
   const [error, setError] = useState('');
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   async function generate() {
     if (!prompt.trim()) return;
@@ -38,13 +41,33 @@ export function AiGeneratorClient({ initialDrafts, generationDisabledReason }: {
   async function applyToStore() {
     if (!result) return;
     setApplying(true);
-    const res = await applyAiStoreContentAction(result.projectId).catch(() => null);
+    const res = await applyAiStoreContentAction(result.versionId).catch(() => null);
     setApplying(false);
     if (res?.success) {
       setApplied(true);
       setDrafts((current) => current.map((draft) => draft.versionId === result.versionId ? { ...draft, status: res.data.status } : draft));
     }
     else setError((res && !res.success ? res.error : null) || t.genericError);
+  }
+
+  async function refineDraft() {
+    if (!result || !editPrompt.trim()) return;
+    setEditing(true); setError('');
+    const res = await refineAiStoreProjectAction(result.projectId, editPrompt, crypto.randomUUID()).catch(() => null);
+    setEditing(false);
+    if (res?.success) {
+      setResult(res.data); setDrafts((current) => [res.data, ...current]); setEditPrompt(''); setApplied(false);
+    } else setError((res && !res.success ? res.error : null) || t.genericError);
+  }
+
+  async function restoreDraft() {
+    if (!result) return;
+    setRestoring(true); setError('');
+    const res = await restoreAiStoreVersionAction(result.versionId).catch(() => null);
+    setRestoring(false);
+    if (res?.success) {
+      setResult(res.data); setDrafts((current) => [res.data, ...current]); setApplied(false);
+    } else setError((res && !res.success ? res.error : null) || t.genericError);
   }
 
   return (
@@ -142,6 +165,12 @@ export function AiGeneratorClient({ initialDrafts, generationDisabledReason }: {
                 <div className="w-5 h-5 rounded-full border-2 border-stone-300" style={{ background: result.content.primaryColor }} />
                 <span>{t.primaryColorLabel}</span>
               </div>
+            </div>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--muted)]/20 p-4" dir="rtl">
+              <p className="text-sm font-bold">عدّل هذه المسودة بالذكاء الاصطناعي</p>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">مثال: غيّر اللون للأزرق الداكن وأضف قسم هدايا.</p>
+              {editDisabledReason ? <p className="mt-3 text-xs text-amber-700">{editDisabledReason} <a className="font-bold underline" href="/dashboard/subscription">طوّر الباقة</a></p> : <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={editPrompt} onChange={(event) => setEditPrompt(event.target.value)} maxLength={2000} className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm" placeholder="اكتب التعديل المطلوب…" /><button type="button" onClick={refineDraft} disabled={editing || !editPrompt.trim()} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{editing ? 'جارٍ إنشاء إصدار…' : 'معاينة التعديل'}</button></div>}
+              {drafts.some((draft) => draft.projectId === result.projectId && draft.versionNumber > result.versionNumber) && <button type="button" onClick={restoreDraft} disabled={restoring} className="mt-3 text-xs font-bold text-[var(--primary)] underline underline-offset-4 disabled:opacity-50">{restoring ? 'جارٍ الاستعادة…' : `استعادة الإصدار ${result.versionNumber} كإصدار جديد`}</button>}
             </div>
             {applied || result.status !== 'DRAFT'
               ? <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-4 py-3 text-center font-medium">{t.appliedMessage}</p>

@@ -15,6 +15,15 @@ const aiCoreResponseSchema = z.object({
   validation_errors: z.array(z.string()).default([]),
 });
 
+const aiCoreVersionResponseSchema = z.object({
+  status: z.literal('ok'),
+  request_id: z.string().optional(),
+  version_id: z.string().min(1),
+  version_number: z.number().int().positive(),
+  payload: z.unknown(),
+  validation_errors: z.array(z.string()).default([]),
+});
+
 export interface AiCoreStoreGenerationContext {
   merchantId: string;
   actorId: string;
@@ -42,20 +51,7 @@ export class AiCoreStoreContentProvider {
     const secret = process.env.AI_CORE_SECRET_WASLA?.trim();
     if (!baseUrl || !secret) throw new BusinessRuleError('AI Core غير مهيأ بالكامل في إعدادات المنصة');
 
-    const requestId = randomUUID();
-    const token = await new SignJWT({
-      org: context.merchantId,
-      permissions: ['wasla.store_projects.create'],
-      language: context.language ?? 'ar',
-    })
-      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setIssuer('wasla')
-      .setAudience('ai-core')
-      .setSubject(context.actorId)
-      .setIssuedAt()
-      .setExpirationTime('5m')
-      .setJti(requestId)
-      .sign(new TextEncoder().encode(secret));
+    const { token } = await this.serviceToken(secret, context, ['wasla.store_projects.create']);
 
     const response = await fetch(`${baseUrl}/api/v1/wasla/projects`, {
       method: 'POST',
@@ -90,5 +86,61 @@ export class AiCoreStoreContentProvider {
       versionId: parsed.data.version_id,
       versionNumber: parsed.data.version_number,
     };
+  }
+
+  async refine(projectId: string, prompt: string, context: AiCoreStoreGenerationContext): Promise<AiCoreStoreGenerationResult> {
+    return this.versionRequest(projectId, '/patch', { patch_type: 'ai_refine', patch_data: { prompt } }, context, 'wasla.store_projects.patch');
+  }
+
+  async restore(projectId: string, versionId: string, context: AiCoreStoreGenerationContext): Promise<AiCoreStoreGenerationResult> {
+    return this.versionRequest(projectId, '/restore', { version_id: versionId }, context, 'wasla.store_projects.restore');
+  }
+
+  private async versionRequest(
+    projectId: string,
+    suffix: string,
+    body: Record<string, unknown>,
+    context: AiCoreStoreGenerationContext,
+    permission: string,
+  ): Promise<AiCoreStoreGenerationResult> {
+    const baseUrl = process.env.AI_CORE_BASE_URL?.trim().replace(/\/$/, '');
+    const secret = process.env.AI_CORE_SECRET_WASLA?.trim();
+    if (!baseUrl || !secret) throw new BusinessRuleError('AI Core غير مهيأ بالكامل في إعدادات المنصة');
+    const { requestId, token } = await this.serviceToken(secret, context, [permission]);
+    const response = await fetch(`${baseUrl}/api/v1/wasla/projects/${encodeURIComponent(projectId)}${suffix}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(Number(process.env.AI_CORE_TIMEOUT_MS ?? 60_000)),
+    });
+    const responseBody = await response.json().catch(() => null);
+    if (!response.ok) throw new BusinessRuleError(`تعذر تعديل إصدار المتجر عبر AI Core (HTTP ${response.status})`);
+    const parsed = aiCoreVersionResponseSchema.safeParse(responseBody);
+    if (!parsed.success || parsed.data.validation_errors.length > 0) throw new BusinessRuleError('AI Core أعاد إصدار متجر غير صالح');
+    return {
+      content: storeContentSchema.parse(parsed.data.payload),
+      requestId: parsed.data.request_id ?? requestId,
+      projectId,
+      versionId: parsed.data.version_id,
+      versionNumber: parsed.data.version_number,
+    };
+  }
+
+  private async serviceToken(
+    secret: string,
+    context: AiCoreStoreGenerationContext,
+    permissions: string[],
+  ) {
+    const requestId = randomUUID();
+    const token = await new SignJWT({ org: context.merchantId, permissions, language: context.language ?? 'ar' })
+      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+      .setIssuer('wasla')
+      .setAudience('ai-core')
+      .setSubject(context.actorId)
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .setJti(requestId)
+      .sign(new TextEncoder().encode(secret));
+    return { requestId, token };
   }
 }

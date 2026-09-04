@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const prismaMock = {
-  merchantAiStoreProject: { create: vi.fn() },
+  merchantAiStoreProject: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
   merchantAiStoreVersion: { findMany: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
   $transaction: vi.fn(async (callback: (tx: typeof prismaMock) => unknown) => callback(prismaMock)),
 };
@@ -41,16 +41,16 @@ describe('AI store project persistence', () => {
   it('only claims a draft belonging to the current merchant', async () => {
     prismaMock.merchantAiStoreVersion.findFirst.mockResolvedValue({ id: 'version_1', content, status: 'DRAFT' });
     prismaMock.merchantAiStoreVersion.updateMany.mockResolvedValue({ count: 1 });
-    await expect(service.claimAiStoreDraftForApplication('merchant_1', 'project_1')).resolves.toMatchObject({ versionId: 'version_1' });
+    await expect(service.claimAiStoreDraftForApplication('merchant_1', 'version_1')).resolves.toMatchObject({ versionId: 'version_1' });
     expect(prismaMock.merchantAiStoreVersion.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { projectId: 'project_1', project: { merchantId: 'merchant_1' } },
+      where: { id: 'version_1', project: { merchantId: 'merchant_1' } },
     }));
   });
 
   it('blocks repeated or concurrent application', async () => {
     prismaMock.merchantAiStoreVersion.findFirst.mockResolvedValue({ id: 'version_1', content, status: 'DRAFT' });
     prismaMock.merchantAiStoreVersion.updateMany.mockResolvedValue({ count: 0 });
-    await expect(service.claimAiStoreDraftForApplication('merchant_1', 'project_1')).rejects.toThrow('بالفعل');
+    await expect(service.claimAiStoreDraftForApplication('merchant_1', 'version_1')).rejects.toThrow('بالفعل');
   });
 
   it('records a partial application when any generated catalog item fails', async () => {
@@ -60,6 +60,14 @@ describe('AI store project persistence', () => {
     })).resolves.toBe('PARTIAL');
     expect(prismaMock.merchantAiStoreVersion.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: 'PARTIAL' }),
+    }));
+  });
+
+  it('rejects cross-tenant project links before calling AI Core', async () => {
+    prismaMock.merchantAiStoreProject.findFirst.mockResolvedValue(null);
+    await expect(service.getMerchantAiStoreProjectLink('merchant_a', 'project_b')).rejects.toThrow();
+    expect(prismaMock.merchantAiStoreProject.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'project_b', merchantId: 'merchant_a' },
     }));
   });
 });
