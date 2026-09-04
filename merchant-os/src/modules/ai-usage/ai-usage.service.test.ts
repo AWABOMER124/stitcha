@@ -2,15 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const txMock = {
   aiUsageBucket: { upsert: vi.fn(), update: vi.fn() },
-  aiUsageOperation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+  aiUsageOperation: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
 };
 const transactionMock = vi.fn(async (callback: (tx: typeof txMock) => Promise<unknown>) => callback(txMock));
-vi.mock('@/lib/db/prisma', () => ({ default: { $transaction: transactionMock } }));
+vi.mock('@/lib/db/prisma', () => ({ default: { ...txMock, $transaction: transactionMock } }));
 
 const {
   AI_FEATURE_KEYS,
   aiUsagePeriodKey,
   commitAiUsage,
+  expireAiUsageReservations,
   releaseAiUsage,
   reserveAiUsage,
   runMeteredAiOperation,
@@ -131,5 +132,21 @@ describe('AI usage accounting', () => {
     expect(txMock.aiUsageOperation.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: 'RELEASED' }),
     }));
+  });
+
+  it('expires abandoned reservations without double releasing them', async () => {
+    txMock.aiUsageOperation.findMany.mockResolvedValue([
+      { id: 'operation_1', bucketId: 'bucket_1', units: 1 },
+      { id: 'operation_2', bucketId: 'bucket_1', units: 2 },
+    ]);
+    txMock.aiUsageOperation.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
+
+    await expect(expireAiUsageReservations(new Date('2026-09-04T10:00:00Z'))).resolves.toBe(1);
+    expect(txMock.aiUsageBucket.update).toHaveBeenCalledTimes(1);
+    expect(txMock.aiUsageBucket.update).toHaveBeenCalledWith({
+      where: { id: 'bucket_1' }, data: { reservedUnits: { decrement: 1 } },
+    });
   });
 });

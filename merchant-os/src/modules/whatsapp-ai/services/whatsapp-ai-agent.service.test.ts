@@ -3,7 +3,6 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 const prismaMock = {
   whatsAppConfig: { findUnique: vi.fn() },
   conversation: { findFirst: vi.fn(), update: vi.fn() },
-  whatsAppAiUsage: { upsert: vi.fn() },
   merchant: { findUnique: vi.fn() },
   product: { findMany: vi.fn() },
   inboxMessage: { findMany: vi.fn(), create: vi.fn() },
@@ -11,10 +10,15 @@ const prismaMock = {
 };
 const getMerchantPlanSnapshot = vi.fn();
 const sendMessage = vi.fn();
+const runMeteredAiOperation = vi.fn();
 
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
 vi.mock('@/modules/merchant-subscriptions', () => ({ getMerchantPlanSnapshot }));
 vi.mock('@/modules/whatsapp-channel/services/whatsapp-channel.service', () => ({ sendMessage }));
+vi.mock('@/modules/ai-usage', () => ({
+  AI_FEATURE_KEYS: { WHATSAPP_CONVERSATION_MONTHLY: 'ai.whatsapp_conversation.monthly' },
+  runMeteredAiOperation,
+}));
 
 const { handleInboundAiAgent, requestsHuman } = await import('./whatsapp-ai-agent.service');
 const previousApiKey = process.env.ANTHROPIC_API_KEY;
@@ -27,8 +31,8 @@ describe('WhatsApp AI customer service agent', () => {
     process.env.ANTHROPIC_API_KEY = 'test-key';
     prismaMock.whatsAppConfig.findUnique.mockResolvedValue({ isActive: true, aiAgentEnabled: true, aiAgentPrompt: null });
     prismaMock.conversation.findFirst.mockResolvedValue({ aiAgentPaused: false, orderContext: null });
-    prismaMock.whatsAppAiUsage.upsert.mockResolvedValue({ count: 1 });
-    getMerchantPlanSnapshot.mockResolvedValue({ entitlements: { whatsappAiAgent: true, aiMonthlyCredits: 100 } });
+    getMerchantPlanSnapshot.mockResolvedValue({ entitlements: { whatsappAiAgent: true, whatsappAiConversationsMonthly: 100 } });
+    runMeteredAiOperation.mockImplementation(async (_input: unknown, execute: () => Promise<{ value: unknown }>) => (await execute()).value);
     prismaMock.merchant.findUnique.mockResolvedValue({ name: 'Store', description: 'Coffee', phone: null, address: null, currency: 'SDG', storefrontSettings: { isOpen: true, deliveryEnabled: true, pickupEnabled: true, welcomeText: null, workingHours: null } });
     prismaMock.product.findMany.mockResolvedValue([{ name: 'قهوة', description: 'قهوة سودانية', price: 1000 }]);
     prismaMock.inboxMessage.findMany.mockResolvedValue([{ isFromCustomer: true, content: inbound.text }]);
@@ -63,11 +67,20 @@ describe('WhatsApp AI customer service agent', () => {
   });
 
   it('stops before provider usage after the monthly allowance is exhausted', async () => {
-    prismaMock.whatsAppAiUsage.upsert.mockResolvedValue({ count: 101 });
+    runMeteredAiOperation.mockRejectedValue(new Error('quota exhausted'));
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
     await expect(handleInboundAiAgent(inbound)).resolves.toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('uses the inbound WhatsApp message ID as the idempotency key', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'متاح' }] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(handleInboundAiAgent({ ...inbound, externalMessageId: 'wamid.123' })).resolves.toBe(true);
+    expect(runMeteredAiOperation).toHaveBeenCalledWith(expect.objectContaining({
+      idempotencyKey: 'whatsapp:wamid.123', limit: 100,
+    }), expect.any(Function));
   });
 
   it('grounds a short answer, sends it, and stores the outbound transcript', async () => {

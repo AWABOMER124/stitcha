@@ -15,12 +15,17 @@ export const dynamic = 'force-dynamic';
 
 const FEATURES = [
   ['maxActiveProducts', 'المنتجات النشطة', 'Active products'],
+  ['maxCategories', 'التصنيفات', 'Categories'],
   ['maxStaffUsers', 'حسابات الفريق', 'Staff seats'],
   ['maxBranches', 'الفروع', 'Branches'],
   ['advancedAnalytics', 'التحليلات المتقدمة', 'Advanced analytics'],
   ['crmAutomation', 'أتمتة العملاء', 'CRM automation'],
   ['customDomain', 'نطاق مخصص', 'Custom domain'],
   ['dataExport', 'تصدير البيانات', 'Data export'],
+  ['aiStoreGenerationsLifetime', 'توليد متجر مجاني مدى الحياة', 'Lifetime store generations'],
+  ['aiStoreGenerationsMonthly', 'توليد المتجر شهرياً', 'Monthly store generations'],
+  ['aiImageEnhancementsMonthly', 'تحسين الصور شهرياً', 'Monthly image enhancements'],
+  ['whatsappAiConversationsMonthly', 'ردود واتساب الذكية شهرياً', 'Monthly WhatsApp AI replies'],
 ] as const;
 
 export default async function SubscriptionPage() {
@@ -64,7 +69,7 @@ export default async function SubscriptionPage() {
         )}
       </section>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => {
           const selected = plan.code === current.code;
           return (
@@ -77,7 +82,7 @@ export default async function SubscriptionPage() {
                 {selected && <span className="rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-bold">{ar ? 'الحالية' : 'Current'}</span>}
               </div>
               <p className="my-5 text-3xl font-black text-[var(--foreground)]">
-                {plan.monthlyPrice === 0 ? (ar ? 'مجانية' : 'Free') : `$${plan.monthlyPrice}`}
+                {plan.monthlyPrice === 0 ? (ar ? 'مجانية' : 'Free') : `${plan.monthlyPrice.toLocaleString()} ${plan.currency}`}
                 {plan.monthlyPrice > 0 && <span className="text-sm font-medium text-[var(--muted-foreground)]">/{ar ? 'شهر' : 'month'}</span>}
               </p>
               <ul className="mb-6 space-y-3">
@@ -88,7 +93,7 @@ export default async function SubscriptionPage() {
                   </li>
                 ))}
               </ul>
-              {plan.code === 'PRO' && !selected && !pending && <UpgradeButton locale={locale} />}
+              {plan.code !== 'FREE' && !selected && !pending && <UpgradeButton locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} />}
             </section>
           );
         })}
@@ -100,8 +105,8 @@ export default async function SubscriptionPage() {
 
       <p className="text-xs leading-6 text-[var(--muted-foreground)]">
         {ar
-          ? 'سعر Pro مرجعي بالدولار. سيعرض فريق وصلة مبلغ الجنيه السوداني المثبّت قبل أي تحصيل، ولن تتغير باقتك بمجرد إرسال الطلب.'
-          : 'Pro uses a USD reference price. WASLA will confirm a locked local-currency amount before collection; submitting a request does not change your plan.'}
+          ? 'الأسعار مرجعية بعملة الباقة. سيعرض فريق وصلة مبلغ الجنيه السوداني المثبّت قبل أي تحصيل، ولن تتغير باقتك بمجرد إرسال الطلب.'
+          : 'Plan prices use their configured reference currency. WASLA confirms a locked local-currency amount before collection; submitting a request does not change your plan.'}
       </p>
     </div>
   );

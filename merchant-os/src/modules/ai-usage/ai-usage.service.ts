@@ -168,6 +168,33 @@ export async function releaseAiUsage(
   });
 }
 
+export async function expireAiUsageReservations(now = new Date(), batchSize = 500): Promise<number> {
+  const expired = await prisma.aiUsageOperation.findMany({
+    where: { status: 'RESERVED', expiresAt: { lte: now } },
+    select: { id: true, bucketId: true, units: true },
+    orderBy: { expiresAt: 'asc' },
+    take: Math.min(Math.max(batchSize, 1), 1000),
+  });
+  if (expired.length === 0) return 0;
+
+  return prisma.$transaction(async tx => {
+    let released = 0;
+    for (const operation of expired) {
+      const claimed = await tx.aiUsageOperation.updateMany({
+        where: { id: operation.id, status: 'RESERVED' },
+        data: { status: 'EXPIRED', releasedAt: now },
+      });
+      if (claimed.count === 0) continue;
+      await tx.aiUsageBucket.update({
+        where: { id: operation.bucketId },
+        data: { reservedUnits: { decrement: operation.units } },
+      });
+      released += 1;
+    }
+    return released;
+  });
+}
+
 export async function runMeteredAiOperation<T>(
   input: ReserveAiUsageInput,
   execute: () => Promise<{ value: T; usage?: AiProviderUsage }>,

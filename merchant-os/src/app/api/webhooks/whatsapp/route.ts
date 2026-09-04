@@ -151,7 +151,7 @@ async function processPayload(payload: WhatsAppWebhookPayload) {
           ...(isLocation ? { deliveryLocation: { lat: msg.location!.latitude!, lng: msg.location!.longitude! } } : {}),
         }).catch((err) => { console.error('[whatsapp-webhook] ordering bot failed:', err); return false; });
         if (!handledByOrdering && isText) {
-          await handleInboundAiAgent({ merchantId: owner.merchantId, conversationId: conversation.id, customerPhone: msg.from, text: inboundText })
+          await handleInboundAiAgent({ merchantId: owner.merchantId, conversationId: conversation.id, customerPhone: msg.from, text: inboundText, externalMessageId: msg.id })
             .catch((err) => console.error('[whatsapp-webhook] AI agent failed:', err));
         }
       }

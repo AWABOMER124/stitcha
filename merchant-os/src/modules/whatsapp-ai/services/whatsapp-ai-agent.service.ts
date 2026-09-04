@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import { sendMessage } from '@/modules/whatsapp-channel/services/whatsapp-channel.service';
+import { AI_FEATURE_KEYS, runMeteredAiOperation } from '@/modules/ai-usage';
 
 const HANDOFF_PHRASES = ['موظف', 'بشري', 'خدمة العملاء', 'اتحدث مع شخص', 'human', 'agent', 'representative'];
 const MAX_REPLY_LENGTH = 800;
@@ -10,6 +11,7 @@ export interface WhatsAppAiInbound {
   conversationId: string;
   customerPhone: string;
   text: string;
+  externalMessageId?: string;
 }
 
 export async function handleInboundAiAgent(input: WhatsAppAiInbound): Promise<boolean> {
@@ -33,8 +35,6 @@ export async function handleInboundAiAgent(input: WhatsAppAiInbound): Promise<bo
 
   const plan = await getMerchantPlanSnapshot(input.merchantId);
   if (!plan.entitlements.whatsappAiAgent) return false;
-  const usage = await claimMonthlyCredit(input.merchantId);
-  if (plan.entitlements.aiMonthlyCredits !== -1 && usage > plan.entitlements.aiMonthlyCredits) return false;
 
   const [merchant, products, messages] = await Promise.all([
     prisma.merchant.findUnique({
@@ -73,42 +73,56 @@ export async function handleInboundAiAgent(input: WhatsAppAiInbound): Promise<bo
 الكتالوج المتاح (قد يكون مختصراً):
 ${catalog || 'لا توجد منتجات منشورة'}`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: process.env.WHATSAPP_AI_MODEL ?? 'claude-haiku-4-5-20251001',
-      max_tokens: 350,
-      temperature: 0.2,
-      system,
-      messages: [{ role: 'user', content: `سجل المحادثة:\n${transcript}\n\nاكتب الرد التالي فقط.` }],
-    }),
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!response.ok) {
-    console.error('[whatsapp-ai] Provider request failed', response.status);
+  try {
+    return await runMeteredAiOperation({
+      merchantId: input.merchantId,
+      featureKey: AI_FEATURE_KEYS.WHATSAPP_CONVERSATION_MONTHLY,
+      period: 'MONTHLY',
+      limit: plan.entitlements.whatsappAiConversationsMonthly,
+      idempotencyKey: input.externalMessageId ? `whatsapp:${input.externalMessageId}` : crypto.randomUUID(),
+    }, async () => {
+      const model = process.env.WHATSAPP_AI_MODEL ?? 'claude-haiku-4-5-20251001';
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          max_tokens: 350,
+          temperature: 0.2,
+          system,
+          messages: [{ role: 'user', content: `سجل المحادثة:\n${transcript}\n\nاكتب الرد التالي فقط.` }],
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) throw new Error(`WhatsApp AI provider failed (${response.status})`);
+      const payload = await response.json().catch(() => ({})) as {
+        id?: string;
+        content?: Array<{ type?: string; text?: string }>;
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+      const reply = payload.content?.find(block => block.type === 'text')?.text?.trim().slice(0, MAX_REPLY_LENGTH);
+      if (!reply) throw new Error('WhatsApp AI returned an empty response');
+      if (!await sendAndLog(input, reply, 'وصلة AI')) throw new Error('WhatsApp AI reply delivery failed');
+      return {
+        value: true,
+        usage: {
+          provider: 'anthropic-direct',
+          providerRequestId: payload.id,
+          model,
+          inputTokens: payload.usage?.input_tokens,
+          outputTokens: payload.usage?.output_tokens,
+        },
+      };
+    });
+  } catch (error) {
+    console.error('[whatsapp-ai] Metered AI operation failed:', error);
     return false;
   }
-  const payload = await response.json().catch(() => ({})) as { content?: Array<{ type?: string; text?: string }> };
-  const reply = payload.content?.find(block => block.type === 'text')?.text?.trim().slice(0, MAX_REPLY_LENGTH);
-  if (!reply) return false;
-  return sendAndLog(input, reply, 'وصلة AI');
 }
 
 export function requestsHuman(text: string): boolean {
   const normalized = text.trim().toLowerCase();
   return HANDOFF_PHRASES.some(phrase => normalized.includes(phrase));
-}
-
-async function claimMonthlyCredit(merchantId: string): Promise<number> {
-  const periodKey = new Date().toISOString().slice(0, 7);
-  const usage = await prisma.whatsAppAiUsage.upsert({
-    where: { merchantId_periodKey: { merchantId, periodKey } },
-    create: { merchantId, periodKey, count: 1 },
-    update: { count: { increment: 1 } },
-    select: { count: true },
-  });
-  return usage.count;
 }
 
 async function sendAndLog(input: WhatsAppAiInbound, text: string, senderName: string): Promise<boolean> {

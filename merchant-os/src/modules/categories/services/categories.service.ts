@@ -2,6 +2,7 @@ import { NotFoundError, BusinessRuleError } from '@/lib/errors';
 import prisma from '@/lib/db/prisma';
 import * as categoriesRepo from '../repositories/categories.repository';
 import type { CreateCategoryInput, UpdateCategoryInput } from '../schemas/categories.schemas';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 
 // ============================================================================
 // Categories Service — Business logic
@@ -32,7 +33,29 @@ export async function createCategory(merchantId: string, data: CreateCategoryInp
   const existing = await categoriesRepo.findBySlug(merchantId, slug);
   const finalSlug = existing ? `${slug}-${Date.now().toString(36)}` : slug;
 
-  return categoriesRepo.create(merchantId, { ...data, slug: finalSlug });
+  return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'categories:' + merchantId}))`;
+    const plan = await getMerchantPlanSnapshot(merchantId, new Date(), tx);
+    const limit = plan.entitlements.maxCategories;
+    if (limit !== -1) {
+      const count = await tx.category.count({ where: { merchantId } });
+      if (count >= limit) {
+        throw new BusinessRuleError(`بلغت الحد الأقصى للتصنيفات (${limit}). رقِّ باقتك لإضافة المزيد.`);
+      }
+    }
+    return tx.category.create({
+      data: {
+        merchantId,
+        name: data.name,
+        slug: finalSlug,
+        description: data.description,
+        image: data.image,
+        parentId: data.parentId,
+        sortOrder: data.sortOrder ?? 0,
+        isActive: data.isActive ?? true,
+      },
+    });
+  });
 }
 
 /** Update an existing category */

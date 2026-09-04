@@ -2,6 +2,7 @@ export {
   AI_FEATURE_KEYS,
   aiUsagePeriodKey,
   commitAiUsage,
+  expireAiUsageReservations,
   releaseAiUsage,
   reserveAiUsage,
   runMeteredAiOperation,

@@ -18,7 +18,7 @@ export function AiGeneratorClient() {
     if (!prompt.trim()) return;
     setLoading(true); setError(''); setResult(null); setApplied(false);
     try {
-      const res = await generateStoreContentAction(prompt);
+      const res = await generateStoreContentAction(prompt, crypto.randomUUID());
       if (res.success) setResult(res.data);
       else setError(res.error || t.genericError);
     } catch { setError(t.connectionError); }

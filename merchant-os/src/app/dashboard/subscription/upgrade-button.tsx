@@ -3,14 +3,14 @@
 import { useState, useTransition } from 'react';
 import { requestPlanChangeAction } from '@/modules/merchant-subscriptions/actions';
 
-export function UpgradeButton({ locale }: { locale: 'ar' | 'en' }) {
+export function UpgradeButton({ locale, planCode, planName }: { locale: 'ar' | 'en'; planCode: string; planName: string }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
   function requestUpgrade() {
     setMessage(null);
     startTransition(async () => {
-      const result = await requestPlanChangeAction({ targetPlanCode: 'PRO' });
+      const result = await requestPlanChangeAction({ targetPlanCode: planCode });
       setMessage(result.success
         ? (locale === 'ar' ? 'تم إرسال طلب الترقية. سيتواصل معك فريق وصلة.' : 'Upgrade request sent. The WASLA team will contact you.')
         : result.error);
@@ -27,7 +27,7 @@ export function UpgradeButton({ locale }: { locale: 'ar' | 'en' }) {
       >
         {isPending
           ? (locale === 'ar' ? 'جارٍ الإرسال…' : 'Sending…')
-          : (locale === 'ar' ? 'اطلب الترقية إلى Pro' : 'Request Pro upgrade')}
+          : (locale === 'ar' ? `اطلب الترقية إلى ${planName}` : `Request ${planName} upgrade`)}
       </button>
       {message && <p role="status" className="mt-3 text-sm text-[var(--muted-foreground)]">{message}</p>}
     </div>

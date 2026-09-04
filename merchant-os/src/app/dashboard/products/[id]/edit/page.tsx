@@ -44,7 +44,7 @@ export default async function EditProductPage({ params }: PageProps) {
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
         <ProductForm
           categories={categories}
-          aiImageEnabled={plan.entitlements.aiMonthlyCredits !== 0 && process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
+          aiImageEnabled={plan.entitlements.aiImageEnhancementsMonthly !== 0 && process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
           product={{
             id: product.id,
             name: product.name,

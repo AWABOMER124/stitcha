@@ -34,13 +34,14 @@ const content = {
     stepsTitle: 'ثلاث خطوات وتبدأ البيع', steps: [['أنشئ حسابك','أدخل بيانات نشاطك الأساسية.'],['جهّز متجرك','أضف المنتجات والصور وطرق الدفع.'],['شارك وابدأ البيع','انشر رابطك وتابع الطلبات من وصلة.']],
     aiKicker: 'شريك ذكي داخل عملك', aiTitle: 'ذكاء اصطناعي ينجز، لا يستعرض', aiLead: 'محتوى أسرع، صور منتجات أفضل، ومساعد واتساب يفهم كتالوجك ويساعد في إنشاء الطلبات.',
     affiliateKicker: 'دخل مبني على نتيجة حقيقية', affiliateTitle: 'سوّق لوصلة أو لمنتجات المتاجر', affiliateLead: 'برنامجان واضحان للمسوّقين: استقطب تجاراً واشترك في نمو وصلة، أو اختر متجراً وسوّق منتجاته مقابل عمولة يحددها التاجر.',
-    acquireTitle: 'استقطاب التجار', acquireText: 'لا توجد عمولة على التسجيل المجاني؛ يبدأ الاستحقاق عند دفع التاجر لاشتراك Pro حسب سياسة البرنامج.',
+    acquireTitle: 'استقطاب التجار', acquireText: 'لا توجد عمولة على التسجيل المجاني؛ يبدأ الاستحقاق عند دفع التاجر لأول اشتراك مدفوع حسب سياسة البرنامج.',
     productsTitle: 'تسويق المنتجات', productsText: 'رابط خاص، إسناد للطلبات، عمولة بعد التسليم وفترة تعليق، وتوثيق هوية قبل السداد.', marketerCta: 'سجّل كمسوّق',
-    free: 'الأساسية', freePrice: 'مجاناً دائماً', pro: 'الاحترافية Pro', proPrice: '10 دولار / شهرياً', priceLead: 'ابدأ مجاناً حتى 20 منتجاً. انتقل إلى Pro عندما تحتاج النمو والأتمتة وربط خدماتك.',
-    freeItems: ['متجر إلكتروني ورابط جاهز','حتى 20 منتجاً نشطاً','الطلبات والعملاء والفواتير','فرع واحد وحساب فريق واحد','التحويلات وإشعارات الدفع','إدارة التوصيل الأساسية'],
-    freeUnavailable: ['بدون ذكاء اصطناعي أو وكيل واتساب','بدون تصدير Excel أو دومين خاص'],
-    proItems: ['كل ميزات الباقة الأساسية','منتجات غير محدودة و5 حسابات فريق','حتى 3 فروع','100 عملية ذكاء اصطناعي شهرياً','وكيل واتساب الذكي','تصدير Excel وتحليلات متقدمة','دومين خاص وإزالة علامة وصلة','API وأتمتة العملاء'],
-    popular: 'الأفضل للنمو', freeCta: 'ابدأ مجاناً', proCta: 'طوّر إلى Pro', currencyNote: 'سعر Pro مرجعي بالدولار؛ يظهر مبلغ السداد المحلي المثبّت قبل التحصيل.',
+    free: 'الأساسية', freePrice: 'مجاناً دائماً', growth: 'النمو Growth', growthPrice: '5 دولار / شهرياً', pro: 'الاحترافية Pro', proPrice: '10 دولار / شهرياً', priceLead: 'ابدأ مجاناً مع 20 منتجاً ومسودة متجر ذكية واحدة، ثم اختر أدوات النمو التي تناسب نشاطك.',
+    freeItems: ['متجر إلكتروني ورابط جاهز','حتى 20 منتجاً و10 تصنيفات','مسودة متجر ذكية واحدة مدى الحياة','الطلبات والعملاء والفواتير','فرع واحد وحساب فريق واحد','التحويلات وإدارة التوصيل الأساسية'],
+    freeUnavailable: ['بدون AI متجدد أو وكيل واتساب','بدون تصدير Excel أو دومين خاص'],
+    growthItems: ['حتى 300 منتجاً و50 تصنيفاً','3 حسابات فريق','5 عمليات توليد متجر شهرياً','100 تعديل ذكي و20 تحسين صورة','تصدير Excel','أدوات نمو وتقارير عملية'],
+    proItems: ['كل ميزات Growth','حتى 2,000 منتج و10 حسابات فريق','حتى 3 فروع','20 توليداً و500 تعديل ذكي شهرياً','100 تحسين صورة و2,000 رد واتساب','تحليلات متقدمة ودومين خاص','إزالة علامة وصلة','API وأتمتة العملاء'],
+    popular: 'الأفضل للنمو', freeCta: 'ابدأ مجاناً', growthCta: 'اختر Growth', proCta: 'طوّر إلى Pro', currencyNote: 'الأسعار مرجعية وقابلة للإدارة؛ يظهر مبلغ السداد المحلي المثبّت قبل التحصيل.',
     final: 'جاهز توصل تجارتك بالسوق؟', finalLead: 'ابدأ الآن مجاناً. لا تحتاج خبرة تقنية ولا بطاقة بنكية.',
   },
   en: {
@@ -62,13 +63,14 @@ const content = {
     stepsTitle: 'Three steps to start selling', steps: [['Create your account','Add your essential business details.'],['Prepare your store','Add products, images and payments.'],['Share and sell','Publish your link and run orders in Wasla.']],
     aiKicker: 'An intelligent operating partner', aiTitle: 'AI that gets work done', aiLead: 'Faster content, better product photos, and a WhatsApp agent grounded in your catalog that can help create orders.',
     affiliateKicker: 'Income tied to verified results', affiliateTitle: 'Promote Wasla or store products', affiliateLead: 'Two clear paths: bring merchants into Wasla, or choose a store and promote its products under that merchant’s commission policy.',
-    acquireTitle: 'Merchant acquisition', acquireText: 'Free signup earns nothing; eligibility starts only after the merchant pays for Pro under the program terms.',
+    acquireTitle: 'Merchant acquisition', acquireText: 'Free signup earns nothing; eligibility starts after the merchant pays for their first paid plan under the program terms.',
     productsTitle: 'Product affiliate', productsText: 'A tracked link, order attribution, commission after delivery and hold, and identity verification before payout.', marketerCta: 'Apply as a marketer',
-    free: 'Basic', freePrice: 'Free forever', pro: 'Professional Pro', proPrice: '$10 / month', priceLead: 'Start free with up to 20 products. Move to Pro when you need growth, automation and integrations.',
-    freeItems: ['Online store with a shareable link','Up to 20 active products','Orders, customers and invoices','One branch and one staff seat','Transfers and payment receipts','Basic delivery management'],
-    freeUnavailable: ['No AI or WhatsApp agent','No Excel export or custom domain'],
-    proItems: ['Everything in Basic','Unlimited products and 5 staff seats','Up to 3 branches','100 AI actions every month','AI-powered WhatsApp agent','Excel exports and advanced analytics','Custom domain and branding removal','API access and CRM automation'],
-    popular: 'Best for growth', freeCta: 'Start free', proCta: 'Upgrade to Pro', currencyNote: 'Pro is priced in USD; a locked local-currency amount is shown before collection.',
+    free: 'Basic', freePrice: 'Free forever', growth: 'Growth', growthPrice: '$5 / month', pro: 'Professional Pro', proPrice: '$10 / month', priceLead: 'Start free with 20 products and one lifetime AI store draft, then add the growth tools your business needs.',
+    freeItems: ['Online store with a shareable link','Up to 20 products and 10 categories','One lifetime AI store draft','Orders, customers and invoices','One branch and one staff seat','Transfers and basic delivery management'],
+    freeUnavailable: ['No recurring AI or WhatsApp agent','No Excel export or custom domain'],
+    growthItems: ['Up to 300 products and 50 categories','3 staff seats','5 store generations each month','100 AI edits and 20 image enhancements','Excel exports','Practical growth reports'],
+    proItems: ['Everything in Growth','Up to 2,000 products and 10 staff seats','Up to 3 branches','20 generations and 500 AI edits monthly','100 image enhancements and 2,000 WhatsApp replies','Advanced analytics and custom domain','Wasla branding removal','API access and CRM automation'],
+    popular: 'Best for growth', freeCta: 'Start free', growthCta: 'Choose Growth', proCta: 'Upgrade to Pro', currencyNote: 'Reference prices are admin-configurable; a locked local-currency amount is shown before collection.',
     final: 'Ready to connect your business to the market?', finalLead: 'Start free today. No technical experience or bank card required.',
   },
 } as const;
@@ -82,8 +84,10 @@ export default async function HomePage() {
   const accountHref = !session?.user ? '/register' : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
   const upgradeHref = session?.user?.merchantId ? '/dashboard/subscription' : '/register';
   const freePlan = plans.find((plan) => plan.code === 'FREE');
+  const growthPlan = plans.find((plan) => plan.code === 'GROWTH');
   const proPlan = plans.find((plan) => plan.code === 'PRO');
   const freePrice = freePlan ? formatPlanPrice(freePlan.monthlyPrice, freePlan.currency, locale) : t.freePrice;
+  const growthPrice = growthPlan ? formatPlanPrice(growthPlan.monthlyPrice, growthPlan.currency, locale) : t.growthPrice;
   const proPrice = proPlan ? formatPlanPrice(proPlan.monthlyPrice, proPlan.currency, locale) : t.proPrice;
 
   return <LocaleProvider initialLocale={locale}><div className="min-h-screen overflow-hidden bg-white text-[#07111f] dark:bg-[#07111f] dark:text-white">
@@ -105,7 +109,7 @@ export default async function HomePage() {
 
       <section className="px-5 pb-20 lg:px-8 lg:pb-28 dark:bg-[#091522]"><div className="mx-auto grid max-w-7xl overflow-hidden rounded-[2rem] bg-[#087d82] text-white lg:grid-cols-2"><div className="p-9 lg:p-16"><Bot className="h-9 w-9"/><p className="mt-6 text-sm font-bold text-emerald-100">{t.aiKicker}</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">{t.aiTitle}</h2><p className="mt-5 leading-8 text-emerald-50/90">{t.aiLead}</p></div><div className="grid content-center gap-4 bg-[#06666a] p-9 lg:p-16">{[t.cards[4][0],t.cards[2][0],t.cards[3][0]].map(x=><div key={x} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4"><Check className="h-5 w-5"/><span className="font-bold">{x}</span></div>)}</div></div></section>
 
-      <section id="pricing" className="bg-slate-50 py-20 lg:py-28 dark:bg-[#07111f]"><div className="mx-auto max-w-5xl px-5 lg:px-8"><h2 className="text-center text-3xl font-black sm:text-4xl">{t.pricing}</h2><p className="mx-auto mt-4 max-w-2xl text-center leading-7 text-slate-500">{t.priceLead}</p><div className="mt-12 grid items-stretch gap-5 md:grid-cols-2"><Plan title={t.free} price={freePrice} items={t.freeItems} unavailable={t.freeUnavailable} href={accountHref} cta={t.freeCta}/><Plan title={t.pro} price={proPrice} items={t.proItems} href={upgradeHref} cta={t.proCta} badge={t.popular} featured/></div><p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-6 text-slate-500">{t.currencyNote}</p></div></section>
+      <section id="pricing" className="bg-slate-50 py-20 lg:py-28 dark:bg-[#07111f]"><div className="mx-auto max-w-7xl px-5 lg:px-8"><h2 className="text-center text-3xl font-black sm:text-4xl">{t.pricing}</h2><p className="mx-auto mt-4 max-w-2xl text-center leading-7 text-slate-500">{t.priceLead}</p><div className="mt-12 grid items-stretch gap-5 md:grid-cols-3"><Plan title={t.free} price={freePrice} items={t.freeItems} unavailable={t.freeUnavailable} href={accountHref} cta={t.freeCta}/><Plan title={t.growth} price={growthPrice} items={t.growthItems} href={upgradeHref} cta={t.growthCta} badge={t.popular} featured/><Plan title={t.pro} price={proPrice} items={t.proItems} href={upgradeHref} cta={t.proCta}/></div><p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-6 text-slate-500">{t.currencyNote}</p></div></section>
 
       <section className="px-5 py-20"><div className="mx-auto max-w-5xl rounded-[2rem] bg-[#07111f] px-6 py-14 text-center text-white shadow-2xl"><ShoppingBag className="mx-auto h-10 w-10 text-[#13C4A3]"/><h2 className="mt-6 text-3xl font-black sm:text-4xl">{t.final}</h2><p className="mt-4 text-slate-400">{t.finalLead}</p><Link href={accountHref} className="mt-8 inline-flex rounded-2xl bg-[#13C4A3] px-7 py-4 font-bold">{session?.user?t.dashboard:t.start}</Link></div></section>
     </main>
