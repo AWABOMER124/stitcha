@@ -64,6 +64,7 @@ Wasla calls:
 POST /api/v1/wasla/projects
 POST /api/v1/wasla/projects/{project_id}/patch
 POST /api/v1/wasla/projects/{project_id}/restore
+POST /api/v1/wasla/copilot
 Authorization: Bearer <short-lived-service-jwt>
 ```
 
@@ -94,7 +95,6 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 
 ## Remaining AI product work
 
-- Read-only merchant copilot for sales, delayed orders, stock, and customer insights.
 - Billing-provider abstraction and signed webhook events.
 - Retire the legacy `WhatsAppAiUsage` table after production reconciliation confirms the unified ledger is authoritative.
 
@@ -104,9 +104,12 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 - `/admin/ai-usage`: inspect monthly operations, provider usage, estimated cost, and failures.
 - `/dashboard/subscription`: merchant plan and quota visibility.
 - `/dashboard/storefront/ai`: generate, retain, preview, and safely apply merchant-owned store drafts.
+- `/dashboard/copilot`: ask read-only questions about aggregated orders, sales, delayed work, top products, and stock for the previous 30 days.
 
 Store generation and product-image enhancement now surface contextual upgrade links when the current plan has no allowance or the active allowance has been exhausted. Existing generated drafts remain accessible after exhaustion.
 
 Conversational store edits consume `aiStoreEditsMonthly` through the same reserve/commit/release ledger. AI Core commit `8a52328` makes patches immutable: every edit creates a new version instead of mutating history. Restore also creates a new head version copied from the selected owned version, so undo remains auditable. Wasla re-validates every returned payload, persists the matching remote identifiers, and never accepts merchant or version ownership from browser input.
+
+Merchant Copilot consumes `aiMerchantChatsMonthly`. Wasla creates its read-only aggregate snapshot server-side and strips customer PII before sending it to AI Core; the browser cannot supply a tenant or analytics snapshot. Access also requires the merchant `reports:read` permission. AI Core commit `768b0b4` provides the dedicated copilot endpoint and is explicitly instructed to answer only from supplied metrics and never claim to perform writes.
 
 Plan codes are immutable in the admin interface. Disabling a plan stops new public selection without deleting or silently downgrading existing subscriptions.

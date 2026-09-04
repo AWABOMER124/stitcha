@@ -109,6 +109,7 @@ export interface Dictionary {
   };
   navDashboard: {
     home: string;
+    copilot: string;
     fulfillment: string;
     orders: string;
     products: string;
@@ -1823,6 +1824,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     navDashboard: {
       home: 'Home',
+      copilot: 'Wasla Copilot',
       fulfillment: 'Fulfillment',
       orders: 'Orders',
       products: 'Products',
@@ -3523,6 +3525,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     },
     navDashboard: {
       home: 'الرئيسية',
+      copilot: 'مساعد وصلة',
       fulfillment: 'لوحة التشغيل',
       orders: 'الطلبات',
       products: 'المنتجات',

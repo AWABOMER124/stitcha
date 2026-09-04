@@ -19,6 +19,7 @@ type NavItem =
 function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
   return [
     { type: "link", label: nav.home, href: "/dashboard", icon: "📊" },
+    { type: "link", label: nav.copilot, href: "/dashboard/copilot", icon: "💡" },
     { type: "link", label: nav.fulfillment, href: "/dashboard/fulfillment", icon: "⚡" },
     { type: "link", label: nav.orders, href: "/dashboard/orders", icon: "📦" },
     { type: "link", label: nav.products, href: "/dashboard/products", icon: "🛍️" },

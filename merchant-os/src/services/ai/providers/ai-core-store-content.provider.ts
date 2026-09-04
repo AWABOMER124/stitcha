@@ -24,6 +24,12 @@ const aiCoreVersionResponseSchema = z.object({
   validation_errors: z.array(z.string()).default([]),
 });
 
+const aiCoreCopilotResponseSchema = z.object({
+  status: z.literal('ok'),
+  request_id: z.string().optional(),
+  answer: z.string().trim().min(1).max(10_000),
+});
+
 export interface AiCoreStoreGenerationContext {
   merchantId: string;
   actorId: string;
@@ -94,6 +100,24 @@ export class AiCoreStoreContentProvider {
 
   async restore(projectId: string, versionId: string, context: AiCoreStoreGenerationContext): Promise<AiCoreStoreGenerationResult> {
     return this.versionRequest(projectId, '/restore', { version_id: versionId }, context, 'wasla.store_projects.restore');
+  }
+
+  async askCopilot(question: string, snapshot: Record<string, unknown>, context: AiCoreStoreGenerationContext) {
+    const baseUrl = process.env.AI_CORE_BASE_URL?.trim().replace(/\/$/, '');
+    const secret = process.env.AI_CORE_SECRET_WASLA?.trim();
+    if (!baseUrl || !secret) throw new BusinessRuleError('AI Core غير مهيأ بالكامل في إعدادات المنصة');
+    const { requestId, token } = await this.serviceToken(secret, context, ['wasla.merchant_copilot.read']);
+    const response = await fetch(`${baseUrl}/api/v1/wasla/copilot`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ question, snapshot, language: context.language ?? 'ar' }),
+      signal: AbortSignal.timeout(Number(process.env.AI_CORE_TIMEOUT_MS ?? 60_000)),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new BusinessRuleError(`تعذر تشغيل مساعد وصلة (HTTP ${response.status})`);
+    const parsed = aiCoreCopilotResponseSchema.safeParse(body);
+    if (!parsed.success) throw new BusinessRuleError('استجابة مساعد وصلة غير صالحة');
+    return { answer: parsed.data.answer, requestId: parsed.data.request_id ?? requestId };
   }
 
   private async versionRequest(

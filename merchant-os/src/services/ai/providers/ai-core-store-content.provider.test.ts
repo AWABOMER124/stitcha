@@ -76,4 +76,19 @@ describe('AI Core store content provider', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('https://ai.example.test/api/v1/wasla/projects/project%2F1/restore');
     expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ version_id: 'version_1' });
   });
+
+  it('sends only a server-built aggregate snapshot to the read-only copilot route', async () => {
+    process.env.AI_CORE_BASE_URL = 'https://ai.example.test';
+    process.env.AI_CORE_SECRET_WASLA = 'a-secure-test-secret';
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      status: 'ok', request_id: 'copilot_request', answer: 'لديك 8 طلبات مكتملة.',
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await new AiCoreStoreContentProvider().askCopilot('كيف الأداء؟', { orders: [{ status: 'DELIVERED', count: 8 }] }, {
+      merchantId: 'merchant_1', actorId: 'user_1', language: 'ar',
+    });
+    expect(result.answer).toContain('8');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://ai.example.test/api/v1/wasla/copilot');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ question: 'كيف الأداء؟', language: 'ar' });
+  });
 });
