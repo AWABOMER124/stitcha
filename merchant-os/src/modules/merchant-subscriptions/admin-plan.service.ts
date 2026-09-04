@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
 import { parseEntitlements } from './entitlements';
