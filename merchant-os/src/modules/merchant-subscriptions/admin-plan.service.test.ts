@@ -39,6 +39,22 @@ describe('admin merchant-plan management', () => {
     }));
   });
 
+  it('accepts the stable IDs used by the seeded launch plans', async () => {
+    prismaMock.merchantPlan.findUniqueOrThrow.mockResolvedValue({ entitlements: {} });
+    prismaMock.merchantPlan.update.mockResolvedValue({ id: 'merchant_plan_pro' });
+    const limits = Object.fromEntries(PLAN_LIMIT_FIELDS.map((key) => [key, 0]));
+    const flags = Object.fromEntries(PLAN_BOOLEAN_FIELDS.map((key) => [key, false]));
+
+    await updateAdminMerchantPlan({
+      id: 'merchant_plan_pro', name: 'Pro', description: '', monthlyPrice: 10, yearlyPrice: 100,
+      currency: 'USD', sortOrder: 2, isPublic: true, isActive: true, limits, flags,
+    });
+
+    expect(prismaMock.merchantPlan.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'merchant_plan_pro' },
+    }));
+  });
+
   it('rejects negative prices and invalid currencies', async () => {
     const limits = Object.fromEntries(PLAN_LIMIT_FIELDS.map((key) => [key, 0]));
     const flags = Object.fromEntries(PLAN_BOOLEAN_FIELDS.map((key) => [key, false]));

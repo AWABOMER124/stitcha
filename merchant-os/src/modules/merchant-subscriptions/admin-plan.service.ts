@@ -5,7 +5,9 @@ import { parseEntitlements } from './entitlements';
 import { PLAN_BOOLEAN_FIELDS, PLAN_LIMIT_FIELDS } from './plan-fields';
 
 const updatePlanSchema = z.object({
-  id: z.string().cuid(),
+  // Launch plans use stable, human-readable IDs such as
+  // `merchant_plan_free`; they intentionally are not generated CUIDs.
+  id: z.string().trim().min(1).max(191),
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(500),
   monthlyPrice: z.coerce.number().min(0).max(1_000_000),
