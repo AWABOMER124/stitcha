@@ -75,7 +75,7 @@ Partial AI Core configuration fails closed. If neither AI Core variable is confi
 ## Deployment order
 
 1. Back up the Wasla PostgreSQL database.
-2. Deploy the commits containing migrations `20260904120000_add_ai_usage_and_growth_plan`, `20260904143000_add_ai_store_projects`, and `20260904170000_subscription_billing_foundation`.
+2. Deploy the commits containing migrations `20260904120000_add_ai_usage_and_growth_plan`, `20260904143000_add_ai_store_projects`, `20260904170000_subscription_billing_foundation`, and `20260904173000_billing_event_ledger`.
 3. Confirm Prisma migrations complete before the web process becomes ready.
 4. Deploy AI Core with migrations 010 through 012 already applied.
 5. Set the matching `AI_CORE_SECRET_WASLA` on both services and `AI_CORE_BASE_URL` on Wasla.
@@ -95,7 +95,7 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 
 ## Remaining AI product work
 
-- Billing-provider abstraction and signed webhook events.
+- Add the first external payment-provider adapter and its provider-specific signed webhook route when credentials are ready.
 - Retire the legacy `WhatsAppAiUsage` table after production reconciliation confirms the unified ledger is authoritative.
 
 ## Subscription lifecycle foundation
@@ -103,6 +103,10 @@ Do not enable the production integration before AI Core has `OPENAI_API_KEY`, it
 Plans now support an optional configurable yearly price while monthly billing remains the only launched checkout path. Merchant subscriptions can record `MONTHLY`, `YEARLY`, or `CUSTOM` billing intervals, provider/customer/subscription references, and an explicit trial window. Trials are not granted automatically: a `TRIALING` subscription is effective only before its server-controlled `trialEndsAt`, then access safely falls back to Basic.
 
 `entitlementOverrides` provides tenant-specific contract limits and feature flags without creating a new plan or changing other merchants. Platform staff with subscription-management permission can set or clear these overrides from the merchant detail page. Effective entitlements are always merged and evaluated server-side; no browser-supplied plan or tenant identity is trusted.
+
+The billing layer exposes one provider contract for checkout, subscription creation/cancellation/readback, and verified webhook normalization. The existing Bankak/MyCashy flow is represented by the manual provider and still activates service only after a platform reviewer verifies the receipt. Each activation writes an append-only subscription event.
+
+External webhook infrastructure is prepared but deliberately not exposed without a real provider adapter. A provider must verify its signature before any persistence. Verified events are SHA-256 fingerprinted rather than stored raw, claimed atomically, deduplicated by provider event ID, matched to a server-stored external subscription ID, and applied together with the subscription audit event in one transaction. Failed events remain retryable and never trust a browser-supplied merchant, plan, price, or status.
 
 ## Operations screens
 

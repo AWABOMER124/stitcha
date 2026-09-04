@@ -983,6 +983,7 @@ model Merchant {
   referralPayoutProfile          MerchantReferralPayoutProfile?
   customDomains                  MerchantDomain[]
   affiliateIdentityVerifications StoreAffiliateIdentityVerification[]
+  subscriptionEvents            MerchantSubscriptionEvent[]
   affiliatePayoutProfiles        StoreAffiliatePayoutProfile[]
   marketerApplications           MarketerApplication[]
 
@@ -1567,11 +1568,50 @@ model MerchantSubscription {
 
   merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   plan     MerchantPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  events   MerchantSubscriptionEvent[]
 
   @@index([planId, status])
   @@index([status, currentPeriodEndsAt])
   @@index([billingProvider, externalCustomerId])
   @@map("merchant_subscriptions")
+}
+
+/// Append-only commercial lifecycle audit trail. Metadata must not contain
+/// payment credentials or raw webhook bodies.
+model MerchantSubscriptionEvent {
+  id             String   @id @default(cuid())
+  merchantId     String
+  subscriptionId String?
+  type           String
+  source         String
+  actorId        String?
+  metadata       Json?
+  occurredAt     DateTime @default(now())
+
+  merchant     Merchant              @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  subscription MerchantSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId, occurredAt])
+  @@index([subscriptionId, occurredAt])
+  @@map("merchant_subscription_events")
+}
+
+/// Idempotency ledger for verified external billing events. The raw body is
+/// deliberately not persisted; only its SHA-256 fingerprint is retained.
+model BillingWebhookEvent {
+  id              String                    @id @default(cuid())
+  provider        String
+  externalEventId String
+  eventType       String
+  payloadSha256   String
+  status          BillingWebhookEventStatus @default(RECEIVED)
+  errorMessage    String?
+  receivedAt      DateTime                  @default(now())
+  processedAt     DateTime?
+
+  @@unique([provider, externalEventId])
+  @@index([status, receivedAt])
+  @@map("billing_webhook_events")
 }
 
 /// Merchant-initiated plan change request. This provides a safe internal
@@ -1986,6 +2026,14 @@ enum SubscriptionBillingInterval {
   MONTHLY
   YEARLY
   CUSTOM
+}
+
+enum BillingWebhookEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  IGNORED
+  FAILED
 }
 
 enum AiUsageOperationStatus {

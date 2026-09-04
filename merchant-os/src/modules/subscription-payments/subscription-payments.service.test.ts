@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const txMock = {
   merchantSubscriptionPayment: { findUnique: vi.fn(), updateMany: vi.fn() },
   merchantSubscription: { upsert: vi.fn() },
+  merchantSubscriptionEvent: { create: vi.fn() },
   merchantPlanChangeRequest: { update: vi.fn() },
   merchantReferral: { findUnique: vi.fn() },
 };
@@ -75,7 +76,7 @@ describe('manual subscription payments', () => {
 
   it('activates the paid plan only after owner verification', async () => {
     txMock.merchantSubscriptionPayment.findUnique.mockResolvedValue({ id: 'payment_1', merchantId: 'merchant_1', targetPlanId: 'plan_pro', planChangeRequestId: 'request_1', status: 'PENDING', amount: 25_000, currency: 'SDG' });
-    txMock.merchantSubscription.upsert.mockResolvedValue({});
+    txMock.merchantSubscription.upsert.mockResolvedValue({ id: 'subscription_1' });
     txMock.merchantSubscriptionPayment.updateMany.mockResolvedValue({ count: 1 });
     txMock.merchantPlanChangeRequest.update.mockResolvedValue({});
 
@@ -84,6 +85,9 @@ describe('manual subscription payments', () => {
     expect(txMock.merchantSubscription.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: expect.objectContaining({ planId: 'plan_pro', status: 'ACTIVE', priceOverride: 25_000, currencyOverride: 'SDG' }) }));
     expect(txMock.merchantSubscriptionPayment.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'PENDING' }), data: expect.objectContaining({ status: 'VERIFIED', reviewedById: 'owner_1' }) }));
     expect(txMock.merchantPlanChangeRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'COMPLETED' }) }));
+    expect(txMock.merchantSubscriptionEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ subscriptionId: 'subscription_1', type: 'subscription.activated', source: 'manual_payment' }),
+    }));
   });
 
   it('requires a reason when rejecting a payment', async () => {

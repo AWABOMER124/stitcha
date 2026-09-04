@@ -124,10 +124,20 @@ export async function reviewSubscriptionPayment(paymentId: string, reviewerId: s
     const verified = await tx.merchantSubscriptionPayment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'VERIFIED', reviewedById: reviewerId, reviewedAt: now } });
     if (verified.count !== 1) throw new ConflictError('Payment was already reviewed');
     const periodEnd = new Date(now); periodEnd.setMonth(periodEnd.getMonth() + 1);
-    await tx.merchantSubscription.upsert({
+    const subscription = await tx.merchantSubscription.upsert({
       where: { merchantId: payment.merchantId },
-      update: { planId: payment.targetPlanId, status: 'ACTIVE', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, graceEndsAt: null, cancelledAt: null, cancelAtPeriodEnd: false, priceOverride: payment.amount, currencyOverride: payment.currency, isGrandfathered: false },
-      create: { merchantId: payment.merchantId, planId: payment.targetPlanId, status: 'ACTIVE', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, priceOverride: payment.amount, currencyOverride: payment.currency },
+      update: { planId: payment.targetPlanId, status: 'ACTIVE', billingInterval: 'MONTHLY', billingProvider: 'manual', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, trialStartedAt: null, trialEndsAt: null, graceEndsAt: null, cancelledAt: null, cancelAtPeriodEnd: false, priceOverride: payment.amount, currencyOverride: payment.currency, isGrandfathered: false },
+      create: { merchantId: payment.merchantId, planId: payment.targetPlanId, status: 'ACTIVE', billingInterval: 'MONTHLY', billingProvider: 'manual', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, priceOverride: payment.amount, currencyOverride: payment.currency },
+    });
+    await tx.merchantSubscriptionEvent.create({
+      data: {
+        merchantId: payment.merchantId,
+        subscriptionId: subscription.id,
+        type: 'subscription.activated',
+        source: 'manual_payment',
+        actorId: reviewerId,
+        metadata: { paymentId: payment.id, planId: payment.targetPlanId },
+      },
     });
     if (payment.planChangeRequestId) await tx.merchantPlanChangeRequest.update({ where: { id: payment.planChangeRequestId }, data: { status: 'COMPLETED', resolvedAt: now } });
     await evaluateMerchantReferralInTransaction(tx, payment.merchantId, now, payment.id);
