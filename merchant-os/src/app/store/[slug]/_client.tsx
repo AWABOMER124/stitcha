@@ -220,7 +220,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
     return <button key={product.id} onClick={() => openProduct(product)} className={cardClass}>
       <div className="relative aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
         {product.images?.[0]
-          ? <ExternalImage src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
+          ? <ExternalImage src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-contain p-2 group-hover:scale-105 transition-transform" />
           : <span className="text-4xl opacity-40">{product.category.name.includes('مشروب') ? '🥤' : product.category.name.includes('حلو') ? '🍰' : '🛍️'}</span>}
         {product.isFeatured && <span className="absolute start-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black" style={{ color: primary }}>★ مميز</span>}
       </div>
@@ -236,7 +236,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       <header className="sticky top-0 z-40 bg-white border-b border-stone-200 shadow-sm">
         <div className="mx-auto max-w-4xl flex items-center gap-3 px-4 h-14">
           {logoSrc
-            ? <ExternalImage src={logoSrc} alt={merchant.name} width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
+            ? <ExternalImage src={logoSrc} alt={merchant.name} width={32} height={32} className="h-8 w-8 rounded-lg object-contain" />
             : <div className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: primary }}>{merchant.name[0]}</div>}
           <span className="font-bold text-stone-900 flex-1">{merchant.name}</span>
           <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${isOpen ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
@@ -369,7 +369,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
           <div className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
             {selectedProduct.images?.[0]
-              ? <div className="relative h-48 w-full"><ExternalImage src={selectedProduct.images[0]} alt={selectedProduct.name} fill sizes="(max-width: 640px) 100vw, 512px" className="object-cover rounded-t-3xl" /></div>
+              ? <div className="relative h-48 w-full bg-stone-50"><ExternalImage src={selectedProduct.images[0]} alt={selectedProduct.name} fill sizes="(max-width: 640px) 100vw, 512px" className="object-contain p-3 rounded-t-3xl" /></div>
               : <div className="w-full h-32 rounded-t-3xl flex items-center justify-center text-6xl" style={{ background: `${primary}15` }}>🍽️</div>}
             <button onClick={() => setSelectedProduct(null)} className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-stone-600 shadow">✕</button>
             <div className="p-5">

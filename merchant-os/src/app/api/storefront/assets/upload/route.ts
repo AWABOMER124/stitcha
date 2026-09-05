@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid storefront asset type' }, { status: 400 });
     }
 
-    const image = await normalizeProductImage(file);
+    const image = await normalizeProductImage(file, assetType as 'logo' | 'banner');
     const stored = await storageService.upload(
       image.buffer,
       `${assetType}.webp`,

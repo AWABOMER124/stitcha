@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   try {
     const file = (await request.formData()).get('image');
     if (!(file instanceof File)) return Response.json({ error: 'اختر صورة' }, { status: 400 });
-    const normalized = await normalizeProductImage(file);
+    const normalized = await normalizeProductImage(file, 'logo');
     const path = await storageService.upload(normalized.buffer, 'logo.webp', normalized.mimeType, `partner-${partnerId}-logo`);
     const url = storageService.getUrl(path);
     await prisma.deliveryPartner.update({ where: { id: partnerId }, data: { appIcon: url } });

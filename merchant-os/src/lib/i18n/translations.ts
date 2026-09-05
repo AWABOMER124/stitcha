@@ -1694,6 +1694,7 @@ export interface Dictionary {
     filterInactive: string;
     imagesTitle: string;
     imagesDescription: string;
+    imageDimensionsHint: string;
     productImageAlt: string;
     sourcePreviewAlt: string;
     chooseImage: string;
@@ -3399,10 +3400,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       filterInactive: 'Inactive',
       imagesTitle: 'Product images & AI studio',
       imagesDescription: 'Upload up to 10 product images, clean the background, isolate the product, or create a professional lifestyle scene.',
+      imageDimensionsHint: 'Recommended: square 1200 × 1200 px (minimum 600 × 600). The full product will be fitted without cropping.',
       productImageAlt: 'Product image',
       sourcePreviewAlt: 'Source product image preview',
       chooseImage: 'Choose a JPEG, PNG, or WebP image up to 5MB',
-      imageInvalid: 'Use a JPEG, PNG, or WebP image no larger than 5MB.',
+      imageInvalid: 'Use a JPEG, PNG, or WebP image up to 5MB and at least 600 × 600 px.',
       imageFailed: 'Image processing failed.',
       imageUploaded: 'Image uploaded and will be saved with the product.',
       imageUploadInProgress: 'Wait for the image upload to finish before saving the product.',
@@ -5102,10 +5104,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       filterInactive: 'غير نشط',
       imagesTitle: 'صور المنتج واستوديو الذكاء الاصطناعي',
       imagesDescription: 'ارفع حتى 10 صور، نظّف الخلفية، اعزل المنتج أو ضعه في مشهد إعلاني احترافي.',
+      imageDimensionsHint: 'المقاس الموصى به: مربع 1200 × 1200 بكسل (الحد الأدنى 600 × 600). ستظهر صورة المنتج كاملة دون قص.',
       productImageAlt: 'صورة المنتج',
       sourcePreviewAlt: 'معاينة صورة المنتج الأصلية',
       chooseImage: 'اختر صورة JPEG أو PNG أو WebP بحجم أقصى 5MB',
-      imageInvalid: 'استخدم صورة JPEG أو PNG أو WebP لا تتجاوز 5MB.',
+      imageInvalid: 'استخدم صورة JPEG أو PNG أو WebP لا تتجاوز 5MB وبأبعاد لا تقل عن 600 × 600 بكسل.',
       imageFailed: 'فشلت معالجة الصورة.',
       imageUploaded: 'تم رفع الصورة وستُحفظ مع المنتج.',
       imageUploadInProgress: 'انتظر اكتمال رفع الصورة قبل حفظ المنتج.',

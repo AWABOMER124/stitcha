@@ -26,10 +26,21 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
 
   useEffect(() => () => { if (sourcePreview.startsWith('blob:')) URL.revokeObjectURL(sourcePreview); }, [sourcePreview]);
 
-  function chooseFile(file?: File, autoUpload = false, existingUrl = '') {
+  async function chooseFile(file?: File, autoUpload = false, existingUrl = '') {
     setError('');
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setError(copy.imageInvalid);
+      return;
+    }
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const image = new Image();
+      const url = URL.createObjectURL(file);
+      image.onload = () => { URL.revokeObjectURL(url); resolve({ width: image.naturalWidth, height: image.naturalHeight }); };
+      image.onerror = () => { URL.revokeObjectURL(url); reject(new Error(copy.imageInvalid)); };
+      image.src = url;
+    }).catch(() => null);
+    if (!dimensions || dimensions.width < 600 || dimensions.height < 600) {
       setError(copy.imageInvalid);
       return;
     }
@@ -68,7 +79,7 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
       const response = await fetch(url);
       if (!response.ok) throw new Error();
       const blob = await response.blob();
-      chooseFile(new File([blob], 'product.webp', { type: blob.type || 'image/webp' }), false, url);
+      await chooseFile(new File([blob], 'product.webp', { type: blob.type || 'image/webp' }), false, url);
     } catch {
       setError(copy.imageReuseFailed);
     }
@@ -79,6 +90,7 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
       <div>
         <h2 id="product-image-title" className="text-sm font-bold text-[var(--foreground)]">{copy.imagesTitle}</h2>
         <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{copy.imagesDescription}</p>
+        <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium leading-5 text-blue-800">{copy.imageDimensionsHint}</p>
       </div>
 
       {images.length > 0 && (
@@ -103,7 +115,7 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
             <img src={sourcePreview} alt={copy.sourcePreviewAlt} className="h-full w-full object-contain" />
           ) : <span className="px-4 text-xs font-semibold leading-5 text-[var(--muted-foreground)]">{copy.chooseImage}</span>}
         </button>
-        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => chooseFile(event.target.files?.[0], true)} />
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => { void chooseFile(event.target.files?.[0], true); }} />
 
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
