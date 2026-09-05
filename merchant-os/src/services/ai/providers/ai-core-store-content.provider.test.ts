@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { jwtVerify } from 'jose';
-import { AiCoreStoreContentProvider } from './ai-core-store-content.provider';
+import { AiCoreStoreContentProvider, isAiCoreEnabledForTenant } from './ai-core-store-content.provider';
 
 const validPayload = {
   name: 'متجر البن',
@@ -16,6 +16,7 @@ describe('AI Core store content provider', () => {
     delete process.env.AI_CORE_BASE_URL;
     delete process.env.AI_CORE_SECRET_WASLA;
     delete process.env.AI_CORE_TIMEOUT_MS;
+    delete process.env.AI_CORE_ENABLED_TENANT_IDS;
     vi.unstubAllGlobals();
   });
 
@@ -38,7 +39,15 @@ describe('AI Core store content provider', () => {
     const token = String((request.headers as Record<string, string>).authorization).replace('Bearer ', '');
     const verified = await jwtVerify(token, new TextEncoder().encode('a-secure-test-secret'), { issuer: 'wasla', audience: 'ai-core' });
     expect(verified.payload).toMatchObject({ org: 'merchant_1', sub: 'user_1', language: 'ar' });
+    expect(verified.payload.permissions).toEqual(['store.generate']);
     expect(JSON.parse(String(request.body))).toMatchObject({ merchant_description: 'متجر قهوة', business_type: 'ecommerce' });
+  });
+
+  it('keeps AI Core disabled by default and supports an explicit tenant allowlist', () => {
+    expect(isAiCoreEnabledForTenant('merchant_1')).toBe(false);
+    process.env.AI_CORE_ENABLED_TENANT_IDS = 'merchant_2, merchant_1';
+    expect(isAiCoreEnabledForTenant('merchant_1')).toBe(true);
+    expect(isAiCoreEnabledForTenant('merchant_3')).toBe(false);
   });
 
   it('fails closed when AI Core reports validation errors', async () => {

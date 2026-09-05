@@ -5,7 +5,7 @@ import { getAuthContext, requirePermission } from '@/lib/permissions';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import { AI_FEATURE_KEYS, runMeteredAiOperation } from '@/modules/ai-usage';
-import { AiCoreStoreContentProvider, isAiCoreStoreGenerationConfigured } from '@/services/ai/providers/ai-core-store-content.provider';
+import { AiCoreStoreContentProvider, isAiCoreEnabledForTenant, isAiCoreStoreGenerationConfigured } from '@/services/ai/providers/ai-core-store-content.provider';
 import { buildMerchantCopilotSnapshot } from './merchant-copilot.service';
 
 const questionSchema = z.string().trim().min(2).max(500);
@@ -14,7 +14,7 @@ export async function askMerchantCopilotAction(question: string, idempotencyKey?
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'reports:read');
-    if (!isAiCoreStoreGenerationConfigured()) return { success: false as const, error: 'مساعد وصلة غير مهيأ بعد' };
+    if (!isAiCoreStoreGenerationConfigured() || !isAiCoreEnabledForTenant(auth.merchantId)) return { success: false as const, error: 'مساعد وصلة غير مفعّل لهذا المتجر بعد' };
     const safeQuestion = questionSchema.parse(question);
     const requestKey = idempotencyKey?.trim() || crypto.randomUUID();
     if (requestKey.length < 8 || requestKey.length > 120) return { success: false as const, error: 'معرّف الطلب غير صالح' };

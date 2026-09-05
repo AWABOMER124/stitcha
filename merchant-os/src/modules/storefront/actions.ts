@@ -9,7 +9,7 @@ import { placeOrderSchema } from './schemas/storefront.schemas';
 import * as storefrontService from './services/storefront.service';
 import { enforceRateLimit } from '@/lib/security/rate-limit';
 import { generateStoreContentWithMetadata } from '@/services/ai/ai-store-content.service';
-import { AiCoreStoreContentProvider, isAiCoreStoreGenerationConfigured } from '@/services/ai/providers/ai-core-store-content.provider';
+import { AiCoreStoreContentProvider, isAiCoreEnabledForTenant, isAiCoreStoreGenerationConfigured } from '@/services/ai/providers/ai-core-store-content.provider';
 import { storeGenerationPromptSchema } from '@/services/ai/store-content.schema';
 import * as categoriesService from '@/modules/categories/services/categories.service';
 import * as productsService from '@/modules/products/services/products.service';
@@ -244,8 +244,8 @@ export async function refineAiStoreProjectAction(
   try {
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
-    if (!isAiCoreStoreGenerationConfigured()) return { success: false, error: 'التعديل الذكي غير مهيأ بعد' };
     const merchantId = session.user.merchantId;
+    if (!isAiCoreStoreGenerationConfigured() || !isAiCoreEnabledForTenant(merchantId)) return { success: false, error: 'التعديل الذكي غير مفعّل لهذا المتجر بعد' };
     const safePrompt = storeGenerationPromptSchema.parse(prompt);
     const requestKey = idempotencyKey?.trim() || crypto.randomUUID();
     if (requestKey.length < 8 || requestKey.length > 120) return { success: false, error: 'معرّف طلب التعديل غير صالح' };
@@ -292,8 +292,8 @@ export async function restoreAiStoreVersionAction(versionId: string): Promise<Ac
   try {
     const session = await auth();
     if (!session?.user?.merchantId) return { success: false, error: 'غير مصرح' };
-    if (!isAiCoreStoreGenerationConfigured()) return { success: false, error: 'استعادة الإصدارات غير مهيأة بعد' };
     const merchantId = session.user.merchantId;
+    if (!isAiCoreStoreGenerationConfigured() || !isAiCoreEnabledForTenant(merchantId)) return { success: false, error: 'استعادة الإصدارات غير مفعّلة لهذا المتجر بعد' };
     enforceRateLimit(`ai-store-restore:${merchantId}`, 30, 60 * 60_000);
     const link = await getMerchantAiStoreVersionLink(merchantId, versionId);
     const restored = await new AiCoreStoreContentProvider().restore(link.gatewayProjectId, link.gatewayVersionId, {

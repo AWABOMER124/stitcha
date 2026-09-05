@@ -1,6 +1,7 @@
 import { ClaudeStoreContentProvider } from './providers/claude.provider';
 import {
   AiCoreStoreContentProvider,
+  isAiCoreEnabledForTenant,
   isAiCoreStoreGenerationConfigured,
   type AiCoreStoreGenerationContext,
 } from './providers/ai-core-store-content.provider';
@@ -25,10 +26,10 @@ export async function generateStoreContentWithMetadata(
 ): Promise<GeneratedStoreContent> {
   const safePrompt = storeGenerationPromptSchema.parse(prompt);
   const aiCoreRequested = Boolean(process.env.AI_CORE_BASE_URL || process.env.AI_CORE_SECRET_WASLA);
-  if (aiCoreRequested) {
-    if (!isAiCoreStoreGenerationConfigured() || !context) {
-      throw new BusinessRuleError('إعداد تكامل AI Core غير مكتمل');
-    }
+  if (aiCoreRequested && (!isAiCoreStoreGenerationConfigured() || !context)) {
+    throw new BusinessRuleError('إعداد تكامل AI Core غير مكتمل');
+  }
+  if (context && isAiCoreStoreGenerationConfigured() && isAiCoreEnabledForTenant(context.merchantId)) {
     const generated = await new AiCoreStoreContentProvider().generate(safePrompt, context);
     return {
       content: generated.content,

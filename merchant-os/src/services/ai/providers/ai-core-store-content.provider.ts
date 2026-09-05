@@ -51,13 +51,22 @@ export function isAiCoreStoreGenerationConfigured(): boolean {
   return Boolean(process.env.AI_CORE_BASE_URL && process.env.AI_CORE_SECRET_WASLA);
 }
 
+/** Server-side rollout gate. Empty/missing means no production tenant uses AI Core. */
+export function isAiCoreEnabledForTenant(merchantId: string): boolean {
+  const allowed = (process.env.AI_CORE_ENABLED_TENANT_IDS ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return allowed.includes('*') || allowed.includes(merchantId);
+}
+
 export class AiCoreStoreContentProvider {
   async generate(prompt: string, context: AiCoreStoreGenerationContext): Promise<AiCoreStoreGenerationResult> {
     const baseUrl = process.env.AI_CORE_BASE_URL?.trim().replace(/\/$/, '');
     const secret = process.env.AI_CORE_SECRET_WASLA?.trim();
     if (!baseUrl || !secret) throw new BusinessRuleError('AI Core غير مهيأ بالكامل في إعدادات المنصة');
 
-    const { token } = await this.serviceToken(secret, context, ['wasla.store_projects.create']);
+    const { token } = await this.serviceToken(secret, context, ['store.generate']);
 
     const response = await fetch(`${baseUrl}/api/v1/wasla/projects`, {
       method: 'POST',
@@ -95,18 +104,18 @@ export class AiCoreStoreContentProvider {
   }
 
   async refine(projectId: string, prompt: string, context: AiCoreStoreGenerationContext): Promise<AiCoreStoreGenerationResult> {
-    return this.versionRequest(projectId, '/patch', { patch_type: 'ai_refine', patch_data: { prompt } }, context, 'wasla.store_projects.patch');
+    return this.versionRequest(projectId, '/patch', { patch_type: 'ai_refine', patch_data: { prompt } }, context, 'store.generate');
   }
 
   async restore(projectId: string, versionId: string, context: AiCoreStoreGenerationContext): Promise<AiCoreStoreGenerationResult> {
-    return this.versionRequest(projectId, '/restore', { version_id: versionId }, context, 'wasla.store_projects.restore');
+    return this.versionRequest(projectId, '/restore', { version_id: versionId }, context, 'store.generate');
   }
 
   async askCopilot(question: string, snapshot: Record<string, unknown>, context: AiCoreStoreGenerationContext) {
     const baseUrl = process.env.AI_CORE_BASE_URL?.trim().replace(/\/$/, '');
     const secret = process.env.AI_CORE_SECRET_WASLA?.trim();
     if (!baseUrl || !secret) throw new BusinessRuleError('AI Core غير مهيأ بالكامل في إعدادات المنصة');
-    const { requestId, token } = await this.serviceToken(secret, context, ['wasla.merchant_copilot.read']);
+    const { requestId, token } = await this.serviceToken(secret, context, ['merchants.view']);
     const response = await fetch(`${baseUrl}/api/v1/wasla/copilot`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
