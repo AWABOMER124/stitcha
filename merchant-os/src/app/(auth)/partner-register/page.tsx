@@ -3,11 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { InternationalPhoneInput } from '@/components/ui/international-phone-input';
 
 export default function DeliveryPartnerRegisterPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [countryCode, setCountryCode] = useState('+249');
+  const [phone, setPhone] = useState('');
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -16,7 +19,7 @@ export default function DeliveryPartnerRegisterPage() {
     const response = await fetch("/api/auth/register-delivery-partner", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(Object.fromEntries(form)),
+      body: JSON.stringify({ ...Object.fromEntries(form), countryCode, phone }),
     });
     const data = await response.json();
     setLoading(false);
@@ -46,7 +49,10 @@ export default function DeliveryPartnerRegisterPage() {
         <Field name="ownerName" label="اسم المسؤول" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field name="email" label="البريد الإلكتروني" type="email" />
-          <Field name="phone" label="رقم الهاتف" />
+          <label className="block text-sm font-semibold">رقم الهاتف / واتساب
+            <div className="mt-2"><InternationalPhoneInput countryCode={countryCode} phone={phone} onCountryCodeChange={setCountryCode} onPhoneChange={setPhone} required disabled={loading} /></div>
+            <p className="mt-2 text-xs font-normal text-[var(--muted-foreground)]">اختر مفتاح الدولة ثم اكتب الرقم. يتاح «مفتاح دولة آخر» لأي دولة.</p>
+          </label>
         </div>
         <Field
           name="password"

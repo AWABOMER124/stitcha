@@ -4,7 +4,7 @@ import prisma from '@/lib/db/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { formatPhoneNumber } from '@/lib/utils/formatting';
+import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/utils/formatting';
 import { sendOtp } from '@/modules/phone-verification/services/phone-verification.service';
 import { attachMerchantReferral } from '@/modules/merchant-referrals/merchant-referrals.service';
 
@@ -13,6 +13,7 @@ const directMerchantRegistrationSchema = z.object({
   ownerName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(254),
   phone: z.string().trim().min(9).max(24),
+  countryCode: z.string().trim().max(4).optional(),
   password: z.string().min(8).max(128),
   businessType: z.enum(['RESTAURANT', 'CAFE', 'GROCERY', 'PHARMACY', 'RETAIL', 'OTHER']).default('RETAIL'),
   referralCode: z.string().trim().max(32).optional(),
@@ -28,9 +29,9 @@ export async function POST(req: Request) {
   const { merchantName, ownerName, email, password, businessType } = parsed.data;
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const phone = formatPhoneNumber(parsed.data.phone);
-  if (!/^\+249\d{9}$/.test(phone)) {
-    return NextResponse.json({ error: 'أدخل رقم واتساب سوداني صحيحاً' }, { status: 400 });
+  const phone = normalizeInternationalPhone(parsed.data.phone, parsed.data.countryCode);
+  if (!isValidInternationalPhone(phone)) {
+    return NextResponse.json({ error: 'أدخل رقم واتساب دولياً صحيحاً مع مفتاح الدولة' }, { status: 400 });
   }
 
   const existing = await prisma.user.findFirst({

@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
-import { formatPhoneNumber } from "@/lib/utils/formatting";
+import { isValidInternationalPhone, normalizeInternationalPhone } from "@/lib/utils/formatting";
 import { uniqueSlug } from "@/lib/slug";
 
 const schema = z
@@ -11,10 +11,8 @@ const schema = z
     companyName: z.string().trim().min(2).max(120),
     ownerName: z.string().trim().min(2).max(120),
     email: z.string().trim().email().max(254),
-    phone: z.string().trim().min(9).max(24).regex(/^\+?[\d\s()-]+$/).refine(value => {
-      const normalized = formatPhoneNumber(value);
-      return /^\+?[1-9]\d{8,14}$/.test(normalized);
-    }),
+    phone: z.string().trim().min(5).max(24).regex(/^\+?[\d\s()-]+$/),
+    countryCode: z.string().trim().max(4).optional(),
     password: z.string().min(8).max(128),
   })
   .strict();
@@ -36,7 +34,10 @@ export async function POST(request: Request) {
   if (!parsed.success)
     return NextResponse.json({ error: "راجع بيانات التسجيل" }, { status: 400 });
   const email = parsed.data.email.toLowerCase();
-  const phone = formatPhoneNumber(parsed.data.phone);
+  const phone = normalizeInternationalPhone(parsed.data.phone, parsed.data.countryCode);
+  if (!isValidInternationalPhone(phone)) {
+    return NextResponse.json({ error: "أدخل رقم هاتف دولياً صحيحاً مع مفتاح الدولة" }, { status: 400 });
+  }
   const exists = await prisma.user.findFirst({
     where: { OR: [{ email }, { phone }] },
     select: { id: true },

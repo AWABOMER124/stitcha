@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
 import { Check, Eye, EyeOff, MessageCircle, ShieldCheck, Store } from 'lucide-react';
+import { InternationalPhoneInput } from '@/components/ui/international-phone-input';
 
 /**
  * Merchant registration page for WASLA Commerce OS
@@ -19,6 +20,7 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
     merchantName: "",
     ownerName: "",
     email: "",
+    countryCode: "+249",
     phone: "",
     password: "",
     confirmPassword: "",
@@ -247,17 +249,11 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
 
           <div className="space-y-2">
             <label htmlFor="phone" className="block text-sm font-medium text-[var(--foreground)]">
-              {dict.common.phone}
+              {locale === 'ar' ? 'رقم واتساب' : 'WhatsApp number'}
             </label>
-            <input
-              id="phone"
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => updateField("phone", e.target.value)}
-              placeholder={dict.register.phonePlaceholder}
-              required
-              className="w-full rounded-lg border border-[var(--input)] bg-transparent px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20"
-            />
+            <InternationalPhoneInput countryCode={formData.countryCode} phone={formData.phone}
+              onCountryCodeChange={(value) => updateField('countryCode', value)} onPhoneChange={(value) => updateField('phone', value)} required />
+            <p className="text-xs text-[var(--muted-foreground)]">{locale === 'ar' ? 'اختر مفتاح الدولة ثم اكتب الرقم. يمكنك اختيار «مفتاح دولة آخر» لأي دولة غير موجودة.' : 'Choose a calling code, then enter the number. Select “Other country code” for any country.'}</p>
           </div>
 
           <div className="space-y-2">

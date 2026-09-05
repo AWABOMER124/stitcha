@@ -47,3 +47,32 @@ export function formatPhoneNumber(phone: string): string {
   }
   return phone;
 }
+
+/**
+ * Builds an E.164 phone number for the public merchant and delivery-partner
+ * registration forms. A country code is optional to keep existing API clients
+ * and previously supported Sudanese local input working.
+ */
+export function normalizeInternationalPhone(phone: string, countryCode?: string | null): string {
+  const localDigits = phone.replace(/\D/g, '');
+  const suppliedCode = countryCode?.trim();
+
+  if (!suppliedCode) {
+    const legacy = formatPhoneNumber(phone.trim());
+    const legacyDigits = legacy.replace(/\D/g, '').replace(/^00/, '');
+    return /^\+/.test(legacy) ? `+${legacyDigits}` : legacy;
+  }
+
+  const codeDigits = suppliedCode.replace(/\D/g, '');
+  if (!codeDigits || codeDigits.length > 3 || !localDigits) return '';
+
+  // Preserve the familiar Sudanese 09xxxxxxxx input when +249 is selected.
+  const nationalDigits = codeDigits === '249' && localDigits.length === 10 && localDigits.startsWith('0')
+    ? localDigits.slice(1)
+    : localDigits;
+  return `+${codeDigits}${nationalDigits}`;
+}
+
+export function isValidInternationalPhone(phone: string): boolean {
+  return /^\+[1-9]\d{7,14}$/.test(phone);
+}
