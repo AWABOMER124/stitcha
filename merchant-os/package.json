@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "ai:readiness": "node scripts/check-ai-core-readiness.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
