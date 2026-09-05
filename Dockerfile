@@ -46,6 +46,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next          ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public         ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma         ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/check-ai-core-readiness.mjs ./scripts/check-ai-core-readiness.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/package.json   ./
 COPY --from=builder --chown=nextjs:nodejs /app/entrypoint.sh  ./
 RUN mkdir -p public/uploads storage/private && chown -R nextjs:nodejs public/uploads storage && \
