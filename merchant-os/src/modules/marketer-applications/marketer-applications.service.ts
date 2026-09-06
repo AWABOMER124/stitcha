@@ -7,6 +7,7 @@ import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/ut
 export type MarketerApplicationInput = {
   type: MarketerApplicationType;
   merchantId?: string;
+  marketerAccountId?: string;
   name: string;
   phone: string;
   countryCode?: string;
@@ -54,6 +55,7 @@ export async function submitMarketerApplication(input: MarketerApplicationInput,
   const data = {
     type: input.type,
     merchantId: input.type === 'STOREFRONT_PRODUCTS' ? input.merchantId! : null,
+    marketerAccountId: input.marketerAccountId ?? null,
     name: input.name.trim(),
     phone,
     email: input.email.trim().toLowerCase(),
@@ -142,6 +144,7 @@ export async function reviewProductApplication(input: {
         programId: program.id,
         name: application.name,
         phone: application.phone,
+        marketerAccountId: application.marketerAccountId,
         email: application.email,
         code: `AFF-${randomBytes(5).toString('hex').toUpperCase()}`,
       },

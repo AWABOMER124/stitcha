@@ -39,6 +39,8 @@ export default function LoginPage() {
           router.replace("/distributor/dashboard");
         } else if (role === "DELIVERY_PARTNER_OWNER" || role === "DELIVERY_PARTNER_ADMIN") {
           router.replace("/partner");
+        } else if (role === "MARKETER") {
+          router.replace("/marketer");
         } else {
           router.replace("/dashboard");
         }
@@ -161,6 +163,7 @@ export default function LoginPage() {
         </Link>
       </p>
       <p className="text-center text-xs text-[var(--muted-foreground)]">شركة توصيل؟ <Link href="/partner-register" className="font-bold text-[var(--primary)] hover:underline">انضم كشريك وصلة</Link></p>
+      <p className="text-center text-xs text-[var(--muted-foreground)]">مسوّق؟ <Link href="/marketer/register" className="font-bold text-[var(--primary)] hover:underline">أنشئ حساب المسوّق</Link></p>
     </div>
   );
 }

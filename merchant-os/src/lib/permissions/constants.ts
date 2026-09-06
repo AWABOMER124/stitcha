@@ -172,4 +172,5 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
     PERMISSIONS.INVOICES.UPDATE,
     PERMISSIONS.EXPORTS.DOWNLOAD,
   ],
+  MARKETER: [],
 } as const;

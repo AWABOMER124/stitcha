@@ -128,6 +128,7 @@ enum UserRole {
   DELIVERY_STAFF
   CUSTOMER_SERVICE
   FINANCE_AGENT
+  MARKETER
 }
 
 enum OrderStatus {
@@ -346,6 +347,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   phoneVerifications   PhoneVerification[]
   partnerChallenges    PartnerVerificationChallenge[]
+  marketerAccount      MarketerAccount?
 
   @@map("users")
 }
@@ -1199,6 +1201,7 @@ model StoreAffiliateProgram {
 model StoreAffiliate {
   id                       String               @id @default(cuid())
   merchantId               String
+  marketerAccountId        String?
   programId                String
   name                     String
   phone                    String
@@ -1216,6 +1219,7 @@ model StoreAffiliate {
   updatedAt                DateTime             @updatedAt
 
   merchant             Merchant                            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  marketerAccount      MarketerAccount?                    @relation(fields: [marketerAccountId], references: [id], onDelete: SetNull)
   program              StoreAffiliateProgram               @relation(fields: [programId], references: [id], onDelete: Cascade)
   visits               StoreAffiliateVisit[]
   attributions         StoreAffiliateAttribution[]
@@ -1227,6 +1231,7 @@ model StoreAffiliate {
   @@unique([merchantId, code])
   @@unique([merchantId, phone])
   @@index([merchantId, status, createdAt])
+  @@index([marketerAccountId, status])
   @@map("store_affiliates")
 }
 
@@ -1237,6 +1242,7 @@ model MarketerApplication {
   applicationKey  String                    @unique
   type            MarketerApplicationType
   merchantId      String?
+  marketerAccountId String?
   name            String
   phone           String
   email           String
@@ -1256,12 +1262,30 @@ model MarketerApplication {
   updatedAt       DateTime                  @updatedAt
 
   merchant  Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  marketerAccount MarketerAccount? @relation(fields: [marketerAccountId], references: [id], onDelete: SetNull)
   affiliate StoreAffiliate? @relation(fields: [affiliateId], references: [id], onDelete: SetNull)
 
   @@index([type, status, createdAt])
   @@index([merchantId, status, createdAt])
   @@index([phone])
+  @@index([marketerAccountId, status, createdAt])
   @@map("marketer_applications")
+}
+
+/// A single identity for a marketer. It may participate in many independent
+/// storefront programs without sharing one merchant's access with another.
+model MarketerAccount {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications MarketerApplication[]
+  affiliates   StoreAffiliate[]
+
+  @@map("marketer_accounts")
 }
 
 /// Merchant KYC record. Document numbers and files are never public: numbers

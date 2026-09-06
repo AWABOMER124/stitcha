@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { ConflictError, ValidationError } from '@/lib/errors';
 import { submitMarketerApplication } from '@/modules/marketer-applications/marketer-applications.service';
+import { auth } from '@/lib/auth/config';
+import { requireMarketerAccount } from '@/modules/marketer-portal/marketer-portal.service';
 
 const schema = z.object({
   type: z.enum(['MERCHANT_ACQUISITION', 'STOREFRONT_PRODUCTS']),
@@ -27,9 +29,14 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'راجع البيانات المطلوبة ثم حاول مجدداً.' }, { status: 400 });
   try {
+    const session = await auth();
+    const marketerAccountId = session?.user?.role === 'MARKETER' && session.user.id
+      ? (await requireMarketerAccount(session.user.id)).id
+      : undefined;
     const application = await submitMarketerApplication({
       type: parsed.data.type,
       merchantId: parsed.data.merchantId,
+      marketerAccountId,
       name: parsed.data.name,
       phone: parsed.data.phone,
       countryCode: parsed.data.countryCode,

@@ -81,7 +81,7 @@ export default async function HomePage() {
   const [session, cookieStore, plans] = await Promise.all([auth(), cookies(), listPublicPlans().catch(() => [])]);
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = content[locale];
-  const accountHref = !session?.user ? '/register' : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
+  const accountHref = !session?.user ? '/register' : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role === 'MARKETER' ? '/marketer' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
   const upgradeHref = session?.user?.merchantId ? '/dashboard/subscription' : '/register';
   const freePlan = plans.find((plan) => plan.code === 'FREE');
   const growthPlan = plans.find((plan) => plan.code === 'GROWTH');

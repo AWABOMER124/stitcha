@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { LocaleProvider } from '@/lib/i18n/context';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
@@ -32,7 +33,8 @@ export default async function MarketersPage() {
         <div className="mx-auto max-w-5xl px-5 text-center lg:px-8">
           <p className="font-bold text-[#087d82]">{locale === 'ar' ? 'برنامج شركاء النمو' : 'Growth partners program'}</p>
           <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">{locale === 'ar' ? 'حوّل تسويقك إلى دخل واضح' : 'Turn your marketing into measurable income'}</h1>
-          <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-slate-600 dark:text-slate-300">{locale === 'ar' ? 'اختر بين استقطاب تجار جدد إلى وصلة أو تسويق منتجات متجر محدد. كل طلب يخضع للمراجعة قبل إصدار الرابط، وتُحتسب العمولة حسب السياسة المنشورة والنتيجة الفعلية.' : 'Choose between bringing new merchants to Wasla or promoting products for a specific store. Every application is reviewed before links are issued, and commission follows the published program and verified results.'}</p>
+          <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-slate-600 dark:text-slate-300">{locale === 'ar' ? 'أنشئ حساب مسوّق واحداً، ثم انضم لبرامج متاجر متعددة وتابع نتائجك وعمولاتك من لوحة موحّدة. كل طلب يخضع للمراجعة قبل إصدار الرابط.' : 'Create one marketer account, join multiple store programs, and follow results and commissions from one dashboard. Every application is reviewed before a link is issued.'}</p>
+          <Link href="/marketer/register" className="mt-6 inline-flex rounded-xl bg-[#087d82] px-6 py-3 font-bold text-white">{locale === 'ar' ? 'إنشاء حساب مسوّق' : 'Create marketer account'}</Link>
         </div>
       </section>
       <section className="mx-auto grid max-w-6xl gap-7 px-5 py-12 lg:grid-cols-[.8fr_1.2fr] lg:px-8 lg:py-16">
