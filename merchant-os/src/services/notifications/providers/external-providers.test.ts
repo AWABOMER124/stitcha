@@ -123,10 +123,24 @@ describe('external notification providers', () => {
       }),
     );
     const [, request] = vi.mocked(fetch).mock.calls[0];
-    expect(JSON.parse(String(request?.body))).toEqual({
-      number: '249111222333',
-      textMessage: { text: 'Message body' },
-    });
+    expect(JSON.parse(String(request?.body))).toEqual({ number: '249111222333', text: 'Message body' });
+  });
+
+  it('retries the alternate Evolution payload style after a format rejection', async () => {
+    process.env.PLATFORM_WHATSAPP_PROVIDER = 'evolution';
+    process.env.EVOLUTION_API_URL = 'https://evolution.example.com';
+    process.env.EVOLUTION_API_KEY = 'evolution-secret';
+    process.env.EVOLUTION_INSTANCE_NAME = 'wasla-main';
+    process.env.EVOLUTION_SEND_PAYLOAD_STYLE = 'textMessage';
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response('{"error":"message.text is required"}', { status: 400 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    await new WhatsAppProvider().send({ ...payload, channel: 'WHATSAPP' });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const [, retry] = vi.mocked(fetch).mock.calls[1];
+    expect(JSON.parse(String(retry?.body))).toEqual({ number: '249111222333', text: 'Message body' });
   });
 
   it('fails closed when Evolution is selected without credentials', async () => {

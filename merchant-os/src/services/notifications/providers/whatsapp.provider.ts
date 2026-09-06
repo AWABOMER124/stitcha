@@ -71,24 +71,38 @@ async function sendWithEvolution(payload: NotificationPayload): Promise<void> {
   assertWhatsAppOtpConfigured();
   const baseUrl = process.env.EVOLUTION_API_URL!.replace(/\/+$/, '');
   const instance = process.env.EVOLUTION_INSTANCE_NAME!;
-  const body = process.env.EVOLUTION_SEND_PAYLOAD_STYLE === 'flat'
-    ? { number: normalizeEvolutionNumber(payload.recipient), text: payload.body }
-    : { number: normalizeEvolutionNumber(payload.recipient), textMessage: { text: payload.body } };
-  const response = await fetch(
-    `${baseUrl}/message/sendText/${encodeURIComponent(instance)}`,
-    {
-      method: 'POST',
-      signal: AbortSignal.timeout(15_000),
-      headers: {
-        apikey: process.env.EVOLUTION_API_KEY!,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!response.ok) {
-    throw new Error(`Evolution WhatsApp rejected the message (${response.status}): ${await safeError(response)}`);
+  const endpoint = `${baseUrl}/message/sendText/${encodeURIComponent(instance)}`;
+  const number = normalizeEvolutionNumber(payload.recipient);
+  const requestedStyle = process.env.EVOLUTION_SEND_PAYLOAD_STYLE === 'textMessage' ? 'textMessage' : 'flat';
+  const first = await postEvolutionText(endpoint, number, payload.body, requestedStyle);
+  if (first.ok) return;
+
+  const error = await safeError(first);
+  // Evolution deployments differ: some require { number, text }, while older
+  // releases require { number, textMessage: { text } }. A 400 is safely retried
+  // because Evolution rejected the first request before accepting a message.
+  if (first.status === 400) {
+    const alternateStyle = requestedStyle === 'flat' ? 'textMessage' : 'flat';
+    const retry = await postEvolutionText(endpoint, number, payload.body, alternateStyle);
+    if (retry.ok) return;
+    throw new Error(`Evolution WhatsApp rejected the message (${retry.status}): ${await safeError(retry)}`);
   }
+  throw new Error(`Evolution WhatsApp rejected the message (${first.status}): ${error}`);
+}
+
+async function postEvolutionText(
+  endpoint: string,
+  number: string,
+  text: string,
+  style: 'flat' | 'textMessage',
+): Promise<Response> {
+  const body = style === 'flat' ? { number, text } : { number, textMessage: { text } };
+  return fetch(endpoint, {
+    method: 'POST',
+    signal: AbortSignal.timeout(15_000),
+    headers: { apikey: process.env.EVOLUTION_API_KEY!, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 function normalizeEvolutionNumber(value: string): string {
