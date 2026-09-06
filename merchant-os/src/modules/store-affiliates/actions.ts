@@ -1,11 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import { ValidationError } from '@/lib/errors';
 import {
   createStoreAffiliate,
+  issueStoreAffiliatePortalAccess,
   reviewStoreAffiliateCommission,
   setStoreAffiliateStatus,
   updateStoreAffiliateProgram,
@@ -50,6 +52,15 @@ export async function setStoreAffiliateStatusAction(formData: FormData) {
   if (!parsed.success) throw new ValidationError('طلب تعديل المسوّق غير صالح');
   await setStoreAffiliateStatus(auth.merchantId, parsed.data.affiliateId, parsed.data.status);
   revalidatePath('/dashboard/affiliates');
+}
+
+export async function issueStoreAffiliatePortalAccessAction(formData: FormData) {
+  const auth = await getAuthContext();
+  requirePermission(auth, 'settings:update');
+  const parsed = z.object({ affiliateId: z.string().cuid() }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) throw new ValidationError('المسوّق غير صالح');
+  const access = await issueStoreAffiliatePortalAccess(auth.merchantId, parsed.data.affiliateId);
+  redirect(`/dashboard/affiliates?portalToken=${encodeURIComponent(access.token)}`);
 }
 
 export async function reviewStoreAffiliateCommissionAction(formData: FormData) {

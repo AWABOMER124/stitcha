@@ -19,6 +19,13 @@ export function affiliateTokenHash(token: string) {
   return createHmac('sha256', secret).update(`store-affiliate:${token}`).digest('hex');
 }
 
+/** Fingerprints the rotating, private marketer-portal link independently of attribution cookies. */
+export function affiliatePortalTokenHash(token: string) {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new ValidationError('Affiliate portal security is not configured');
+  return createHmac('sha256', secret).update(`affiliate-portal:${token}`).digest('hex');
+}
+
 export function affiliateCookiePath(slug: string) {
   return `/api/store/${encodeURIComponent(slug)}`;
 }
@@ -80,6 +87,63 @@ export async function createStoreAffiliate(merchantId: string, input: { name: st
 export async function setStoreAffiliateStatus(merchantId: string, affiliateId: string, status: 'ACTIVE' | 'SUSPENDED') {
   const result = await prisma.storeAffiliate.updateMany({ where: { id: affiliateId, merchantId }, data: { status } });
   if (result.count !== 1) throw new NotFoundError('Affiliate');
+}
+
+export async function issueStoreAffiliatePortalAccess(merchantId: string, affiliateId: string, now = new Date()) {
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = new Date(now);
+  expiresAt.setUTCDate(expiresAt.getUTCDate() + 30);
+  const result = await prisma.storeAffiliate.updateMany({
+    where: { id: affiliateId, merchantId, status: 'ACTIVE' },
+    data: { portalAccessTokenHash: affiliatePortalTokenHash(token), portalAccessTokenExpiresAt: expiresAt },
+  });
+  if (result.count !== 1) throw new NotFoundError('Affiliate');
+  return { token, expiresAt };
+}
+
+/**
+ * Read-only dataset deliberately scoped to one marketer. It contains no buyer
+ * data, order addresses, payment coordinates, or other affiliates' activity.
+ */
+export async function getStoreAffiliatePortal(token: string, now = new Date()) {
+  if (token.length < 32 || token.length > 100) return null;
+  const affiliate = await prisma.storeAffiliate.findFirst({
+    where: {
+      portalAccessTokenHash: affiliatePortalTokenHash(token),
+      portalAccessTokenExpiresAt: { gt: now },
+      status: 'ACTIVE',
+    },
+    include: {
+      merchant: { select: { name: true, slug: true } },
+      program: { select: { currency: true, minimumPayout: true, holdDays: true, isActive: true } },
+      identityVerification: { select: { status: true, expiresAt: true, rejectionReason: true } },
+      payoutProfile: { select: { id: true } },
+    },
+  });
+  if (!affiliate) return null;
+  const [visits, attributedOrders, totals, commissions] = await Promise.all([
+    prisma.storeAffiliateVisit.count({ where: { affiliateId: affiliate.id } }),
+    prisma.storeAffiliateAttribution.count({ where: { affiliateId: affiliate.id } }),
+    prisma.storeAffiliateCommission.groupBy({
+      by: ['status', 'currency'], where: { affiliateId: affiliate.id }, _sum: { amount: true }, _count: { _all: true },
+    }),
+    prisma.storeAffiliateCommission.findMany({
+      where: { affiliateId: affiliate.id },
+      select: { id: true, status: true, amount: true, currency: true, holdUntil: true, createdAt: true, paidAt: true, note: true },
+      orderBy: { createdAt: 'desc' }, take: 50,
+    }),
+  ]);
+  return {
+    affiliate: { name: affiliate.name, code: affiliate.code, email: affiliate.email, phone: affiliate.phone },
+    merchant: affiliate.merchant,
+    program: { ...affiliate.program, minimumPayout: Number(affiliate.program.minimumPayout) },
+    verification: affiliate.identityVerification,
+    payoutReady: Boolean(affiliate.payoutProfile),
+    visits,
+    attributedOrders,
+    totals: totals.map(item => ({ ...item, amount: Number(item._sum.amount ?? 0), count: item._count._all })),
+    commissions: commissions.map(item => ({ ...item, amount: Number(item.amount) })),
+  };
 }
 
 export async function createStoreAffiliateVisit(slug: string, rawCode: string, now = new Date()) {

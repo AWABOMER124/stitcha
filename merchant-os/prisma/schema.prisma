@@ -1207,6 +1207,11 @@ model StoreAffiliate {
   status                   StoreAffiliateStatus @default(ACTIVE)
   onboardingTokenHash      String?              @unique
   onboardingTokenExpiresAt DateTime?
+  // Rotating, opaque link for the marketer's own read-only portal. Only a
+  // keyed fingerprint is stored, so the shareable access URL cannot be read
+  // from the database.
+  portalAccessTokenHash    String?              @unique
+  portalAccessTokenExpiresAt DateTime?
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
 
