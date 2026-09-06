@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/utils/formatting';
 import { sendOtp } from '@/modules/phone-verification/services/phone-verification.service';
 import { attachMerchantReferral } from '@/modules/merchant-referrals/merchant-referrals.service';
+import { attachMarketerMerchantReferral } from '@/modules/marketer-referrals/marketer-referrals.service';
 
 const directMerchantRegistrationSchema = z.object({
   merchantName: z.string().trim().min(2).max(120),
@@ -108,12 +109,15 @@ export async function POST(req: Request) {
       data: { merchantId: newMerchant.id },
     });
 
-    const referral = await attachMerchantReferral(tx, {
+    const marketerReferral = await attachMarketerMerchantReferral(tx, {
       code: parsed.data.referralCode,
       referredMerchantId: newMerchant.id,
       email: normalizedEmail,
       phone,
       activated: !verificationEnabled,
+    });
+    const referral = marketerReferral ?? await attachMerchantReferral(tx, {
+      code: parsed.data.referralCode, referredMerchantId: newMerchant.id, email: normalizedEmail, phone, activated: !verificationEnabled,
     });
 
     return { merchant: newMerchant, user, referralAccepted: !!referral && referral.status !== 'REJECTED' };

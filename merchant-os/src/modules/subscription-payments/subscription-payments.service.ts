@@ -4,6 +4,7 @@ import { privateStorageService } from '@/services/storage';
 import type { PrivateEvidence } from '@/services/storage/private-evidence-input';
 import { isPlatformRole } from '@/lib/platform-permissions';
 import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
+import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referrals/marketer-referrals.service';
 
 export type PlatformPaymentAccountInput = {
   channel: 'BANKAK' | 'MYCASHY' | 'OTHER';
@@ -141,6 +142,7 @@ export async function reviewSubscriptionPayment(paymentId: string, reviewerId: s
     });
     if (payment.planChangeRequestId) await tx.merchantPlanChangeRequest.update({ where: { id: payment.planChangeRequestId }, data: { status: 'COMPLETED', resolvedAt: now } });
     await evaluateMerchantReferralInTransaction(tx, payment.merchantId, now, payment.id);
+    await evaluateMarketerReferralInTransaction(tx, payment.merchantId, now, payment.id);
     return { success: true };
   });
 }

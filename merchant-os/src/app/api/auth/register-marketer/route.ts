@@ -4,6 +4,7 @@ import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/utils/formatting';
+import { randomBytes } from 'node:crypto';
 
 const schema = z.object({
   name: z.string().trim().min(3).max(120), email: z.string().trim().email().max(254),
@@ -19,6 +20,6 @@ export async function POST(request: Request) {
   const email = parsed.data.email.toLowerCase();
   const exists = await prisma.user.findFirst({ where: { OR: [{ email: { equals: email, mode: 'insensitive' } }, { phone }] }, select: { id: true } });
   if (exists) return NextResponse.json({ error: 'البريد الإلكتروني أو رقم الهاتف مستخدم مسبقاً.' }, { status: 409 });
-  const user = await prisma.user.create({ data: { name: parsed.data.name, email, phone, passwordHash: await bcrypt.hash(parsed.data.password, 12), role: 'MARKETER', marketerAccount: { create: {} } } });
+  const user = await prisma.user.create({ data: { name: parsed.data.name, email, phone, passwordHash: await bcrypt.hash(parsed.data.password, 12), role: 'MARKETER', marketerAccount: { create: { acquisitionCode: `MK-${randomBytes(5).toString('hex').toUpperCase()}` } } } });
   return NextResponse.json({ userId: user.id }, { status: 201 });
 }

@@ -976,6 +976,7 @@ model Merchant {
   referralReceived               MerchantReferral?                    @relation("ReferralReferred")
   referralRewards                MerchantReferralReward[]             @relation("ReferralRewardMerchant")
   referralCommissions            MerchantReferralCommission[]
+  marketerReferralReceived       MarketerMerchantReferral?             @relation("MarketerReferralReferred")
   affiliateProgram               StoreAffiliateProgram?
   storeAffiliates                StoreAffiliate[]
   affiliateVisits                StoreAffiliateVisit[]
@@ -1059,6 +1060,7 @@ model PlatformReferralProgram {
   updatedAt         DateTime                  @updatedAt
 
   referrals MerchantReferral[]
+  marketerReferrals MarketerMerchantReferral[]
 
   @@map("platform_referral_programs")
 }
@@ -1277,6 +1279,7 @@ model MarketerApplication {
 model MarketerAccount {
   id          String   @id @default(cuid())
   userId      String   @unique
+  acquisitionCode String @unique
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1284,8 +1287,74 @@ model MarketerAccount {
   user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications MarketerApplication[]
   affiliates   StoreAffiliate[]
+  referrals    MarketerMerchantReferral[]
+  commissions  MarketerSubscriptionCommission[]
 
   @@map("marketer_accounts")
+}
+
+/// Separate attribution for a platform marketer who brings a new merchant.
+/// It intentionally never reuses merchant-to-merchant referral records.
+model MarketerMerchantReferral {
+  id                        String                    @id @default(cuid())
+  programId                 String
+  marketerAccountId         String
+  referredMerchantId        String                    @unique
+  codeSnapshot              String
+  identityFingerprint       String
+  status                    MerchantReferralStatus    @default(REGISTERED)
+  holdDaysSnapshot          Int
+  commissionRateSnapshot    Decimal                   @db.Decimal(5, 2)
+  commissionMonthsSnapshot  Int
+  minimumPayoutSnapshot     Decimal                   @db.Decimal(12, 2)
+  registeredAt              DateTime                  @default(now())
+  activatedAt               DateTime?
+  qualifiedAt               DateTime?
+  rejectedAt                DateTime?
+  rejectionReason           String?
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  program          PlatformReferralProgram       @relation(fields: [programId], references: [id], onDelete: Restrict)
+  marketerAccount  MarketerAccount               @relation(fields: [marketerAccountId], references: [id], onDelete: Restrict)
+  referredMerchant Merchant                      @relation("MarketerReferralReferred", fields: [referredMerchantId], references: [id], onDelete: Restrict)
+  commissions      MarketerSubscriptionCommission[]
+
+  @@index([marketerAccountId, status, registeredAt])
+  @@index([programId, status, registeredAt])
+  @@index([identityFingerprint])
+  @@map("marketer_merchant_referrals")
+}
+
+/// Immutable commission made only after a verified non-free subscription payment.
+model MarketerSubscriptionCommission {
+  id                    String               @id @default(cuid())
+  referralId            String
+  marketerAccountId     String
+  subscriptionPaymentId String               @unique
+  grossAmount           Decimal              @db.Decimal(12, 2)
+  commissionRate        Decimal              @db.Decimal(5, 2)
+  amount                Decimal              @db.Decimal(12, 2)
+  currency              String
+  minimumPayoutSnapshot Decimal              @db.Decimal(12, 2)
+  status                ReferralRewardStatus @default(PENDING)
+  holdUntil             DateTime
+  reviewedById          String?
+  reviewedAt            DateTime?
+  fulfilledAt           DateTime?
+  fulfillmentRef        String?
+  reversedAt            DateTime?
+  note                  String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  referralRecord      MarketerMerchantReferral      @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  marketerAccount     MarketerAccount                @relation(fields: [marketerAccountId], references: [id], onDelete: Restrict)
+  subscriptionPayment MerchantSubscriptionPayment    @relation(fields: [subscriptionPaymentId], references: [id], onDelete: Restrict)
+
+  @@index([marketerAccountId, status, holdUntil])
+  @@index([referralId, createdAt])
+  @@map("marketer_subscription_commissions")
 }
 
 /// Merchant KYC record. Document numbers and files are never public: numbers
@@ -1714,6 +1783,7 @@ model MerchantSubscriptionPayment {
   planChangeRequest  MerchantPlanChangeRequest?  @relation(fields: [planChangeRequestId], references: [id], onDelete: SetNull)
   paymentAccount     PlatformPaymentAccount      @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
   referralCommission MerchantReferralCommission?
+  marketerCommission MarketerSubscriptionCommission?
 
   @@unique([paymentAccountId, transactionRef])
   @@unique([merchantId, proofSha256])
