@@ -30,6 +30,36 @@ export async function attachMarketerMerchantReferral(
   } });
 }
 
+/**
+ * Operational backfill for a legitimate referral that was submitted before the
+ * acquisition-referral flow was released.  This is intentionally only exposed
+ * to platform staff; normal referrals are always captured at registration.
+ */
+export async function backfillMarketerMerchantReferral(
+  tx: Prisma.TransactionClient,
+  input: { code: string; merchantSlug: string },
+) {
+  const merchant = await tx.merchant.findUnique({
+    where: { slug: input.merchantSlug.trim().toLowerCase() },
+    select: { id: true, email: true, phone: true, status: true },
+  });
+  if (!merchant) throw new ValidationError('المتجر غير موجود');
+  if (!merchant.email || !merchant.phone) throw new ValidationError('لا يمكن إسناد الإحالة: بيانات اتصال المتجر غير مكتملة');
+
+  const alreadyAttributed = await tx.marketerMerchantReferral.findUnique({
+    where: { referredMerchantId: merchant.id }, select: { id: true },
+  });
+  if (alreadyAttributed) throw new ValidationError('هذا المتجر مرتبط بالفعل بإحالة مسوّق');
+
+  return attachMarketerMerchantReferral(tx, {
+    code: input.code,
+    referredMerchantId: merchant.id,
+    email: merchant.email,
+    phone: merchant.phone,
+    activated: merchant.status === 'ACTIVE',
+  });
+}
+
 export async function evaluateMarketerReferralInTransaction(tx: Prisma.TransactionClient, merchantId: string, now = new Date(), subscriptionPaymentId?: string) {
   if (!subscriptionPaymentId) return null;
   const referral = await tx.marketerMerchantReferral.findUnique({ where: { referredMerchantId: merchantId } });
