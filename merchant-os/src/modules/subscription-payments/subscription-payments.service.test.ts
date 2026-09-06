@@ -10,6 +10,7 @@ const txMock = {
 };
 const prismaMock = {
   platformPaymentAccount: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+  platformBillingSettings: { findUnique: vi.fn(), upsert: vi.fn() },
   merchantPlanChangeRequest: { findFirst: vi.fn() },
   merchantSubscriptionPayment: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
   $transaction: vi.fn(async (callback: (tx: typeof txMock) => unknown) => callback(txMock)),
@@ -38,14 +39,15 @@ describe('manual subscription payments', () => {
     vi.clearAllMocks();
     txMock.merchantReferral.findUnique.mockResolvedValue(null);
     txMock.marketerMerchantReferral.findUnique.mockResolvedValue(null);
+    prismaMock.platformBillingSettings.findUnique.mockResolvedValue({ usdToSdgRate: 5_000, updatedAt: new Date() });
     privateStorageMock.upload.mockResolvedValue('private/merchant_1-subscription-payments/receipt.jpg');
     privateStorageMock.delete.mockResolvedValue(undefined);
   });
 
   it('creates a payment account with normalized display data', async () => {
     prismaMock.platformPaymentAccount.create.mockResolvedValue({ id: 'account_1' });
-    await createPlatformPaymentAccount({ channel: 'BANKAK', label: ' بنكك ', accountName: ' وصلة ', accountNumber: ' 123 ', monthlyAmount: 25_000, currency: 'sdg' });
-    expect(prismaMock.platformPaymentAccount.create).toHaveBeenCalledWith({ data: expect.objectContaining({ label: 'بنكك', accountName: 'وصلة', accountNumber: '123', monthlyAmount: 25_000, currency: 'SDG' }) });
+    await createPlatformPaymentAccount({ channel: 'BANKAK', label: ' بنكك ', accountName: ' وصلة ', accountNumber: ' 123 ' });
+    expect(prismaMock.platformPaymentAccount.create).toHaveBeenCalledWith({ data: expect.objectContaining({ label: 'بنكك', accountName: 'وصلة', accountNumber: '123', monthlyAmount: 0, currency: 'SDG' }) });
   });
 
   it('refuses to toggle an unknown account', async () => {
@@ -55,7 +57,7 @@ describe('manual subscription payments', () => {
 
   it('locks amount and channel from the active platform account, never from the browser', async () => {
     prismaMock.platformPaymentAccount.findFirst.mockResolvedValue({ id: 'account_1', monthlyAmount: 25_000, currency: 'SDG', channel: 'BANKAK' });
-    prismaMock.merchantPlanChangeRequest.findFirst.mockResolvedValue({ id: 'request_1', targetPlanId: 'plan_pro' });
+    prismaMock.merchantPlanChangeRequest.findFirst.mockResolvedValue({ id: 'request_1', targetPlanId: 'plan_pro', targetPlan: { monthlyPrice: 5, currency: 'USD' } });
     prismaMock.merchantSubscriptionPayment.findFirst.mockResolvedValue(null);
     prismaMock.merchantSubscriptionPayment.create.mockResolvedValue({ id: 'payment_1', status: 'PENDING' });
 
@@ -68,7 +70,7 @@ describe('manual subscription payments', () => {
 
   it('deletes private evidence if the database rejects a duplicate receipt', async () => {
     prismaMock.platformPaymentAccount.findFirst.mockResolvedValue({ id: 'account_1', monthlyAmount: 25_000, currency: 'SDG', channel: 'BANKAK' });
-    prismaMock.merchantPlanChangeRequest.findFirst.mockResolvedValue({ id: 'request_1', targetPlanId: 'plan_pro' });
+    prismaMock.merchantPlanChangeRequest.findFirst.mockResolvedValue({ id: 'request_1', targetPlanId: 'plan_pro', targetPlan: { monthlyPrice: 5, currency: 'USD' } });
     prismaMock.merchantSubscriptionPayment.findFirst.mockResolvedValue(null);
     prismaMock.merchantSubscriptionPayment.create.mockRejectedValue({ code: 'P2002' });
 

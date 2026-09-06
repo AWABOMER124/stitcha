@@ -1754,6 +1754,18 @@ model PlatformPaymentAccount {
   @@map("platform_payment_accounts")
 }
 
+/// Single platform billing configuration. Plan prices remain USD references;
+/// manual SDG quotes use this value and are snapshotted on each payment.
+model PlatformBillingSettings {
+  id             String   @id @default("default")
+  usdToSdgRate   Decimal  @default(100000) @db.Decimal(14, 2)
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("platform_billing_settings")
+}
+
 /// Merchant proof for a WASLA plan transfer. Evidence lives in private storage.
 model MerchantSubscriptionPayment {
   id                  String                    @id @default(cuid())

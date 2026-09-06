@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export interface ManualPaymentAccountOption { id: string; channel: string; label: string; accountName: string; accountNumber: string; instructions: string | null; monthlyAmount: number; currency: string }
+export interface ManualPaymentQuote { planCode: string; planName: string; planCurrency: string; planMonthlyPrice: number; usdToSdgRate: number; amount: number; currency: string }
 
-export function ManualPaymentForm({ accounts, locale }: { accounts: ManualPaymentAccountOption[]; locale: 'ar' | 'en' }) {
+export function ManualPaymentForm({ accounts, quote, locale }: { accounts: ManualPaymentAccountOption[]; quote: ManualPaymentQuote | null; locale: 'ar' | 'en' }) {
   const router = useRouter();
   const ar = locale === 'ar';
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
@@ -29,7 +30,7 @@ export function ManualPaymentForm({ accounts, locale }: { accounts: ManualPaymen
   return <form onSubmit={submit} className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-2">{accounts.map(account => <button key={account.id} type="button" onClick={() => setAccountId(account.id)} className={`rounded-xl border p-4 text-start ${accountId === account.id ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-[var(--border)]'}`}><strong className="block">{account.label}</strong><span className="mt-1 block text-sm text-[var(--muted-foreground)]">{account.accountName}</span><span className="block font-mono text-sm">{account.accountNumber}</span></button>)}</div>
     <input type="hidden" name="paymentAccountId" value={accountId}/>
-    {selected && <div className="rounded-xl bg-[var(--muted)] p-4 text-sm"><p>{ar ? 'المبلغ المطلوب' : 'Amount due'}: <strong>{selected.monthlyAmount.toLocaleString()} {selected.currency}</strong></p>{selected.instructions && <p className="mt-1 text-[var(--muted-foreground)]">{selected.instructions}</p>}</div>}
+    {selected && quote && <div className="rounded-xl bg-[var(--muted)] p-4 text-sm"><p>{ar ? 'المبلغ المطلوب' : 'Amount due'}: <strong>{quote.amount.toLocaleString()} {quote.currency}</strong></p><p className="mt-1 text-xs text-[var(--muted-foreground)]">{quote.planName} · {quote.planMonthlyPrice.toLocaleString()} {quote.planCurrency}{quote.planCurrency === 'USD' && ` × ${quote.usdToSdgRate.toLocaleString()} SDG/USD`}</p>{selected.instructions && <p className="mt-1 text-[var(--muted-foreground)]">{selected.instructions}</p>}</div>}
     <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">{ar ? 'رقم العملية' : 'Transaction reference'}<input required name="transactionRef" minLength={4} maxLength={100} className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5"/></label><label className="text-sm">{ar ? 'اسم المحوّل' : 'Sender name'}<input name="senderName" maxLength={120} className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5"/></label></div>
     <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">{ar ? 'وقت التحويل' : 'Transfer time'}<input name="transferredAt" type="datetime-local" className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5"/></label><label className="text-sm">{ar ? 'إشعار التحويل' : 'Transfer receipt'}<input required name="proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="mt-1 block w-full rounded-xl border border-dashed border-[var(--border)] p-2 text-sm"/></label></div>
     <p className="text-xs text-[var(--muted-foreground)]">{ar ? 'الإشعار خاص ولا يظهر للعامة. الحد الأقصى 10MB.' : 'The receipt is private and never public. Maximum 10MB.'}</p>

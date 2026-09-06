@@ -12,10 +12,27 @@ export type PlatformPaymentAccountInput = {
   accountName: string;
   accountNumber: string;
   instructions?: string;
-  monthlyAmount: number;
-  currency: string;
   sortOrder?: number;
 };
+
+const DEFAULT_USD_TO_SDG = 100_000;
+
+export async function getPlatformBillingSettings() {
+  const setting = await prisma.platformBillingSettings.findUnique({ where: { id: 'default' } });
+  return { usdToSdgRate: Number(setting?.usdToSdgRate ?? DEFAULT_USD_TO_SDG), updatedAt: setting?.updatedAt ?? null };
+}
+
+export async function setUsdToSdgRate(usdToSdgRate: number, updatedById: string) {
+  if (!Number.isFinite(usdToSdgRate) || usdToSdgRate <= 0 || usdToSdgRate > 10_000_000) throw new ValidationError('Exchange rate is invalid');
+  return prisma.platformBillingSettings.upsert({ where: { id: 'default' }, update: { usdToSdgRate, updatedById }, create: { id: 'default', usdToSdgRate, updatedById } });
+}
+
+function quotePlanInSdg(plan: { monthlyPrice: { toString(): string } | number; currency: string }, usdToSdgRate: number) {
+  const price = Number(plan.monthlyPrice);
+  if (plan.currency.toUpperCase() === 'SDG') return { usdReference: null, amount: price };
+  if (plan.currency.toUpperCase() !== 'USD') throw new ValidationError('Manual billing supports USD or SDG plans only');
+  return { usdReference: price, amount: Math.round(price * usdToSdgRate) };
+}
 
 export async function listAllPaymentAccounts() {
   const accounts = await prisma.platformPaymentAccount.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
@@ -30,8 +47,10 @@ export async function createPlatformPaymentAccount(input: PlatformPaymentAccount
       accountName: input.accountName.trim(),
       accountNumber: input.accountNumber.trim(),
       instructions: input.instructions?.trim() || null,
-      monthlyAmount: input.monthlyAmount,
-      currency: input.currency.trim().toUpperCase(),
+      // Kept as a legacy database field for older records; quotes now come
+      // from the selected plan and the platform exchange-rate setting.
+      monthlyAmount: 0,
+      currency: 'SDG',
       sortOrder: input.sortOrder ?? 0,
     },
   });
@@ -48,6 +67,16 @@ export async function listActivePaymentAccounts() {
   return accounts.map(account => ({ ...account, monthlyAmount: Number(account.monthlyAmount) }));
 }
 
+export async function getManualPaymentQuote(merchantId: string) {
+  const [request, settings] = await Promise.all([
+    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { code: true, name: true, monthlyPrice: true, currency: true } }, }, orderBy: { createdAt: 'desc' } }),
+    getPlatformBillingSettings(),
+  ]);
+  if (!request) return null;
+  const quote = quotePlanInSdg(request.targetPlan, settings.usdToSdgRate);
+  return { planCode: request.targetPlan.code, planName: request.targetPlan.name, planCurrency: request.targetPlan.currency, planMonthlyPrice: Number(request.targetPlan.monthlyPrice), usdToSdgRate: settings.usdToSdgRate, amount: quote.amount, currency: 'SDG' };
+}
+
 export async function listMerchantPayments(merchantId: string) {
   const payments = await prisma.merchantSubscriptionPayment.findMany({
     where: { merchantId }, include: { paymentAccount: true, targetPlan: { select: { code: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 10,
@@ -58,19 +87,23 @@ export async function listMerchantPayments(merchantId: string) {
 export async function submitManualSubscriptionPayment(merchantId: string, input: {
   paymentAccountId: string; transactionRef: string; senderName?: string; transferredAt?: Date;
 }, evidence: PrivateEvidence) {
-  const [account, changeRequest, currentPayment] = await Promise.all([
+  const [account, changeRequest, currentPayment, settings] = await Promise.all([
     prisma.platformPaymentAccount.findFirst({ where: { id: input.paymentAccountId, isActive: true } }),
-    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, orderBy: { createdAt: 'desc' } }),
+    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { monthlyPrice: true, currency: true } } }, orderBy: { createdAt: 'desc' } }),
     prisma.merchantSubscriptionPayment.findFirst({ where: { merchantId, status: { in: ['PENDING', 'VERIFIED'] } } }),
+    getPlatformBillingSettings(),
   ]);
   if (!account) throw new NotFoundError('Payment account');
   if (!changeRequest) throw new ValidationError('Request a Pro upgrade before submitting payment');
   if (currentPayment) throw new ConflictError('A subscription payment is already under review or verified');
+  const quote = quotePlanInSdg(changeRequest.targetPlan, settings.usdToSdgRate);
 
   const transactionRef = input.transactionRef.trim().toUpperCase();
   if (transactionRef.length < 4 || transactionRef.length > 100) throw new ValidationError('Transaction reference is invalid');
   if (input.senderName && input.senderName.trim().length > 120) throw new ValidationError('Sender name is too long');
-  if (input.transferredAt && input.transferredAt.getTime() > Date.now() + 10 * 60_000) throw new ValidationError('Transfer date cannot be in the future');
+  // datetime-local has no UTC offset. Allow one calendar-day tolerance so a
+  // merchant's local clock is not rejected when the server runs in UTC.
+  if (input.transferredAt && input.transferredAt.getTime() > Date.now() + 24 * 60 * 60_000) throw new ValidationError('Transfer date cannot be in the future');
   const storageKey = await privateStorageService.upload(evidence.buffer, evidence.filename, evidence.mimeType, `${merchantId}-subscription-payments`);
   try {
     return await prisma.merchantSubscriptionPayment.create({
@@ -79,8 +112,8 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
         targetPlanId: changeRequest.targetPlanId,
         planChangeRequestId: changeRequest.id,
         paymentAccountId: account.id,
-        amount: account.monthlyAmount,
-        currency: account.currency,
+        amount: quote.amount,
+        currency: 'SDG',
         channel: account.channel,
         transactionRef,
         senderName: input.senderName?.trim() || null,

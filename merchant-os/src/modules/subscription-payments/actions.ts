@@ -6,6 +6,7 @@ import type { ActionResult } from '@/lib/types';
 import { z } from 'zod';
 import {
   createPlatformPaymentAccount,
+  setUsdToSdgRate,
   reviewSubscriptionPayment,
   setPlatformPaymentAccountActive,
 } from './subscription-payments.service';
@@ -17,10 +18,10 @@ const paymentAccountSchema = z.object({
   accountName: z.string().trim().min(2).max(120),
   accountNumber: z.string().trim().min(3).max(100),
   instructions: z.string().trim().max(500).optional(),
-  monthlyAmount: z.coerce.number().positive().max(1_000_000_000),
-  currency: z.string().trim().min(3).max(6).regex(/^[A-Za-z]+$/),
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
 });
+
+const exchangeRateSchema = z.object({ usdToSdgRate: z.coerce.number().positive().max(10_000_000) });
 
 export async function createPaymentAccountAction(formData: FormData) {
   await requirePlatformPermission(PLATFORM_PERMISSIONS.SETTINGS_MANAGE);
@@ -36,6 +37,15 @@ export async function togglePaymentAccountAction(formData: FormData) {
   const isActive = String(formData.get('isActive')) === 'true';
   if (!id) return;
   await setPlatformPaymentAccountActive(id, isActive);
+  revalidatePath('/admin/subscription-payments');
+  revalidatePath('/dashboard/subscription');
+}
+
+export async function updateUsdToSdgRateAction(formData: FormData) {
+  const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.SUBSCRIPTIONS_MANAGE);
+  const parsed = exchangeRateSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  await setUsdToSdgRate(parsed.data.usdToSdgRate, actor.id);
   revalidatePath('/admin/subscription-payments');
   revalidatePath('/dashboard/subscription');
 }

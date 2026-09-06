@@ -2,10 +2,11 @@ import {
   createPaymentAccountAction,
   reviewSubscriptionPaymentFormAction,
   togglePaymentAccountAction,
+  updateUsdToSdgRateAction,
 } from '@/modules/subscription-payments/actions';
 import {
   listAllPaymentAccounts,
-  listPaymentsForReview,
+  getPlatformBillingSettings, listPaymentsForReview,
 } from '@/modules/subscription-payments/subscription-payments.service';
 import { listPlanChangeRequestsForAdmin } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
 import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
@@ -22,7 +23,7 @@ const statusStyles: Record<string, string> = {
 export default async function SubscriptionPaymentsAdminPage() {
   const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.PAYMENTS_REVIEW);
   const canManageAccounts = actor.role === 'PLATFORM_OWNER' || actor.role === 'PLATFORM_ADMIN';
-  const [accounts, payments, planRequests] = await Promise.all([listAllPaymentAccounts(), listPaymentsForReview(), listPlanChangeRequestsForAdmin()]);
+  const [accounts, payments, planRequests, billing] = await Promise.all([listAllPaymentAccounts(), listPaymentsForReview(), listPlanChangeRequestsForAdmin(), getPlatformBillingSettings()]);
 
   return <div className="space-y-8">
     <header>
@@ -31,14 +32,18 @@ export default async function SubscriptionPaymentsAdminPage() {
     </header>
 
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+      <h2 className="font-bold">تسعير التحويل بالجنيه السوداني</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">أسعار الباقات تبقى بالدولار. يُستخدم هذا السعر لحساب مبلغ التحويل ويُثبّت عند إرسال الإيصال.</p>
+      {canManageAccounts && <form action={updateUsdToSdgRateAction} className="mt-4 flex max-w-md gap-3"><label className="flex-1 text-sm">1 USD = <input name="usdToSdgRate" required type="number" min="1" step="0.01" defaultValue={billing.usdToSdgRate} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/> SDG</label><button className="mt-6 rounded-lg bg-[var(--primary)] px-4 py-2 font-semibold text-white">تحديث السعر</button></form>}
+      <p className="mt-3 text-xs text-[var(--muted-foreground)]">آخر تحديث: {billing.updatedAt?.toLocaleString('ar-SD') ?? 'القيمة الافتراضية'}</p>
+    </section>
+
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
       <h2 className="font-bold">إضافة حساب تحصيل</h2>
       {canManageAccounts && <form action={createPaymentAccountAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <label className="text-sm">القناة<select name="channel" required className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"><option value="BANKAK">بنكك</option><option value="MYCASHY">ماي كاشي</option><option value="OTHER">أخرى</option></select></label>
         <label className="text-sm">اسم العرض<input name="label" required minLength={2} maxLength={80} placeholder="بنكك — وصلة" className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
         <label className="text-sm">اسم صاحب الحساب<input name="accountName" required minLength={2} maxLength={120} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
         <label className="text-sm">رقم الحساب<input name="accountNumber" required minLength={3} maxLength={100} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
-        <label className="text-sm">الاشتراك الشهري<input name="monthlyAmount" required type="number" min="1" step="0.01" className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
-        <label className="text-sm">العملة<input name="currency" required defaultValue="SDG" minLength={3} maxLength={6} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 uppercase"/></label>
         <label className="text-sm">الترتيب<input name="sortOrder" type="number" min="0" max="999" defaultValue="0" className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
         <label className="text-sm md:col-span-2 xl:col-span-1">تعليمات التحويل<input name="instructions" maxLength={500} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
         <button className="rounded-lg bg-[var(--primary)] px-4 py-2.5 font-semibold text-white md:col-span-2 xl:col-span-4">حفظ حساب التحصيل</button>
@@ -46,7 +51,7 @@ export default async function SubscriptionPaymentsAdminPage() {
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
         {accounts.map(account => <article key={account.id} className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] p-4">
-          <div><strong>{account.label}</strong><p className="text-sm text-[var(--muted-foreground)]">{account.accountName} · {account.accountNumber}</p><p className="text-sm font-semibold">{account.monthlyAmount.toLocaleString()} {account.currency}</p></div>
+          <div><strong>{account.label}</strong><p className="text-sm text-[var(--muted-foreground)]">{account.accountName} · {account.accountNumber}</p></div>
           {canManageAccounts && <form action={togglePaymentAccountAction}><input type="hidden" name="id" value={account.id}/><input type="hidden" name="isActive" value={account.isActive ? 'false' : 'true'}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">{account.isActive ? 'إيقاف' : 'تفعيل'}</button></form>}
         </article>)}
         {accounts.length === 0 && <p className="rounded-xl border border-dashed p-6 text-center text-sm text-[var(--muted-foreground)] lg:col-span-2">لم تتم إضافة حسابات تحصيل بعد.</p>}
@@ -55,7 +60,7 @@ export default async function SubscriptionPaymentsAdminPage() {
 
     <section className="space-y-3">
       <div><h2 className="font-bold">طلبات الترقية بانتظار السداد ({planRequests.length})</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">هذه الطلبات لا تُفعّل الباقة وحدها. تظهر في قائمة التحقق أدناه فور رفع التاجر إشعار التحويل.</p></div>
-      {planRequests.map(request => <article key={request.id} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold">{request.merchant.name}</h3><p className="text-sm text-[var(--muted-foreground)]" dir="ltr">{request.merchant.slug}</p></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{request.status === 'CONTACTED' ? 'تم التواصل' : 'بانتظار السداد'}</span></div><p className="mt-3 text-sm">الباقة المطلوبة: <strong>{request.targetPlan.name}</strong> · {Number(request.targetPlan.monthlyPrice).toLocaleString()} {request.targetPlan.currency}/شهر</p>{request.note && <p className="mt-2 text-sm text-[var(--muted-foreground)]">ملاحظة التاجر: {request.note}</p>}<p className="mt-2 text-xs text-[var(--muted-foreground)]">{request.createdAt.toLocaleString('ar-SD')}</p></article>)}
+      {planRequests.map(request => <article key={request.id} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold">{request.merchant.name}</h3><p className="text-sm text-[var(--muted-foreground)]" dir="ltr">{request.merchant.slug}</p></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{request.status === 'CONTACTED' ? 'تم التواصل' : 'بانتظار السداد'}</span></div><p className="mt-3 text-sm">الباقة المطلوبة: <strong>{request.targetPlan.name}</strong> · {Number(request.targetPlan.monthlyPrice).toLocaleString()} {request.targetPlan.currency}/شهر</p>{request.targetPlan.currency === 'USD' && <p className="mt-1 text-sm font-bold">المقابل الحالي: {(Number(request.targetPlan.monthlyPrice) * billing.usdToSdgRate).toLocaleString()} SDG</p>}{request.note && <p className="mt-2 text-sm text-[var(--muted-foreground)]">ملاحظة التاجر: {request.note}</p>}<p className="mt-2 text-xs text-[var(--muted-foreground)]">{request.createdAt.toLocaleString('ar-SD')}</p></article>)}
       {planRequests.length === 0 && <p className="rounded-2xl border border-dashed p-6 text-center text-[var(--muted-foreground)]">لا توجد طلبات ترقية بانتظار السداد.</p>}
     </section>
 
