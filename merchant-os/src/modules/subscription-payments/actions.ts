@@ -9,6 +9,7 @@ import {
   setUsdToSdgRate,
   reviewSubscriptionPayment,
   setPlatformPaymentAccountActive,
+  updatePlatformPaymentAccount,
 } from './subscription-payments.service';
 import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
@@ -37,6 +38,16 @@ export async function togglePaymentAccountAction(formData: FormData) {
   const isActive = String(formData.get('isActive')) === 'true';
   if (!id) return;
   await setPlatformPaymentAccountActive(id, isActive);
+  revalidatePath('/admin/subscription-payments');
+  revalidatePath('/dashboard/subscription');
+}
+
+export async function updatePaymentAccountAction(formData: FormData) {
+  await requirePlatformPermission(PLATFORM_PERMISSIONS.SETTINGS_MANAGE);
+  const id = String(formData.get('id') ?? '');
+  const parsed = paymentAccountSchema.safeParse(Object.fromEntries(formData));
+  if (!id || !parsed.success) return;
+  await updatePlatformPaymentAccount(id, parsed.data);
   revalidatePath('/admin/subscription-payments');
   revalidatePath('/dashboard/subscription');
 }

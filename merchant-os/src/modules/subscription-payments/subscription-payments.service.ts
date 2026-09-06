@@ -67,6 +67,15 @@ export async function listActivePaymentAccounts() {
   return accounts.map(account => ({ ...account, monthlyAmount: Number(account.monthlyAmount) }));
 }
 
+export async function updatePlatformPaymentAccount(id: string, input: PlatformPaymentAccountInput) {
+  const account = await prisma.platformPaymentAccount.findUnique({ where: { id }, select: { id: true } });
+  if (!account) throw new NotFoundError('Payment account');
+  return prisma.platformPaymentAccount.update({ where: { id }, data: {
+    channel: input.channel, label: input.label.trim(), accountName: input.accountName.trim(), accountNumber: input.accountNumber.trim(),
+    instructions: input.instructions?.trim() || null, sortOrder: input.sortOrder ?? 0,
+  } });
+}
+
 export async function getManualPaymentQuote(merchantId: string) {
   const [request, settings] = await Promise.all([
     prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { code: true, name: true, monthlyPrice: true, currency: true } }, }, orderBy: { createdAt: 'desc' } }),

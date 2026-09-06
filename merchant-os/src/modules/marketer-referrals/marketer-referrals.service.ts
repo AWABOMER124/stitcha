@@ -51,13 +51,24 @@ export async function backfillMarketerMerchantReferral(
   });
   if (alreadyAttributed) throw new ValidationError('هذا المتجر مرتبط بالفعل بإحالة مسوّق');
 
-  return attachMarketerMerchantReferral(tx, {
+  const referral = await attachMarketerMerchantReferral(tx, {
     code: input.code,
     referredMerchantId: merchant.id,
     email: merchant.email,
     phone: merchant.phone,
     activated: merchant.status === 'ACTIVE',
   });
+  if (!referral || referral.status === 'REJECTED') return referral;
+
+  // A merchant may have paid before this operational correction.  Reuse the
+  // first verified paid subscription so the attribution is not lost, while
+  // preserving the original payment as the immutable commission source.
+  const payment = await tx.merchantSubscriptionPayment.findFirst({
+    where: { merchantId: merchant.id, status: 'VERIFIED', targetPlan: { code: { not: 'FREE' } } },
+    select: { id: true }, orderBy: { reviewedAt: 'asc' },
+  });
+  if (payment) await evaluateMarketerReferralInTransaction(tx, merchant.id, new Date(), payment.id);
+  return referral;
 }
 
 export async function evaluateMarketerReferralInTransaction(tx: Prisma.TransactionClient, merchantId: string, now = new Date(), subscriptionPaymentId?: string) {

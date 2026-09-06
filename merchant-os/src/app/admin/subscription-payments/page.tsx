@@ -2,6 +2,7 @@ import {
   createPaymentAccountAction,
   reviewSubscriptionPaymentFormAction,
   togglePaymentAccountAction,
+  updatePaymentAccountAction,
   updateUsdToSdgRateAction,
 } from '@/modules/subscription-payments/actions';
 import {
@@ -50,9 +51,9 @@ export default async function SubscriptionPaymentsAdminPage() {
       </form>}
 
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
-        {accounts.map(account => <article key={account.id} className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] p-4">
-          <div><strong>{account.label}</strong><p className="text-sm text-[var(--muted-foreground)]">{account.accountName} · {account.accountNumber}</p></div>
-          {canManageAccounts && <form action={togglePaymentAccountAction}><input type="hidden" name="id" value={account.id}/><input type="hidden" name="isActive" value={account.isActive ? 'false' : 'true'}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">{account.isActive ? 'إيقاف' : 'تفعيل'}</button></form>}
+        {accounts.map(account => <article key={account.id} className="rounded-xl border border-[var(--border)] p-4">
+          <div className="flex items-center justify-between gap-4"><div><strong>{account.label}</strong><p className="text-sm text-[var(--muted-foreground)]">{account.accountName} · {account.accountNumber}</p></div>{canManageAccounts && <form action={togglePaymentAccountAction}><input type="hidden" name="id" value={account.id}/><input type="hidden" name="isActive" value={account.isActive ? 'false' : 'true'}/><button className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm">{account.isActive ? 'إيقاف' : 'تفعيل'}</button></form>}</div>
+          {canManageAccounts && <details className="mt-3"><summary className="cursor-pointer text-sm font-bold text-[var(--primary)]">تعديل بيانات الحساب</summary><form action={updatePaymentAccountAction} className="mt-3 grid gap-3 md:grid-cols-2"><input type="hidden" name="id" value={account.id}/><label className="text-sm">القناة<select name="channel" defaultValue={account.channel} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2"><option value="BANKAK">بنكك</option><option value="MYCASHY">ماي كاشي</option><option value="OTHER">أخرى</option></select></label><label className="text-sm">اسم العرض<input name="label" required minLength={2} maxLength={80} defaultValue={account.label} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2"/></label><label className="text-sm">اسم صاحب الحساب<input name="accountName" required minLength={2} maxLength={120} defaultValue={account.accountName} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2"/></label><label className="text-sm">رقم الحساب<input name="accountNumber" required minLength={3} maxLength={100} defaultValue={account.accountNumber} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2"/></label><label className="text-sm">الترتيب<input name="sortOrder" type="number" min="0" max="999" defaultValue={account.sortOrder} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2"/></label><label className="text-sm">تعليمات التحويل<input name="instructions" maxLength={500} defaultValue={account.instructions ?? ''} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2"/></label><button className="rounded-lg bg-[var(--primary)] px-4 py-2.5 font-bold text-white md:col-span-2">حفظ التعديل</button></form></details>}
         </article>)}
         {accounts.length === 0 && <p className="rounded-xl border border-dashed p-6 text-center text-sm text-[var(--muted-foreground)] lg:col-span-2">لم تتم إضافة حسابات تحصيل بعد.</p>}
       </div>
