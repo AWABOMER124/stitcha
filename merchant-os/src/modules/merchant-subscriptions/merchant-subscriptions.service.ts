@@ -181,6 +181,19 @@ function freeSnapshot(): MerchantPlanSnapshot {
   };
 }
 
+/** Platform queue shown before a merchant submits a transfer receipt. */
+export async function listPlanChangeRequestsForAdmin() {
+  return prisma.merchantPlanChangeRequest.findMany({
+    where: { status: { in: ['PENDING', 'CONTACTED'] } },
+    include: {
+      merchant: { select: { name: true, slug: true } },
+      targetPlan: { select: { code: true, name: true, monthlyPrice: true, currency: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+}
+
 function mergeEntitlements(plan: Prisma.JsonValue, overrides: Prisma.JsonValue | null): MerchantEntitlements {
   const base = isJsonObject(plan) ? plan : {};
   const custom = isJsonObject(overrides) ? overrides : {};

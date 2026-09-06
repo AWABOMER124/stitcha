@@ -8,7 +8,9 @@ import type { ActionResult } from '@/lib/types';
 import { requestPlanChange } from './merchant-subscriptions.service';
 
 const requestSchema = z.object({
-  targetPlanCode: z.literal('PRO'),
+  // The public catalog may offer several paid tiers.  FREE is deliberately
+  // excluded: downgrades are an explicit support operation, not a checkout.
+  targetPlanCode: z.enum(['GROWTH', 'PRO', 'BUSINESS']),
   note: z.string().trim().max(500).optional(),
 });
 

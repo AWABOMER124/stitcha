@@ -7,6 +7,7 @@ import {
   listAllPaymentAccounts,
   listPaymentsForReview,
 } from '@/modules/subscription-payments/subscription-payments.service';
+import { listPlanChangeRequestsForAdmin } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
 import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,7 @@ const statusStyles: Record<string, string> = {
 export default async function SubscriptionPaymentsAdminPage() {
   const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.PAYMENTS_REVIEW);
   const canManageAccounts = actor.role === 'PLATFORM_OWNER' || actor.role === 'PLATFORM_ADMIN';
-  const [accounts, payments] = await Promise.all([listAllPaymentAccounts(), listPaymentsForReview()]);
+  const [accounts, payments, planRequests] = await Promise.all([listAllPaymentAccounts(), listPaymentsForReview(), listPlanChangeRequestsForAdmin()]);
 
   return <div className="space-y-8">
     <header>
@@ -50,6 +51,12 @@ export default async function SubscriptionPaymentsAdminPage() {
         </article>)}
         {accounts.length === 0 && <p className="rounded-xl border border-dashed p-6 text-center text-sm text-[var(--muted-foreground)] lg:col-span-2">لم تتم إضافة حسابات تحصيل بعد.</p>}
       </div>
+    </section>
+
+    <section className="space-y-3">
+      <div><h2 className="font-bold">طلبات الترقية بانتظار السداد ({planRequests.length})</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">هذه الطلبات لا تُفعّل الباقة وحدها. تظهر في قائمة التحقق أدناه فور رفع التاجر إشعار التحويل.</p></div>
+      {planRequests.map(request => <article key={request.id} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-bold">{request.merchant.name}</h3><p className="text-sm text-[var(--muted-foreground)]" dir="ltr">{request.merchant.slug}</p></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">{request.status === 'CONTACTED' ? 'تم التواصل' : 'بانتظار السداد'}</span></div><p className="mt-3 text-sm">الباقة المطلوبة: <strong>{request.targetPlan.name}</strong> · {Number(request.targetPlan.monthlyPrice).toLocaleString()} {request.targetPlan.currency}/شهر</p>{request.note && <p className="mt-2 text-sm text-[var(--muted-foreground)]">ملاحظة التاجر: {request.note}</p>}<p className="mt-2 text-xs text-[var(--muted-foreground)]">{request.createdAt.toLocaleString('ar-SD')}</p></article>)}
+      {planRequests.length === 0 && <p className="rounded-2xl border border-dashed p-6 text-center text-[var(--muted-foreground)]">لا توجد طلبات ترقية بانتظار السداد.</p>}
     </section>
 
     <section className="space-y-3">
