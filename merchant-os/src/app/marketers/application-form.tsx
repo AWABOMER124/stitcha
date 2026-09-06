@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import type { Locale } from '@/lib/i18n/translations';
+import { InternationalPhoneInput } from '@/components/ui/international-phone-input';
 
 type StoreOption = { id: string; name: string; slug: string; rate: number; currency: string; terms: string | null };
 type ProgramType = 'MERCHANT_ACQUISITION' | 'STOREFRONT_PRODUCTS';
@@ -20,6 +21,8 @@ export function MarketerApplicationForm({ locale, stores }: { locale: Locale; st
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reference, setReference] = useState('');
+  const [countryCode, setCountryCode] = useState('+249');
+  const [phone, setPhone] = useState('');
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(''); setLoading(true);
@@ -28,7 +31,7 @@ export function MarketerApplicationForm({ locale, stores }: { locale: Locale; st
     const payload = {
       type,
       merchantId: type === 'STOREFRONT_PRODUCTS' ? String(form.get('merchantId') ?? '') : undefined,
-      name: form.get('name'), phone: form.get('phone'), email: form.get('email'), city: form.get('city'),
+      name: form.get('name'), phone, countryCode, email: form.get('email'), city: form.get('city'),
       channels: selectedChannels, experience: form.get('experience'),
       audienceSize: audienceRaw ? Number(audienceRaw) : undefined,
       portfolioUrl: form.get('portfolioUrl'), notes: form.get('notes'), acceptTerms: form.get('acceptTerms') === 'on',
@@ -48,7 +51,7 @@ export function MarketerApplicationForm({ locale, stores }: { locale: Locale; st
     <div className="mt-6 grid gap-3 sm:grid-cols-2">{([['MERCHANT_ACQUISITION',ar?'استقطاب تجار':'Merchant acquisition'],['STOREFRONT_PRODUCTS',ar?'تسويق منتجات':'Product marketing']] as const).map(([value,label])=><button key={value} type="button" onClick={()=>setType(value)} className={`rounded-2xl border p-4 text-start font-bold transition ${type===value?'border-[#087d82] bg-[#e9f7f4] text-[#075f63]':'border-slate-200 dark:border-white/10'}`}>{label}</button>)}</div>
     <form onSubmit={submit} className="mt-6 space-y-5">
       {type==='STOREFRONT_PRODUCTS' && <label className="block text-sm font-bold">{ar?'المتجر':'Store'}<select name="merchantId" required className="mt-2 w-full rounded-xl border bg-transparent p-3"><option value="">{ar?'اختر متجراً':'Select a store'}</option>{stores.map(store=><option key={store.id} value={store.id}>{store.name} — {store.rate}% {store.currency}</option>)}</select>{!stores.length&&<span className="mt-2 block text-xs text-amber-700">{ar?'لا توجد برامج متاجر مفتوحة حالياً. يمكنك العودة لاحقاً.':'No store programs are currently open.'}</span>}</label>}
-      <div className="grid gap-4 sm:grid-cols-2"><Field name="name" label={ar?'الاسم الكامل':'Full name'} required/><Field name="phone" label={ar?'رقم واتساب السوداني':'Sudanese WhatsApp number'} type="tel" placeholder="+249..." required/><Field name="email" label={ar?'البريد الإلكتروني':'Email'} type="email" required/><Field name="city" label={ar?'المدينة':'City'} required/></div>
+      <div className="grid gap-4 sm:grid-cols-2"><Field name="name" label={ar?'الاسم الكامل':'Full name'} required/><label className="block text-sm font-bold">{ar?'رقم واتساب':'WhatsApp number'}<div className="mt-2"><InternationalPhoneInput countryCode={countryCode} phone={phone} onCountryCodeChange={setCountryCode} onPhoneChange={setPhone} required disabled={loading}/></div><span className="mt-2 block text-xs font-normal text-slate-500">{ar?'اختر مفتاح الدولة أو أدخله يدوياً لأي دولة.':'Choose a calling code or enter one manually for any country.'}</span></label><Field name="email" label={ar?'البريد الإلكتروني':'Email'} type="email" required/><Field name="city" label={ar?'المدينة':'City'} required/></div>
       <fieldset><legend className="text-sm font-bold">{ar?'قنوات التسويق':'Marketing channels'}</legend><div className="mt-3 flex flex-wrap gap-2">{channels.map(channel=>{const active=selectedChannels.includes(channel);return <button key={channel} type="button" onClick={()=>setSelectedChannels(current=>active?current.filter(x=>x!==channel):[...current,channel])} className={`rounded-full border px-4 py-2 text-sm ${active?'border-[#087d82] bg-[#087d82] text-white':'border-slate-200 dark:border-white/10'}`}>{channelNames[channel][ar?0:1]}</button>})}</div>{!selectedChannels.length&&<p className="mt-2 text-xs text-slate-400">{ar?'اختر قناة واحدة على الأقل.':'Choose at least one channel.'}</p>}</fieldset>
       <label className="block text-sm font-bold">{ar?'خبرتك وطريقة عملك':'Experience and approach'}<textarea name="experience" rows={4} maxLength={1000} className="mt-2 w-full rounded-xl border bg-transparent p-3" placeholder={ar?'عرّفنا بجمهورك وطريقة الوصول للعملاء...':'Tell us about your audience and approach...'}/></label>
       <div className="grid gap-4 sm:grid-cols-2"><Field name="audienceSize" label={ar?'حجم الجمهور التقريبي':'Approx. audience'} type="number" min="0"/><Field name="portfolioUrl" label={ar?'رابط أعمال أو حساب':'Portfolio or profile URL'} type="url" placeholder="https://..."/></div>

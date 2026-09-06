@@ -2,13 +2,14 @@ import { createHmac, randomBytes } from 'node:crypto';
 import type { MarketerApplicationType, Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
-import { formatPhoneNumber } from '@/lib/utils/formatting';
+import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/utils/formatting';
 
 export type MarketerApplicationInput = {
   type: MarketerApplicationType;
   merchantId?: string;
   name: string;
   phone: string;
+  countryCode?: string;
   email: string;
   city: string;
   channels: string[];
@@ -38,8 +39,8 @@ export async function listPublicAffiliateStores() {
 }
 
 export async function submitMarketerApplication(input: MarketerApplicationInput, now = new Date()) {
-  const phone = formatPhoneNumber(input.phone.trim());
-  if (!/^\+249\d{9}$/.test(phone)) throw new ValidationError('أدخل رقم واتساب سودانياً صحيحاً');
+  const phone = normalizeInternationalPhone(input.phone.trim(), input.countryCode);
+  if (!isValidInternationalPhone(phone)) throw new ValidationError('أدخل رقم واتساب دولياً صحيحاً مع مفتاح الدولة');
   if (input.type === 'MERCHANT_ACQUISITION' && input.merchantId) throw new ValidationError('طلب استقطاب التجار لا يرتبط بمتجر');
   if (input.type === 'STOREFRONT_PRODUCTS' && !input.merchantId) throw new ValidationError('اختر المتجر الذي تريد التسويق له');
   if (input.type === 'STOREFRONT_PRODUCTS') {
