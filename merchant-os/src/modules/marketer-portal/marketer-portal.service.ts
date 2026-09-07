@@ -1,11 +1,14 @@
 import prisma from '@/lib/db/prisma';
 import { NotFoundError, UnauthorizedError } from '@/lib/errors';
+import { maskedMarketerPayout } from './marketer-profile.service';
 
 export async function getMarketerPortal(userId: string) {
   const account = await prisma.marketerAccount.findUnique({
     where: { userId },
     include: {
-      user: { select: { name: true, email: true, phone: true } },
+      user: { select: { name: true, email: true, phone: true, image: true } },
+      identityVerification: { select: { status: true, rejectionReason: true, expiresAt: true } },
+      payoutProfile: true,
       referrals: { include: { referredMerchant: { select: { name: true, slug: true } } }, orderBy: { registeredAt: 'desc' }, take: 100 },
       applications: { select: { id: true, type: true, status: true, merchantId: true, createdAt: true, rejectionReason: true, merchant: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take: 100 },
       affiliates: {
@@ -30,6 +33,7 @@ export async function getMarketerPortal(userId: string) {
   ]);
   return {
     profile: account.user,
+    professionalProfile: { bio: account.bio, city: account.city, cvFileName: account.cvFileName, identityVerification: account.identityVerification, payout: account.payoutProfile ? maskedMarketerPayout(account.payoutProfile) : null },
     acquisitionCode: account.acquisitionCode,
     acquisitionReferrals: account.referrals,
     acquisitionTotals: acquisitionTotals.map(item => ({ status: item.status, currency: item.currency, amount: Number(item._sum.amount ?? 0), count: item._count._all })),

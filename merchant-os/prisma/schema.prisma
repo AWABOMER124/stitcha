@@ -1281,6 +1281,10 @@ model MarketerAccount {
   userId      String   @unique
   acquisitionCode String @unique
   isActive    Boolean  @default(true)
+  bio         String?
+  city        String?
+  cvStorageKey String? @unique
+  cvFileName  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1289,8 +1293,59 @@ model MarketerAccount {
   affiliates   StoreAffiliate[]
   referrals    MarketerMerchantReferral[]
   commissions  MarketerSubscriptionCommission[]
+  identityVerification MarketerIdentityVerification?
+  payoutProfile MarketerPayoutProfile?
 
   @@map("marketer_accounts")
+}
+
+model MarketerIdentityVerification {
+  id                      String                     @id @default(cuid())
+  marketerAccountId       String                     @unique
+  legalName               String
+  documentType            IdentityDocumentType
+  documentNumberEncrypted String
+  expiresAt               DateTime
+  status                  IdentityVerificationStatus @default(DRAFT)
+  submittedAt             DateTime?
+  reviewedById            String?
+  reviewedAt              DateTime?
+  rejectionReason         String?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  marketerAccount         MarketerAccount            @relation(fields: [marketerAccountId], references: [id], onDelete: Cascade)
+  documents               MarketerIdentityDocument[]
+  @@index([status, submittedAt])
+  @@map("marketer_identity_verifications")
+}
+
+model MarketerIdentityDocument {
+  id             String               @id @default(cuid())
+  verificationId String
+  side           IdentityDocumentSide
+  storageKey     String               @unique
+  fileName       String
+  mimeType       String
+  size           Int
+  sha256         String
+  createdAt      DateTime             @default(now())
+  verification   MarketerIdentityVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  @@unique([verificationId, side])
+  @@map("marketer_identity_documents")
+}
+
+model MarketerPayoutProfile {
+  id                     String       @id @default(cuid())
+  marketerAccountId      String       @unique
+  method                 PayoutMethod
+  bankName               String?
+  accountNameEncrypted   String
+  accountNumberEncrypted String
+  ibanEncrypted          String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  marketerAccount        MarketerAccount @relation(fields: [marketerAccountId], references: [id], onDelete: Cascade)
+  @@map("marketer_payout_profiles")
 }
 
 /// Separate attribution for a platform marketer who brings a new merchant.
