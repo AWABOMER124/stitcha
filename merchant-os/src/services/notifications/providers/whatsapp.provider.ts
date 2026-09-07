@@ -78,6 +78,14 @@ async function sendWithEvolution(payload: NotificationPayload): Promise<void> {
   if (first.ok) return;
 
   const error = await safeError(first);
+  // Evolution can briefly return a 5xx while its WhatsApp socket reconnects.
+  // Repeating the exact payload once is safe for OTPs: the code remains the
+  // same and no verification record is created until delivery succeeds.
+  if (first.status >= 500) {
+    const retry = await postEvolutionText(endpoint, number, payload.body, requestedStyle);
+    if (retry.ok) return;
+    throw new Error(`Evolution WhatsApp rejected the message (${retry.status}): ${await safeError(retry)}`);
+  }
   // Evolution deployments differ: some require { number, text }, while older
   // releases require { number, textMessage: { text } }. A 400 is safely retried
   // because Evolution rejected the first request before accepting a message.

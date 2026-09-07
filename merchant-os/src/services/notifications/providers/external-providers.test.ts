@@ -143,6 +143,20 @@ describe('external notification providers', () => {
     expect(JSON.parse(String(retry?.body))).toEqual({ number: '249111222333', text: 'Message body' });
   });
 
+  it('retries once when Evolution temporarily loses its WhatsApp connection', async () => {
+    process.env.PLATFORM_WHATSAPP_PROVIDER = 'evolution';
+    process.env.EVOLUTION_API_URL = 'https://evolution.example.com';
+    process.env.EVOLUTION_API_KEY = 'evolution-secret';
+    process.env.EVOLUTION_INSTANCE_NAME = 'wasla-main';
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response('{"error":"Connection Closed"}', { status: 500 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    await new WhatsAppProvider().send({ ...payload, channel: 'WHATSAPP' });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('fails closed when Evolution is selected without credentials', async () => {
     process.env.PLATFORM_WHATSAPP_PROVIDER = 'evolution';
     await expect(new WhatsAppProvider().send({ ...payload, channel: 'WHATSAPP' }))
