@@ -62,6 +62,12 @@ export async function reviewMarketerIdentity(verificationId: string, reviewerId:
   return prisma.marketerIdentityVerification.update({ where: { id: verificationId }, data: { status: decision === 'APPROVE' ? 'APPROVED' : 'REJECTED', reviewedById: reviewerId, reviewedAt: new Date(), rejectionReason: decision === 'REJECT' ? reason!.trim() : null } });
 }
 
+export async function downloadMarketerIdentityDocument(documentId: string) {
+  const document = await prisma.marketerIdentityDocument.findUnique({ where: { id: documentId } });
+  if (!document) throw new NotFoundError('Identity document');
+  return privateStorageService.download(document.storageKey);
+}
+
 export function maskedMarketerPayout(payout: { method: string; bankName: string | null; accountNameEncrypted: string; accountNumberEncrypted: string; ibanEncrypted: string | null }) {
   return { method: payout.method, bankName: payout.bankName, accountName: maskSecret(decryptSecret(payout.accountNameEncrypted)), accountNumber: maskSecret(decryptSecret(payout.accountNumberEncrypted)), iban: payout.ibanEncrypted ? maskSecret(decryptSecret(payout.ibanEncrypted)) : null };
 }
