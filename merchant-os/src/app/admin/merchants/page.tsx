@@ -17,6 +17,7 @@ type Merchant = {
   status: string;
   businessType: string;
   email?: string | null;
+  phone?: string | null;
   createdAt: string | Date;
   distributor?: { id: string; name: string } | null;
   _count: { orders: number; products: number };
@@ -55,11 +56,14 @@ export default async function AdminMerchantsPage({
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
         <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
         <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
           {result.pagination.total} {t.subtitleSuffix}
         </p>
+        </div>
+        <a href="/api/admin/exports/merchants" className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white">تصدير Excel</a>
       </div>
 
       {/* Filters */}
@@ -105,6 +109,7 @@ export default async function AdminMerchantsPage({
                       <td className="py-3.5 px-4">
                         <Link href={`/admin/merchants/${m.id}`} className="font-semibold text-[var(--foreground)] hover:text-[var(--primary)] hover:underline">{m.name}</Link>
                         <p className="text-xs font-mono text-[var(--muted-foreground)]">{m.slug}</p>
+                        <p dir="ltr" className="mt-1 text-xs text-[var(--muted-foreground)]">{m.phone ?? m.email ?? '—'}</p>
                       </td>
                       <td className="py-3.5 px-4 text-[var(--muted-foreground)]">
                         {t.businessTypes[m.businessType as keyof typeof t.businessTypes] ?? m.businessType}

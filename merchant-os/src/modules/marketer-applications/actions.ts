@@ -21,15 +21,19 @@ const backfillReferralSchema = z.object({
 });
 
 export async function backfillMarketerMerchantReferralAction(formData: FormData) {
-  await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_MANAGE);
-  const parsed = backfillReferralSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new ValidationError('بيانات الإحالة غير صالحة');
-  const referral = await prisma.$transaction(tx => backfillMarketerMerchantReferral(tx, {
-    merchantSlug: parsed.data.merchantSlug,
-    code: parsed.data.marketerCode,
-  }));
-  if (!referral || referral.status === 'REJECTED') throw new ValidationError('تعذر إسناد الإحالة: تأكد من تفعيل برنامج الإحالات ورمز المسوّق');
-  revalidatePath('/admin/marketers');
+  try {
+    await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_MANAGE);
+    const parsed = backfillReferralSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return;
+    const referral = await prisma.$transaction(tx => backfillMarketerMerchantReferral(tx, { merchantSlug: parsed.data.merchantSlug, code: parsed.data.marketerCode }));
+    if (!referral || referral.status === 'REJECTED') return;
+    revalidatePath('/admin/referrals');
+    revalidatePath('/admin/marketers');
+    return;
+  } catch (error) {
+    console.error('[marketer-referral] assignment failed', error);
+    return;
+  }
 }
 
 export async function reviewAcquisitionApplicationAction(formData: FormData) {

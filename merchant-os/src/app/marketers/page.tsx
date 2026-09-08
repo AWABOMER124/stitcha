@@ -7,6 +7,8 @@ import { PublicFooter, PublicHeader } from '@/components/marketing/public-chrome
 import { getPublicPageContext } from '@/lib/marketing/public-context';
 import { listPublicAffiliateStores } from '@/modules/marketer-applications/marketer-applications.service';
 import { MarketerApplicationForm } from './application-form';
+import { auth } from '@/lib/auth/config';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'انضم كمسوّق بالعمولة',
@@ -16,6 +18,10 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function MarketersPage() {
+  // A logged-in marketer should continue from their own portal rather than
+  // being returned to the public acquisition landing page.
+  const session = await auth();
+  if (session?.user.role === 'MARKETER') redirect('/marketer/programs');
   const [ctx, cookieStore, stores] = await Promise.all([getPublicPageContext(), cookies(), listPublicAffiliateStores()]);
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const publicStores = stores.map(store => ({

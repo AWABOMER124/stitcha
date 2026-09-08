@@ -29,7 +29,7 @@ function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.complaints, href: '/admin/complaints', icon: '🛟' }] : []),
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.verifications, href: '/admin/verifications', icon: '🪪' }] : []),
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.domains, href: '/admin/domains', icon: '🔗' }] : []),
-    ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.marketers, href: '/admin/marketers', icon: '📣' }] : []),
+    ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.marketers, href: '/admin/marketers/directory', icon: '📣' }] : []),
     { type: 'divider' },
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.deliveryPartners, href: '/admin/delivery-partners', icon: '🚚' }] : []),
     { type: 'section', label: nav.financeReportsSection },
