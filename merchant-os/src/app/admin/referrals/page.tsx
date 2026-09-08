@@ -6,12 +6,14 @@ import { backfillMarketerMerchantReferralAction } from '@/modules/marketer-appli
 export const dynamic = 'force-dynamic';
 const rewardNames: Record<string,string> = { PRO_DAYS: 'أيام Pro', AI_CREDITS: 'رصيد AI', ACCOUNT_CREDIT: 'رصيد حساب', CASH: 'نقدي' };
 
-export default async function AdminReferralsPage() {
+export default async function AdminReferralsPage({ searchParams }: { searchParams: Promise<{ assignment?: string; notice?: string }> }) {
   const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.FINANCE_READ);
+  const params = await searchParams;
+  const notice = params.notice ?? null;
   const { program, referrals, rewards, commissions } = await getAdminReferralDashboard();
   const canConfigure = actor.role === 'PLATFORM_OWNER' || actor.role === 'PLATFORM_ADMIN';
   return <div className="space-y-7" dir="rtl">
-    <header><h1 className="text-2xl font-black">برنامج إحالة تجار وصلة</h1><p className="mt-2 text-sm text-[var(--muted-foreground)]">إعداد التأهل، مراجعة الإحالات وتنفيذ المكافآت يدوياً مع سجل ثابت.</p></header>
+    <header><h1 className="text-2xl font-black">برنامج إحالة تجار وصلة</h1><p className="mt-2 text-sm text-[var(--muted-foreground)]">إعداد التأهل، مراجعة الإحالات وتنفيذ المكافآت يدوياً مع سجل ثابت.</p>{notice && <p className={`mt-3 rounded-xl px-4 py-3 text-sm font-bold ${params.assignment === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>{notice}</p>}</header>
     <section className="rounded-2xl border bg-[var(--card)] p-6"><div className="flex items-center justify-between gap-4"><div><h2 className="font-black">إعداد البرنامج</h2><p className="text-sm text-[var(--muted-foreground)]">الحالة: {program.isActive ? 'مفعّل' : 'موقوف'}</p></div></div>{canConfigure ? <form action={updateReferralProgramAction} className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <label className="text-sm">شرط التأهل<select name="qualificationRule" defaultValue="FIRST_PAID_PRO" className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2.5"><option value="FIRST_PAID_PRO">أول اشتراك Pro مدفوع</option></select></label>
       <label className="text-sm">نوع المكافأة<select name="rewardType" defaultValue={program.rewardType} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2.5">{Object.entries(rewardNames).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>

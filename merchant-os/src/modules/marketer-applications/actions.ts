@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
@@ -21,19 +22,25 @@ const backfillReferralSchema = z.object({
 });
 
 export async function backfillMarketerMerchantReferralAction(formData: FormData) {
+  let notice = '';
+  let outcome: 'success' | 'error' = 'error';
   try {
     await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_MANAGE);
     const parsed = backfillReferralSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) return;
+    if (!parsed.success) notice = 'راجع رابط المتجر ورمز المسوّق.';
+    else {
     const referral = await prisma.$transaction(tx => backfillMarketerMerchantReferral(tx, { merchantSlug: parsed.data.merchantSlug, code: parsed.data.marketerCode }));
-    if (!referral || referral.status === 'REJECTED') return;
-    revalidatePath('/admin/referrals');
-    revalidatePath('/admin/marketers');
-    return;
+      if (!referral) notice = 'لم يتم الإسناد: تأكد من تفعيل البرنامج وصحة رمز المسوّق.';
+      else if (referral.status === 'REJECTED') notice = 'رفض النظام الإسناد لحماية البرنامج من الإحالة المكررة أو الذاتية.';
+      else { notice = 'تم إسناد التاجر للمسوّق بنجاح وتحديث العمولة إن كان الاشتراك مدفوعاً.'; outcome = 'success'; }
+    }
   } catch (error) {
     console.error('[marketer-referral] assignment failed', error);
-    return;
+    notice = error instanceof Error ? error.message : 'تعذر إسناد الإحالة حالياً.';
   }
+  revalidatePath('/admin/referrals');
+  revalidatePath('/admin/marketers');
+  redirect(`/admin/referrals?assignment=${outcome}&notice=${encodeURIComponent(notice)}`);
 }
 
 export async function reviewAcquisitionApplicationAction(formData: FormData) {
