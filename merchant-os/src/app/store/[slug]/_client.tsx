@@ -7,7 +7,7 @@ import { ExternalImage } from '@/components/external-image';
 import { normalizeStorefrontTheme, type StorefrontSection } from '@/lib/storefront-theme';
 
 type Modifier = { id: string; name: string; required: boolean; minSelections: number; maxSelections: number; options: { name: string; price: number }[] };
-export type Product = { id: string; name: string; slug: string; description: string | null; images: string[]; price: number; compareAtPrice?: number | null; isFeatured: boolean; categoryId: string; category: { id: string; name: string; slug: string }; modifiers: Modifier[] };
+export type Product = { id: string; name: string; slug: string; description: string | null; images: string[]; price: number; compareAtPrice?: number | null; isFeatured: boolean; categoryId: string; itemType?: 'PRODUCT' | 'SERVICE'; serviceProfile?: { durationMinutes: number; bookingRequired: boolean; fulfillmentType: string } | null; category: { id: string; name: string; slug: string }; modifiers: Modifier[] };
 export type Category = { id: string; name: string; slug: string; _count: { products: number } };
 export type Merchant = { id: string; name: string; slug: string; description: string | null; logo: string | null; coverImage: string | null; storefrontSettings: { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null };
 
@@ -217,14 +217,15 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       : 'bg-white rounded-2xl border border-stone-100 overflow-hidden text-right shadow-sm hover:shadow-md transition-all active:scale-95 group';
 
   function productCard(product: Product) {
-    return <button key={product.id} onClick={() => openProduct(product)} className={cardClass}>
+    const isService = product.itemType === 'SERVICE';
+    return <button key={product.id} onClick={() => isService ? router.push(`/store/${merchant.slug}/services/${product.slug}`) : openProduct(product)} className={cardClass}>
       <div className="relative aspect-[4/3] bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center overflow-hidden">
         {product.images?.[0]
           ? <ExternalImage src={product.images[0]} alt={product.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-contain p-2 group-hover:scale-105 transition-transform" />
           : <span className="text-4xl opacity-40">{product.category.name.includes('مشروب') ? '🥤' : product.category.name.includes('حلو') ? '🍰' : '🛍️'}</span>}
         {product.isFeatured && <span className="absolute start-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black" style={{ color: primary }}>★ مميز</span>}
       </div>
-      <div className="p-3"><p className="font-semibold text-stone-900 text-sm leading-tight">{product.name}</p>{product.description && <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{product.description}</p>}<div className="mt-2 flex items-center justify-between"><span className="text-sm font-bold" style={{ color: primary }}>{Number(product.price).toLocaleString()} SDG</span>{product.compareAtPrice && <span className="text-xs text-stone-400 line-through">{Number(product.compareAtPrice).toLocaleString()}</span>}<span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-lg font-light" style={{ background: primary }}>+</span></div></div>
+      <div className="p-3"><p className="font-semibold text-stone-900 text-sm leading-tight">{product.name}</p>{isService && <p className="mt-1 text-[10px] font-bold" style={{ color: primary }}>🗓️ {product.serviceProfile?.bookingRequired ? `${product.serviceProfile.durationMinutes} دقيقة · احجز الآن` : 'اطلب الخدمة'}</p>}{product.description && <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{product.description}</p>}<div className="mt-2 flex items-center justify-between"><span className="text-sm font-bold" style={{ color: primary }}>{Number(product.price).toLocaleString()} SDG</span>{product.compareAtPrice && <span className="text-xs text-stone-400 line-through">{Number(product.compareAtPrice).toLocaleString()}</span>}<span className="rounded-full px-2 py-1 text-[10px] font-bold text-white" style={{ background: primary }}>{isService ? 'احجز' : '+'}</span></div></div>
     </button>;
   }
 

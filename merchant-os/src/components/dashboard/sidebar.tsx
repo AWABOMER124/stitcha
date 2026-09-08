@@ -23,6 +23,7 @@ function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
     { type: "link", label: nav.fulfillment, href: "/dashboard/fulfillment", icon: "⚡" },
     { type: "link", label: nav.orders, href: "/dashboard/orders", icon: "📦" },
     { type: "link", label: nav.products, href: "/dashboard/products", icon: "🛍️" },
+    { type: "link", label: "الخدمات والمواعيد", href: "/dashboard/services", icon: "🗓️" },
     { type: "link", label: nav.categories, href: "/dashboard/categories", icon: "📂" },
     { type: "link", label: nav.inventory, href: "/dashboard/inventory", icon: "📋" },
     { type: "section", label: nav.storefrontSection },

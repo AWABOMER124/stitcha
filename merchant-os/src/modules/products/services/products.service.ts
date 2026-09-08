@@ -40,6 +40,7 @@ export async function getProduct(merchantId: string, id: string) {
  * Create a new product and its initial inventory item.
  */
 export async function createProduct(merchantId: string, data: CreateProductInput) {
+  const itemType = data.itemType ?? 'PRODUCT';
   const slug = generateSlug(data.name);
 
   // Check if slug already exists and append random suffix if needed
@@ -64,19 +65,19 @@ export async function createProduct(merchantId: string, data: CreateProductInput
         isActive: data.isActive ?? true,
         isFeatured: data.isFeatured ?? false,
         sortOrder: data.sortOrder ?? 0,
+        itemType,
+        ...(itemType === 'SERVICE' && data.serviceProfile ? { serviceProfile: { create: data.serviceProfile } } : {}),
       },
       include: { category: true },
     });
 
-    // Create associated inventory item
-    await tx.inventoryItem.create({
-      data: {
-        productId: newProduct.id,
-        merchantId,
-        quantity: 0,
-        lowStockThreshold: 5,
-      },
-    });
+    // Services do not consume stock. Keeping inventory exclusive to physical
+    // products avoids false low-stock alerts and reservation failures.
+    if (itemType !== 'SERVICE') {
+      await tx.inventoryItem.create({
+        data: { productId: newProduct.id, merchantId, quantity: 0, lowStockThreshold: 5 },
+      });
+    }
 
     return newProduct;
   });
@@ -90,13 +91,22 @@ export async function createProduct(merchantId: string, data: CreateProductInput
  */
 export async function updateProduct(merchantId: string, id: string, data: UpdateProductInput) {
   const current = await getProduct(merchantId, id); // ensure exists
+  const { serviceProfile, ...productData } = data;
+  const persist = async (tx: Prisma.TransactionClient) => tx.product.update({
+    where: { id, merchantId },
+    data: {
+      ...productData,
+      ...(serviceProfile ? { serviceProfile: { upsert: { create: serviceProfile, update: serviceProfile } } } : {}),
+    },
+    include: { category: true, serviceProfile: true },
+  });
   if (data.isActive === true && !current.isActive) {
     return prisma.$transaction(async tx => {
       await assertActiveProductCapacity(tx, merchantId);
-      return tx.product.update({ where: { id, merchantId }, data, include: { category: true } });
+      return persist(tx);
     });
   }
-  return productsRepo.update(merchantId, id, data);
+  return prisma.$transaction(persist);
 }
 
 /**

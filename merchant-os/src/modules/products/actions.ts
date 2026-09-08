@@ -4,7 +4,7 @@ import { getAuthContext, requirePermission } from '@/lib/permissions';
 import * as productsService from './services/products.service';
 import { createProductSchema, updateProductSchema, productFilterSchema } from './schemas/products.schemas';
 import type { ActionResult } from '@/lib/types';
-import type { Product } from '@prisma/client';
+import type { Product, Prisma } from '@prisma/client';
 import type { PaginatedResult } from '@/lib/types';
 
 // ============================================================================
@@ -25,7 +25,9 @@ export async function getProductsAction(filters: unknown): Promise<ActionResult<
 }
 
 /** Get a single product by ID */
-export async function getProductAction(id: string): Promise<ActionResult<Product>> {
+export type ProductWithDetails = Prisma.ProductGetPayload<{ include: { category: true; modifiers: true; serviceProfile: true } }>;
+
+export async function getProductAction(id: string): Promise<ActionResult<ProductWithDetails>> {
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'products:read');

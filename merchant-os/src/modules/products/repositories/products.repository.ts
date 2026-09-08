@@ -10,10 +10,12 @@ import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization
 /**
  * Find a product by ID, scoped to a merchant.
  */
-export async function findById(merchantId: string, id: string): Promise<Product | null> {
+export type ProductWithDetails = Prisma.ProductGetPayload<{ include: { category: true; modifiers: true; serviceProfile: true } }>;
+
+export async function findById(merchantId: string, id: string): Promise<ProductWithDetails | null> {
   const product = await prisma.product.findFirst({
     where: { id, merchantId },
-    include: { category: true, modifiers: true },
+    include: { category: true, modifiers: true, serviceProfile: true },
   });
   return serializePrismaObject(product);
 }
@@ -21,10 +23,10 @@ export async function findById(merchantId: string, id: string): Promise<Product 
 /**
  * Find a product by slug, scoped to a merchant.
  */
-export async function findBySlug(merchantId: string, slug: string): Promise<Product | null> {
+export async function findBySlug(merchantId: string, slug: string): Promise<ProductWithDetails | null> {
   const product = await prisma.product.findFirst({
     where: { merchantId, slug },
-    include: { category: true, modifiers: true },
+    include: { category: true, modifiers: true, serviceProfile: true },
   });
   return serializePrismaObject(product);
 }
@@ -56,7 +58,7 @@ export async function findAll(merchantId: string, filters: ProductFilterInput) {
       skip,
       take: limit,
       orderBy: { [sortBy]: sortOrder },
-      include: { category: true },
+      include: { category: true, serviceProfile: true },
     }),
     prisma.product.count({ where }),
   ]);
@@ -98,7 +100,7 @@ export async function create(merchantId: string, data: CreateProductInput & { sl
       isFeatured: data.isFeatured ?? false,
       sortOrder: data.sortOrder ?? 0,
     },
-    include: { category: true },
+    include: { category: true, serviceProfile: true },
   });
   return serializePrismaObject(product);
 }
@@ -107,9 +109,10 @@ export async function create(merchantId: string, data: CreateProductInput & { sl
  * Update an existing product.
  */
 export async function update(merchantId: string, id: string, data: UpdateProductInput): Promise<Product> {
+  const { serviceProfile: _serviceProfile, ...productData } = data;
   const product = await prisma.product.update({
     where: { id, merchantId },
-    data,
+    data: productData,
     include: { category: true },
   });
   return serializePrismaObject(product);

@@ -11,6 +11,7 @@ const productImageUrlSchema = z.string().max(2048).refine(
 );
 
 export const createProductSchema = z.object({
+  itemType: z.enum(['PRODUCT', 'SERVICE']).optional(),
   name: z.string().min(2, 'Product name must be at least 2 characters').max(200),
   description: z.string().max(1000).optional(),
   categoryId: z.string().cuid('Invalid category ID'),
@@ -22,6 +23,20 @@ export const createProductSchema = z.object({
   isActive: z.boolean().optional().default(true),
   isFeatured: z.boolean().optional().default(false),
   sortOrder: z.number().int().optional().default(0),
+  serviceProfile: z.object({
+    durationMinutes: z.number().int().min(5).max(1_440).default(60),
+    bufferMinutes: z.number().int().min(0).max(480).default(0),
+    bookingRequired: z.boolean().default(true),
+    fulfillmentType: z.enum(['AT_BRANCH', 'AT_CUSTOMER_LOCATION', 'ONLINE', 'REQUEST_ONLY']).default('AT_BRANCH'),
+    minimumNoticeMinutes: z.number().int().min(0).max(43_200).default(120),
+    maxParticipants: z.number().int().min(1).max(100).default(1),
+    advancePaymentPercent: z.number().int().min(0).max(100).default(0),
+    cancellationPolicy: z.string().max(2_000).optional(),
+  }).optional(),
+}).superRefine((data, ctx) => {
+  if (data.itemType === 'SERVICE' && !data.serviceProfile) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['serviceProfile'], message: 'Service settings are required for services' });
+  }
 });
 
 /** Schema for updating a product */

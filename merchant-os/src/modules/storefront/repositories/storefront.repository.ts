@@ -56,6 +56,8 @@ export async function getProducts(merchantId: string, categoryId?: string, searc
     select: {
       id: true, name: true, slug: true, description: true, images: true,
       price: true, compareAtPrice: true, isFeatured: true, categoryId: true,
+      itemType: true,
+      serviceProfile: { select: { durationMinutes: true, bookingRequired: true, fulfillmentType: true } },
       category: { select: { id: true, name: true, slug: true } },
       modifiers: {
         where: { isActive: true },
@@ -75,6 +77,7 @@ export async function getProduct(merchantId: string, productSlug: string) {
     include: {
       category: { select: { id: true, name: true, slug: true } },
       modifiers: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
+      serviceProfile: true,
     },
   });
   return serializePrismaObject(product);

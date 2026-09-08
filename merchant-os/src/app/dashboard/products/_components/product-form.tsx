@@ -22,6 +22,8 @@ interface ProductFormData {
   isActive?: boolean;
   isFeatured?: boolean;
   images?: string[];
+  itemType?: 'PRODUCT' | 'SERVICE';
+  serviceProfile?: { durationMinutes: number; bufferMinutes: number; bookingRequired: boolean; fulfillmentType: 'AT_BRANCH' | 'AT_CUSTOMER_LOCATION' | 'ONLINE' | 'REQUEST_ONLY'; minimumNoticeMinutes: number; maxParticipants: number; advancePaymentPercent: number; cancellationPolicy?: string | null } | null;
 }
 
 interface ProductFormProps {
@@ -39,6 +41,7 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [imageBusy, setImageBusy] = useState(false);
+  const [itemType, setItemType] = useState<'PRODUCT' | 'SERVICE'>(product?.itemType ?? 'PRODUCT');
 
   const isEdit = !!product?.id;
 
@@ -52,7 +55,18 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
 
     const fd = new FormData(e.currentTarget);
 
+    const serviceProfile = itemType === 'SERVICE' ? {
+      durationMinutes: Number(fd.get('durationMinutes') || 60),
+      bufferMinutes: Number(fd.get('bufferMinutes') || 0),
+      bookingRequired: fd.get('bookingRequired') === 'on',
+      fulfillmentType: fd.get('fulfillmentType') as 'AT_BRANCH' | 'AT_CUSTOMER_LOCATION' | 'ONLINE' | 'REQUEST_ONLY',
+      minimumNoticeMinutes: Number(fd.get('minimumNoticeMinutes') || 0),
+      maxParticipants: Number(fd.get('maxParticipants') || 1),
+      advancePaymentPercent: Number(fd.get('advancePaymentPercent') || 0),
+      cancellationPolicy: (fd.get('cancellationPolicy') as string) || undefined,
+    } : undefined;
     const payload = {
+      itemType,
       name: fd.get('name') as string,
       description: (fd.get('description') as string) || undefined,
       categoryId: fd.get('categoryId') as string,
@@ -62,6 +76,7 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
       isActive: fd.get('isActive') === 'on',
       isFeatured: fd.get('isFeatured') === 'on',
       images,
+      serviceProfile,
     };
 
     startTransition(async () => {
@@ -87,6 +102,14 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
       )}
 
       {/* Name */}
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--muted)]/30 p-4">
+        <p className="text-sm font-bold text-[var(--foreground)]">نوع ما تعرضه</p>
+        <p className="mt-1 text-xs text-[var(--muted-foreground)]">المنتج له مخزون وتوصيل؛ الخدمة لها حجز أو طلب تنفيذ.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setItemType('PRODUCT')} className={`rounded-xl border px-3 py-3 text-right text-sm font-bold ${itemType === 'PRODUCT' ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]' : 'bg-[var(--background)]'}`}>📦 منتج</button>
+          <button type="button" onClick={() => setItemType('SERVICE')} className={`rounded-xl border px-3 py-3 text-right text-sm font-bold ${itemType === 'SERVICE' ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]' : 'bg-[var(--background)]'}`}>🗓️ خدمة</button>
+        </div>
+      </section>
       <div className="space-y-1.5">
         <label htmlFor="name" className="text-sm font-medium text-[var(--foreground)]">
           {t.nameLabel} <span className="text-red-500">*</span>
@@ -173,6 +196,20 @@ export function ProductForm({ categories, product, aiImageEnabled = false, aiIma
           />
         </div>
       </div>
+
+      {itemType === 'SERVICE' && <section className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/50 p-4 dark:border-teal-900 dark:bg-teal-950/20">
+        <div><h2 className="font-bold text-[var(--foreground)]">إعدادات الخدمة والحجز</h2><p className="mt-1 text-xs text-[var(--muted-foreground)]">يمكنك تعديل أوقات التوفر من صفحة الخدمات بعد الحفظ.</p></div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-sm font-medium">مدة الخدمة (دقيقة)<input name="durationMinutes" type="number" min="5" max="1440" defaultValue={product?.serviceProfile?.durationMinutes ?? 60} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2" /></label>
+          <label className="text-sm font-medium">فاصل بين المواعيد<input name="bufferMinutes" type="number" min="0" max="480" defaultValue={product?.serviceProfile?.bufferMinutes ?? 0} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2" /></label>
+          <label className="text-sm font-medium">طريقة التنفيذ<select name="fulfillmentType" defaultValue={product?.serviceProfile?.fulfillmentType ?? 'AT_BRANCH'} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2"><option value="AT_BRANCH">في الفرع</option><option value="AT_CUSTOMER_LOCATION">عند العميل</option><option value="ONLINE">أونلاين</option><option value="REQUEST_ONLY">طلب بدون موعد</option></select></label>
+          <label className="text-sm font-medium">الحد الأدنى قبل الموعد (دقيقة)<input name="minimumNoticeMinutes" type="number" min="0" defaultValue={product?.serviceProfile?.minimumNoticeMinutes ?? 120} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2" /></label>
+          <label className="text-sm font-medium">السعة لكل موعد<input name="maxParticipants" type="number" min="1" max="100" defaultValue={product?.serviceProfile?.maxParticipants ?? 1} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2" /></label>
+          <label className="text-sm font-medium">عربون مقدم %<input name="advancePaymentPercent" type="number" min="0" max="100" defaultValue={product?.serviceProfile?.advancePaymentPercent ?? 0} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2" /></label>
+        </div>
+        <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" name="bookingRequired" defaultChecked={product?.serviceProfile?.bookingRequired ?? true} /> تتطلب اختيار موعد قبل الطلب</label>
+        <label className="block text-sm font-medium">سياسة الإلغاء<textarea name="cancellationPolicy" rows={2} maxLength={2000} defaultValue={product?.serviceProfile?.cancellationPolicy ?? ''} className="mt-1 w-full rounded-lg border bg-[var(--background)] p-2 font-normal" placeholder="مثال: يمكن الإلغاء قبل 24 ساعة." /></label>
+      </section>}
 
       {/* SKU */}
       <div className="space-y-1.5">

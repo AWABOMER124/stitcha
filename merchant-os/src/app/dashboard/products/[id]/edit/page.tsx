@@ -62,6 +62,17 @@ export default async function EditProductPage({ params }: PageProps) {
             isActive: product.isActive,
             isFeatured: product.isFeatured,
             images: Array.isArray(product.images) ? product.images as string[] : [],
+            itemType: product.itemType,
+            serviceProfile: product.serviceProfile ? {
+              durationMinutes: product.serviceProfile.durationMinutes,
+              bufferMinutes: product.serviceProfile.bufferMinutes,
+              bookingRequired: product.serviceProfile.bookingRequired,
+              fulfillmentType: product.serviceProfile.fulfillmentType,
+              minimumNoticeMinutes: product.serviceProfile.minimumNoticeMinutes,
+              maxParticipants: product.serviceProfile.maxParticipants,
+              advancePaymentPercent: product.serviceProfile.advancePaymentPercent,
+              cancellationPolicy: product.serviceProfile.cancellationPolicy,
+            } : null,
           }}
         />
       </div>

@@ -88,6 +88,7 @@ async function ProductsTable({ q, status }: { q?: string; status?: string }) {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-[var(--foreground)]">{product.name}</p>
+                      {product.itemType === 'SERVICE' && <p className="text-xs font-bold text-teal-700">🗓️ خدمة</p>}
                       {product.sku && (
                         <p className="text-xs text-[var(--muted-foreground)]">{t.sku}: {product.sku}</p>
                       )}

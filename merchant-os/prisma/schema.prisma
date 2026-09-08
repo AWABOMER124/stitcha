@@ -142,6 +142,29 @@ enum OrderStatus {
   REJECTED
 }
 
+/// Catalog entries share one listing surface. Service-specific behaviour lives
+/// in ServiceProfile so existing product stores stay completely unchanged.
+enum CatalogItemType {
+  PRODUCT
+  SERVICE
+}
+
+enum ServiceFulfillmentType {
+  AT_BRANCH
+  AT_CUSTOMER_LOCATION
+  ONLINE
+  REQUEST_ONLY
+}
+
+enum ServiceBookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 enum DeliveryMethod {
   PICKUP
   MERCHANT_DELIVERY
@@ -945,6 +968,7 @@ model Merchant {
   users                          MerchantUser[]
   branches                       Branch[]
   products                       Product[]
+  serviceBookings                ServiceBooking[]
   categories                     Category[]
   orders                         Order[]
   customers                      Customer[]
@@ -1934,6 +1958,8 @@ model Branch {
   merchantUsers  MerchantUser[]
   inventoryItems InventoryItem[]
   orders         Order[]
+  serviceAvailability ServiceAvailabilityWindow[]
+  serviceBookings     ServiceBooking[]
 
   @@index([merchantId])
   @@map("branches")
@@ -1989,6 +2015,8 @@ model Product {
   sku     String?
   barcode String?
 
+  itemType CatalogItemType @default(PRODUCT)
+
   isActive   Boolean @default(true)
   isFeatured Boolean @default(false)
   sortOrder  Int     @default(0)
@@ -2002,12 +2030,91 @@ model Product {
   modifiers     ProductModifier[]
   inventoryItem InventoryItem?
   orderItems    OrderItem[]
+  serviceProfile ServiceProfile?
 
   @@unique([merchantId, slug])
   @@index([merchantId])
   @@index([categoryId])
   @@index([isActive])
   @@map("products")
+}
+
+/// Optional configuration for catalog items of type SERVICE.
+/// A service can be request-only, scheduled at a branch, at the customer, or online.
+model ServiceProfile {
+  id        String @id @default(cuid())
+  productId String @unique
+
+  durationMinutes      Int     @default(60)
+  bufferMinutes        Int     @default(0)
+  bookingRequired      Boolean @default(true)
+  fulfillmentType      ServiceFulfillmentType @default(AT_BRANCH)
+  minimumNoticeMinutes Int     @default(120)
+  maxParticipants      Int     @default(1)
+  advancePaymentPercent Int    @default(0)
+  cancellationPolicy   String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  availability ServiceAvailabilityWindow[]
+  bookings ServiceBooking[]
+
+  @@map("service_profiles")
+}
+
+/// Recurring weekly availability. Times are interpreted using the merchant timezone.
+model ServiceAvailabilityWindow {
+  id               String @id @default(cuid())
+  serviceProfileId String
+  branchId         String?
+  dayOfWeek        Int
+  startTime        String
+  endTime          String
+  isActive         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceProfile ServiceProfile @relation(fields: [serviceProfileId], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([serviceProfileId, dayOfWeek])
+  @@index([branchId])
+  @@map("service_availability_windows")
+}
+
+/// The operational record for a scheduled service. An order may have one booking.
+model ServiceBooking {
+  id               String @id @default(cuid())
+  merchantId       String
+  serviceProfileId String
+  orderId          String? @unique
+  customerId       String
+  branchId         String?
+
+  startsAt DateTime?
+  endsAt   DateTime?
+  status   ServiceBookingStatus @default(PENDING)
+  participantCount Int @default(1)
+  customerNote String?
+  internalNote String?
+  fulfillmentSnapshot Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  serviceProfile ServiceProfile @relation(fields: [serviceProfileId], references: [id], onDelete: Restrict)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId, status, startsAt])
+  @@index([serviceProfileId, startsAt])
+  @@index([customerId])
+  @@map("service_bookings")
 }
 
 /// Modifier group for a product (e.g. "Size", "Add-ons")
@@ -2123,6 +2230,7 @@ model Customer {
   addresses      CustomerAddress[]
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
+  serviceBookings ServiceBooking[]
 
   @@unique([merchantId, phone])
   @@index([merchantId])
@@ -2331,6 +2439,7 @@ model Order {
   complaints           Complaint[]
   affiliateAttribution StoreAffiliateAttribution?
   affiliateCommission  StoreAffiliateCommission?
+  serviceBooking       ServiceBooking?
 
   @@unique([merchantId, orderNumber])
   @@index([merchantId])
