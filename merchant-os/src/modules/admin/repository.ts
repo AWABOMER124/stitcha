@@ -192,7 +192,7 @@ export async function getPlatformFinanceStats() {
 }
 
 export async function getMerchantById(id: string) {
-  return prisma.merchant.findUnique({
+  const merchant = await prisma.merchant.findUnique({
     where: { id },
     include: {
       users: { where: { isActive: true }, include: { user: { select: { id: true, name: true, email: true, phone: true } } } },
@@ -202,6 +202,13 @@ export async function getMerchantById(id: string) {
       orders: { take: 8, orderBy: { createdAt: 'desc' }, select: { id: true, orderNumber: true, status: true, total: true, createdAt: true } },
     },
   });
+  if (!merchant) return null;
+  const orderStatusCounts = await prisma.order.groupBy({
+    by: ['status'],
+    where: { merchantId: id },
+    _count: { _all: true },
+  });
+  return { ...merchant, orderStatusCounts: orderStatusCounts.map(item => ({ status: item.status, count: item._count._all })) };
 }
 
 export async function updateMerchantStatus(id: string, status: 'ACTIVE' | 'SUSPENDED' | 'CLOSED') {
