@@ -1,4 +1,3 @@
-import { ClaudeStoreContentProvider } from './providers/claude.provider';
 import {
   AiCoreStoreContentProvider,
   isAiCoreEnabledForTenant,
@@ -25,33 +24,13 @@ export async function generateStoreContentWithMetadata(
   context?: AiCoreStoreGenerationContext,
 ): Promise<GeneratedStoreContent> {
   const safePrompt = storeGenerationPromptSchema.parse(prompt);
-  const aiCoreRequested = Boolean(process.env.AI_CORE_BASE_URL || process.env.AI_CORE_SECRET_WASLA);
-  if (aiCoreRequested && (!isAiCoreStoreGenerationConfigured() || !context)) {
-    throw new BusinessRuleError('إعداد تكامل AI Core غير مكتمل');
-  }
-  if (context && isAiCoreStoreGenerationConfigured() && isAiCoreEnabledForTenant(context.merchantId)) {
-    const generated = await new AiCoreStoreContentProvider().generate(safePrompt, context);
-    return {
-      content: generated.content,
-      project: {
-        gatewayProjectId: generated.projectId,
-        gatewayVersionId: generated.versionId,
-        versionNumber: generated.versionNumber,
-      },
-      usage: {
-        provider: 'ai-core',
-        providerRequestId: generated.requestId,
-        metadata: {
-          projectId: generated.projectId,
-          versionId: generated.versionId,
-          versionNumber: generated.versionNumber,
-        },
-      },
-    };
-  }
-
-  const content = await new ClaudeStoreContentProvider().generate(safePrompt);
-  return { content, usage: { provider: 'anthropic-direct', model: 'claude-haiku-4-5-20251001' } };
+  if (!context || !isAiCoreStoreGenerationConfigured() || !isAiCoreEnabledForTenant(context.merchantId)) throw new BusinessRuleError('توليد المتجر متاح فقط عبر بوابة الذكاء الاصطناعي الخاصة بوصلة');
+  const generated = await new AiCoreStoreContentProvider().generate(safePrompt, context);
+  return {
+    content: generated.content,
+    project: { gatewayProjectId: generated.projectId, gatewayVersionId: generated.versionId, versionNumber: generated.versionNumber },
+    usage: { provider: 'ai-core', providerRequestId: generated.requestId, metadata: { projectId: generated.projectId, versionId: generated.versionId, versionNumber: generated.versionNumber } },
+  };
 }
 
 /** Generates a full draft store (name, content, catalog) from a free-text prompt. */

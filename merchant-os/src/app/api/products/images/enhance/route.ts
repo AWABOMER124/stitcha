@@ -31,8 +31,8 @@ export async function POST(request: Request) {
       limit: plan.entitlements.aiImageEnhancementsMonthly,
       idempotencyKey: request.headers.get('idempotency-key')?.slice(0, 120) || crypto.randomUUID(),
     }, async () => ({
-      value: await enhanceAndStoreProductImage(auth.merchantId, image, options),
-      usage: { provider: 'openai', model: process.env.OPENAI_IMAGE_MODEL ?? 'gpt-image-2' },
+      value: await enhanceAndStoreProductImage(auth.merchantId, auth.userId, image, options),
+      usage: { provider: 'ai-core', model: process.env.AI_CORE_IMAGE_MODEL ?? 'managed-image-model' },
     }));
     return NextResponse.json({ url }, { status: 201 });
   } catch (error) {

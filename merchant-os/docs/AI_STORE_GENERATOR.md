@@ -112,5 +112,5 @@ src/services/ai/
 - `POST /api/products/images/enhance`
 
 الرفع الأصلي يعمل بالتخزين المحلي أو S3. التحسين يفشل بصورة آمنة ما لم تكن
-`AI_IMAGE_ENHANCEMENT_ENABLED=true` و`OPENAI_API_KEY` مضبوطة على الخادم.
+`AI_IMAGE_ENHANCEMENT_ENABLED=true` مع إعداد AI Core. مفتاح مزود الصور يُحفظ في AI Core فقط ولا يُضاف إلى وصلة.
 راجع `docs/STOREFRONT_AI_AUDIT.md` لضوابط الصور وحدود إطلاق الإنتاج.

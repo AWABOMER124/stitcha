@@ -5,6 +5,7 @@ import { ProductForm } from '../_components/product-form';
 import { getAuthContext } from '@/lib/permissions';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import { AI_FEATURE_KEYS, getMerchantAiUsageSummary } from '@/modules/ai-usage';
+import { isAiCoreImageEnhancementConfigured } from '@/services/product-images/providers/ai-core-product-image.provider';
 
 export const metadata = { title: 'Add Product — WASLA Commerce OS' };
 
@@ -30,7 +31,7 @@ export default async function NewProductPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-        <ProductForm categories={categories} aiImageUpgradeRequired={aiImageUpgradeRequired} aiImageEnabled={!aiImageUpgradeRequired && process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY} />
+        <ProductForm categories={categories} aiImageUpgradeRequired={aiImageUpgradeRequired} aiImageEnabled={!aiImageUpgradeRequired && isAiCoreImageEnhancementConfigured()} />
       </div>
     </div>
   );

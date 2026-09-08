@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { BusinessRuleError } from '@/lib/errors';
 import { storageService } from '@/services/storage';
-import { OpenAiProductImageProvider } from './providers/openai-product-image.provider';
+import { AiCoreProductImageProvider, isAiCoreImageEnhancementConfigured } from './providers/ai-core-product-image.provider';
 import type { NormalizedProductImage } from './product-image-input';
 import type { ProductImageEnhancement } from './product-image.schemas';
 
@@ -12,13 +12,14 @@ export async function storeProductImage(merchantId: string, image: NormalizedPro
 
 export async function enhanceAndStoreProductImage(
   merchantId: string,
+  actorId: string,
   image: NormalizedProductImage,
   options: ProductImageEnhancement,
 ): Promise<string> {
-  if (process.env.AI_IMAGE_ENHANCEMENT_ENABLED !== 'true') {
+  if (!isAiCoreImageEnhancementConfigured()) {
     throw new BusinessRuleError('AI image enhancement is not enabled');
   }
-  const enhanced = await new OpenAiProductImageProvider().enhance(image.buffer, options);
+  const enhanced = await new AiCoreProductImageProvider().enhance(image.buffer, options, { merchantId, actorId });
   try {
     const metadata = await sharp(enhanced.buffer, { failOn: 'error', limitInputPixels: 40_000_000 }).metadata();
     if (!metadata.width || !metadata.height) throw new Error('missing dimensions');

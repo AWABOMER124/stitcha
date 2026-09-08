@@ -194,7 +194,7 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | Durable public product uploads; if unset, attach a persistent volume to `/app/public/uploads` |
 | `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | Provider-specific | S3-compatible endpoint options for MinIO, Spaces, and similar services; a custom endpoint also requires `S3_CDN_URL` |
 | `AI_CORE_BASE_URL`, `AI_CORE_SECRET_WASLA` | AI features | Powers store generation, reply suggestions and the opt-in WhatsApp AI agent through the platform AI gateway; all fail closed if either setting is absent |
-| `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`, `AI_IMAGE_ENHANCEMENT_ENABLED` | No | Product-image studio; keep the fail-closed feature flag `false` until provider, storage, and spend limits are verified |
+| `AI_IMAGE_ENHANCEMENT_ENABLED` | No | Product-image studio through AI Core; provider credentials stay in AI Core and the feature fails closed until enabled |
 | `SECRETS_ENCRYPTION_KEY` | Yes for sensitive data/jobs | Encrypts tenant secrets and external-notification outbox payloads |
 | `JOB_RUNNER_SECRET` | Yes in production | Bearer secret for the scheduled internal job runner |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Per channel | Email delivery through Resend |

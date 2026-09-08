@@ -7,6 +7,7 @@ import { ProductForm } from '../../_components/product-form';
 import { getAuthContext } from '@/lib/permissions';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
 import { AI_FEATURE_KEYS, getMerchantAiUsageSummary } from '@/modules/ai-usage';
+import { isAiCoreImageEnhancementConfigured } from '@/services/product-images/providers/ai-core-product-image.provider';
 
 export const metadata = { title: 'Edit Product — WASLA Commerce OS' };
 
@@ -49,7 +50,7 @@ export default async function EditProductPage({ params }: PageProps) {
         <ProductForm
           categories={categories}
           aiImageUpgradeRequired={aiImageUpgradeRequired}
-          aiImageEnabled={!aiImageUpgradeRequired && process.env.AI_IMAGE_ENHANCEMENT_ENABLED === 'true' && !!process.env.OPENAI_API_KEY}
+          aiImageEnabled={!aiImageUpgradeRequired && isAiCoreImageEnhancementConfigured()}
           product={{
             id: product.id,
             name: product.name,
