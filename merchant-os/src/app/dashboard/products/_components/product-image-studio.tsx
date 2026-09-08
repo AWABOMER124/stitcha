@@ -85,6 +85,16 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
     }
   }
 
+  function handleEnhance() {
+    // A muted action without an explanation looked like a broken feature.
+    // Let the primary action choose the required source image first.
+    if (!sourceFile) {
+      inputRef.current?.click();
+      return;
+    }
+    void send('enhance');
+  }
+
   return (
     <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--muted)]/20 p-4" aria-labelledby="product-image-title">
       <div>
@@ -130,12 +140,12 @@ export function ProductImageStudio({ images, onChange, copy, aiEnabled, upgradeR
           {mode === 'LIFESTYLE' && (
             <textarea value={scene} onChange={(event) => setScene(event.target.value)} maxLength={500} rows={3} placeholder={copy.scenePlaceholder} className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-[var(--primary)]" />
           )}
-          <p className="text-xs leading-5 text-[var(--muted-foreground)]">{aiEnabled ? copy.aiImageNotice : upgradeRequired ? copy.aiImageUpgradeRequired : copy.aiImageUnavailable}</p>
+          <p className="text-xs leading-5 text-[var(--muted-foreground)]">{!sourceFile ? 'اختر صورة أصلية أولاً (JPEG أو PNG أو WebP، بحد أدنى 600×600)، ثم اختر أسلوب التحسين.' : aiEnabled ? copy.aiImageNotice : upgradeRequired ? copy.aiImageUpgradeRequired : 'تحسين الصور غير مفعل حالياً في إعدادات الذكاء الاصطناعي للمنصة.'}</p>
           {uploadedSourceUrl && <p role="status" className="text-xs font-bold text-emerald-700">✓ {copy.imageUploaded}</p>}
           {upgradeRequired && <Link href="/dashboard/subscription" className="inline-flex text-xs font-bold text-[var(--primary)] underline underline-offset-4">{copy.aiUpgradeLink}</Link>}
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => send('enhance')} disabled={!aiEnabled || !sourceFile || !!busy || images.length >= 10} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-              {busy === 'enhance' ? copy.enhancingImage : copy.enhanceImage}
+            <button type="button" onClick={handleEnhance} disabled={(!aiEnabled && !!sourceFile) || !!busy || images.length >= 10} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+              {busy === 'enhance' ? copy.enhancingImage : !sourceFile ? 'اختر صورة للتحسين' : copy.enhanceImage}
             </button>
             <button type="button" onClick={() => send('upload')} disabled={!sourceFile || !!uploadedSourceUrl || !!busy || images.length >= 10} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] disabled:opacity-50">
               {busy === 'upload' ? copy.uploadingImage : copy.useOriginal}
