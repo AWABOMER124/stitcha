@@ -5,8 +5,9 @@
 `AGENT_INTEGRATION.md` القديم (طبقة وكيل خارجي بمفاتيح API ومسودات تنتظر
 مراجعة بشرية) الذي أُزيل بالكامل.
 
-> **مبدأ أساسي:** وصلة نفسها تحمل مفتاح نموذج الذكاء الاصطناعي (`ANTHROPIC_API_KEY`
-> في بيئة السيرفر) وتناديه مباشرة. لا وكيل خارجي يتصل بوصلة أبداً.
+> **مبدأ أساسي:** وصلة تتصل ببوابة الذكاء الاصطناعي الخاصة بها عبر
+> `AI_CORE_BASE_URL` و`AI_CORE_SECRET_WASLA` على الخادم. لا يظهر مفتاح نموذج
+> ولا مفتاح مزوّد خارجي للتاجر أو للواجهة.
 
 ---
 
@@ -15,7 +16,7 @@
 ```
 src/services/ai/
   types.ts                      # StoreContentResult, StoreContentProvider
-  providers/claude.provider.ts  # الاتصال الفعلي بـ Claude
+  providers/ai-core-store-content.provider.ts # الاتصال الموثق ببوابة وصلة
   ai-store-content.service.ts   # generateStoreContent(prompt) — نقطة الدخول المشتركة
 ```
 
@@ -94,7 +95,7 @@ src/services/ai/
 
 | القديم | الجديد |
 |---|---|
-| مطوّر خارجي يحمل مفتاح `wsk_live_...` | وصلة تحمل `ANTHROPIC_API_KEY` نفسها |
+| مطوّر خارجي يحمل مفتاح `wsk_live_...` | وصلة توقع اتصالاً خادماً مع بوابة الذكاء الاصطناعي |
 | `StoreDraft` بحالة `PENDING/APPROVED/REJECTED` | لا جدول وسيط — إنشاء مباشر |
 | موظف الموزّع يراجع ويوافق يدوياً | هاتف حقيقي + تفعيل OTP آلي |
 | `/distributor/store-drafts`, `/distributor/settings/api-keys` | `/distributor/merchants/new` (وضع "بالذكاء الاصطناعي") |

@@ -14,7 +14,8 @@ export const createBranchSchema = z.object({
   isMain: z.boolean().default(false),
 });
 
-export const updateBranchSchema = createBranchSchema.partial();
+export const updateBranchSchema = createBranchSchema.partial().extend({ isActive: z.boolean().optional() });
+export const branchActiveSchema = z.object({ isActive: z.boolean() });
 
 export type CreateBranchInput = z.infer<typeof createBranchSchema>;
 export type UpdateBranchInput = z.infer<typeof updateBranchSchema>;

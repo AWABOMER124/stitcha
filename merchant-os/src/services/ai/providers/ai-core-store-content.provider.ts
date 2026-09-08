@@ -51,13 +51,14 @@ export function isAiCoreStoreGenerationConfigured(): boolean {
   return Boolean(process.env.AI_CORE_BASE_URL && process.env.AI_CORE_SECRET_WASLA);
 }
 
-/** Server-side rollout gate. Empty/missing means no production tenant uses AI Core. */
+/** AI Core is the platform default when its server credentials are configured.
+ * An explicit allow-list still supports a gradual rollout when needed. */
 export function isAiCoreEnabledForTenant(merchantId: string): boolean {
   const allowed = (process.env.AI_CORE_ENABLED_TENANT_IDS ?? '')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  return allowed.includes('*') || allowed.includes(merchantId);
+  return allowed.length === 0 || allowed.includes('*') || allowed.includes(merchantId);
 }
 
 export class AiCoreStoreContentProvider {

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { getOrdersAction, updateOrderStatusAction } from '@/modules/orders/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale, type Dictionary } from '@/lib/i18n/translations';
 import { StatusTabs } from './_components/status-tabs';
+import Link from 'next/link';
 
 const STATUS_COLORS: Record<string, string> = {
   NEW: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
@@ -137,6 +138,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
         </div>
+        <Link href="/dashboard/orders/new" className="rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-bold text-white">+ إنشاء طلب</Link>
       </div>
 
       <Suspense fallback={<div className="h-10 animate-pulse rounded-lg bg-[var(--muted)]" />}>

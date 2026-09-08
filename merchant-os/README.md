@@ -193,7 +193,7 @@ Demo login after seeding: `admin@waslak.com` / `admin123`, store at `/store/chef
 | `APP_RELEASE` | Production | Deployed Git SHA returned by `/api/health` for release verification |
 | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_CDN_URL` | No | Durable public product uploads; if unset, attach a persistent volume to `/app/public/uploads` |
 | `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | Provider-specific | S3-compatible endpoint options for MinIO, Spaces, and similar services; a custom endpoint also requires `S3_CDN_URL` |
-| `ANTHROPIC_API_KEY`, `WHATSAPP_AI_MODEL` | No | Powers store generation and the opt-in WhatsApp AI agent; both fail closed if the key is unset |
+| `AI_CORE_BASE_URL`, `AI_CORE_SECRET_WASLA` | AI features | Powers store generation, reply suggestions and the opt-in WhatsApp AI agent through the platform AI gateway; all fail closed if either setting is absent |
 | `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL`, `AI_IMAGE_ENHANCEMENT_ENABLED` | No | Product-image studio; keep the fail-closed feature flag `false` until provider, storage, and spend limits are verified |
 | `SECRETS_ENCRYPTION_KEY` | Yes for sensitive data/jobs | Encrypts tenant secrets and external-notification outbox payloads |
 | `JOB_RUNNER_SECRET` | Yes in production | Bearer secret for the scheduled internal job runner |
@@ -252,7 +252,7 @@ Automated unit and PostgreSQL integration suites run in CI. Supplement them with
 - **Storefront affiliates use manual, referenced payout batches.** No money moves automatically and there is no marketer login or product-specific campaign in this MVP. See [`../docs/STOREFRONT_AFFILIATES_PHASE2_2026-09-03.md`](../docs/STOREFRONT_AFFILIATES_PHASE2_2026-09-03.md).
 - **External delivery has a standard partner adapter but still needs production credentials and partner UAT.** Partners onboard through `/partner-register`, publish through admin review, and connect with `PARTNER_HTTP_V1` plus signed webhooks. Follow [`docs/SHIPPING_INTEGRATION_API.md`](docs/SHIPPING_INTEGRATION_API.md); keep `PLATFORM_DELIVERY_ENABLED=false` until contract tests, field UAT, COD terms, and retry operations are signed off.
 - **File storage defaults to local disk** unless `S3_*` env vars are set — not durable across redeploys on ephemeral hosting.
-- **AI services are unconfigured** without `ANTHROPIC_API_KEY`: store generation fails gracefully and the WhatsApp agent stays inactive.
+- **AI services are unconfigured** without both `AI_CORE_BASE_URL` and `AI_CORE_SECRET_WASLA`: store generation, reply suggestions and the WhatsApp agent fail gracefully without exposing a provider key.
 - **Coverage is focused on critical paths.** Keep adding UI and end-to-end coverage; `scripts/check-raw-prisma-returns.sh` remains a supplementary heuristic guard.
 - Several dashboard action patterns catch errors ad hoc (`e instanceof Error ? e.message : 'Failed'`) rather than going through the centralized `handleActionError` (`src/lib/errors/handler.ts`) — functionally fine today, but a good target for consolidation so error logging and message-masking stay consistent everywhere.
 

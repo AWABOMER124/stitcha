@@ -3,6 +3,7 @@ import { encryptSecret, decryptSecret, maskSecret } from '@/lib/crypto/secret';
 import * as repo from '../repositories/whatsapp-channel.repository';
 import type { SaveWhatsAppAiAgentInput, SaveWhatsAppConfigInput } from '../schemas/whatsapp-channel.schemas';
 import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions';
+import { isAiCoreStoreGenerationConfigured } from '@/services/ai/providers/ai-core-store-content.provider';
 
 const GRAPH_API_VERSION = 'v21.0';
 
@@ -24,7 +25,7 @@ export async function getConfig(merchantId: string) {
     isActive: config.isActive,
     aiAgentEnabled: config.aiAgentEnabled,
     aiAgentPrompt: config.aiAgentPrompt,
-    aiProviderConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+    aiProviderConfigured: isAiCoreStoreGenerationConfigured(),
     accessTokenPreview: maskSecret(decryptSecret(config.accessToken)),
     updatedAt: config.updatedAt,
   };
@@ -64,7 +65,7 @@ export async function saveAiAgentSettings(merchantId: string, input: SaveWhatsAp
   if (input.enabled) {
     const plan = await getMerchantPlanSnapshot(merchantId);
     if (!plan.entitlements.whatsappAiAgent) throw new BusinessRuleError('وكيل واتساب الذكي متاح في باقة Pro');
-    if (!process.env.ANTHROPIC_API_KEY) throw new BusinessRuleError('مزود الذكاء الاصطناعي غير مُعد بعد');
+    if (!isAiCoreStoreGenerationConfigured()) throw new BusinessRuleError('بوابة الذكاء الاصطناعي الخاصة بوصلة غير مُعدة بعد');
   }
   await repo.updateAiAgent(merchantId, { enabled: input.enabled, prompt: input.prompt?.trim() || null });
   return getConfig(merchantId);

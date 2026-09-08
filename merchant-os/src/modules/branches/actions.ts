@@ -83,3 +83,15 @@ export async function setMainBranchAction(id: string): Promise<ActionResult<Bran
     return { success: false, error: error instanceof Error ? error.message : 'Failed to set main branch' };
   }
 }
+
+/** Pause or reactivate a branch while retaining its full history. */
+export async function setBranchActiveAction(id: string, isActive: boolean): Promise<ActionResult<Branch>> {
+  try {
+    const auth = await getAuthContext();
+    requirePermission(auth, 'branches:update');
+    const branch = await branchesService.setBranchActive(auth.merchantId, id, isActive);
+    return { success: true, data: branch as unknown as Branch };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update branch' };
+  }
+}

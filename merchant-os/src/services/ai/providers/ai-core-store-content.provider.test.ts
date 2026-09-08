@@ -43,8 +43,8 @@ describe('AI Core store content provider', () => {
     expect(JSON.parse(String(request.body))).toMatchObject({ merchant_description: 'متجر قهوة', business_type: 'ecommerce' });
   });
 
-  it('keeps AI Core disabled by default and supports an explicit tenant allowlist', () => {
-    expect(isAiCoreEnabledForTenant('merchant_1')).toBe(false);
+  it('uses AI Core by default and supports an explicit tenant allowlist', () => {
+    expect(isAiCoreEnabledForTenant('merchant_1')).toBe(true);
     process.env.AI_CORE_ENABLED_TENANT_IDS = 'merchant_2, merchant_1';
     expect(isAiCoreEnabledForTenant('merchant_1')).toBe(true);
     expect(isAiCoreEnabledForTenant('merchant_3')).toBe(false);

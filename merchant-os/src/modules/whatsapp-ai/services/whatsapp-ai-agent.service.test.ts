@@ -11,6 +11,7 @@ const prismaMock = {
 const getMerchantPlanSnapshot = vi.fn();
 const sendMessage = vi.fn();
 const runMeteredAiOperation = vi.fn();
+const askCopilot = vi.fn();
 
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
 vi.mock('@/modules/merchant-subscriptions', () => ({ getMerchantPlanSnapshot }));
@@ -19,16 +20,18 @@ vi.mock('@/modules/ai-usage', () => ({
   AI_FEATURE_KEYS: { WHATSAPP_CONVERSATION_MONTHLY: 'ai.whatsapp_conversation.monthly' },
   runMeteredAiOperation,
 }));
+vi.mock('@/services/ai/providers/ai-core-store-content.provider', () => ({
+  isAiCoreStoreGenerationConfigured: () => true,
+  AiCoreStoreContentProvider: class { askCopilot = askCopilot; },
+}));
 
 const { handleInboundAiAgent, requestsHuman } = await import('./whatsapp-ai-agent.service');
-const previousApiKey = process.env.ANTHROPIC_API_KEY;
-
 const inbound = { merchantId: 'merchant_1', conversationId: 'conv_1', customerPhone: '249900000000', text: 'هل لديكم قهوة؟' };
 
 describe('WhatsApp AI customer service agent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.ANTHROPIC_API_KEY = 'test-key';
+    askCopilot.mockResolvedValue({ answer: 'نعم، القهوة السودانية متاحة بسعر 1,000 SDG.', requestId: 'ai_request_1' });
     prismaMock.whatsAppConfig.findUnique.mockResolvedValue({ isActive: true, aiAgentEnabled: true, aiAgentPrompt: null });
     prismaMock.conversation.findFirst.mockResolvedValue({ aiAgentPaused: false, orderContext: null });
     getMerchantPlanSnapshot.mockResolvedValue({ entitlements: { whatsappAiAgent: true, whatsappAiConversationsMonthly: 100 } });
@@ -41,8 +44,6 @@ describe('WhatsApp AI customer service agent', () => {
   });
 
   afterAll(() => {
-    if (previousApiKey === undefined) delete process.env.ANTHROPIC_API_KEY;
-    else process.env.ANTHROPIC_API_KEY = previousApiKey;
     vi.unstubAllGlobals();
   });
 
@@ -75,8 +76,6 @@ describe('WhatsApp AI customer service agent', () => {
   });
 
   it('uses the inbound WhatsApp message ID as the idempotency key', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'متاح' }] }) });
-    vi.stubGlobal('fetch', fetchMock);
     await expect(handleInboundAiAgent({ ...inbound, externalMessageId: 'wamid.123' })).resolves.toBe(true);
     expect(runMeteredAiOperation).toHaveBeenCalledWith(expect.objectContaining({
       idempotencyKey: 'whatsapp:wamid.123', limit: 100,
@@ -84,11 +83,8 @@ describe('WhatsApp AI customer service agent', () => {
   });
 
   it('grounds a short answer, sends it, and stores the outbound transcript', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ content: [{ type: 'text', text: 'نعم، القهوة السودانية متاحة بسعر 1,000 SDG.' }] }) });
-    vi.stubGlobal('fetch', fetchMock);
     await expect(handleInboundAiAgent(inbound)).resolves.toBe(true);
-    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(String(request.body)).toContain('قهوة سودانية');
+    expect(askCopilot).toHaveBeenCalledWith(expect.stringContaining('قهوة سودانية'), expect.any(Object), expect.objectContaining({ merchantId: 'merchant_1' }));
     expect(sendMessage).toHaveBeenCalledWith('merchant_1', inbound.customerPhone, expect.stringContaining('1,000 SDG'));
     expect(prismaMock.inboxMessage.create).toHaveBeenCalledWith({ data: expect.objectContaining({ conversationId: 'conv_1', isFromCustomer: false, senderName: 'وصلة AI' }) });
   });

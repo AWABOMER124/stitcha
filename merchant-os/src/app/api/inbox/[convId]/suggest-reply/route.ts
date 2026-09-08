@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/config';
 import prisma from '@/lib/db/prisma';
+import { AiCoreStoreContentProvider, isAiCoreStoreGenerationConfigured } from '@/services/ai/providers/ai-core-store-content.provider';
 
 export async function POST(_req: Request, { params }: { params: Promise<{ convId: string }> }) {
   const session = await auth();
@@ -21,34 +22,19 @@ export async function POST(_req: Request, { params }: { params: Promise<{ convId
   });
   if (messages.length === 0) return NextResponse.json({ error: 'No messages yet' }, { status: 400 });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: 'AI not configured — add ANTHROPIC_API_KEY to env' }, { status: 503 });
+  if (!isAiCoreStoreGenerationConfigured()) return NextResponse.json({ error: 'بوابة الذكاء الاصطناعي الخاصة بوصلة غير مُعدة بعد' }, { status: 503 });
 
   const transcript = messages
     .map((m) => `${m.isFromCustomer ? 'العميل' : 'المتجر'}: ${m.content}`)
     .join('\n');
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 400,
-        messages: [{
-          role: 'user',
-          content: `أنت مساعد خدمة عملاء لمتجر "${conv.merchant.name}" على منصة وصلة. اقرأ سجل المحادثة التالي واقترح رداً واحداً مناسباً ومهذباً باللغة العربية على آخر رسالة من العميل. الرد يجب أن يكون قصيراً ومباشراً وجاهزاً للإرسال كما هو دون أي تنسيق إضافي.
-
-سجل المحادثة:
-${transcript}
-
-أجب بنص الرد المقترح فقط، بدون أي شرح أو علامات اقتباس.`,
-        }],
-      }),
-    });
-
-    const data = await res.json();
-    const suggestion = data.content?.[0]?.text?.trim();
+    const result = await new AiCoreStoreContentProvider().askCopilot(
+      `أنت مساعد خدمة عملاء لمتجر "${conv.merchant.name}". اقترح رداً عربياً واحداً قصيراً ومهذباً على آخر رسالة للعميل، جاهزاً للإرسال دون Markdown أو شرح. سجل المحادثة:\n${transcript}`,
+      { merchantName: conv.merchant.name, transcript },
+      { merchantId: session.user.merchantId, actorId: session.user.id, merchantName: conv.merchant.name, language: 'ar' },
+    );
+    const suggestion = result.answer.trim();
     if (!suggestion) return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 });
     return NextResponse.json({ suggestion });
   } catch (e) {
