@@ -4,8 +4,25 @@ import { ValidationError } from '@/lib/errors';
 import { REFERRAL_PROGRAM_ID, referralIdentityFingerprint } from '@/modules/merchant-referrals/merchant-referrals.service';
 
 export function normalizeMarketerReferralCode(value: string | null | undefined) {
-  const code = String(value ?? '').trim().toUpperCase();
+  const code = toLatinDigits(String(value ?? '')).trim().toUpperCase();
   return /^MK-[A-Z0-9]{6,24}$/.test(code) ? code : null;
+}
+
+/** Accept a slug, /store/slug, or the full public-store URL in admin tools. */
+export function normalizeMerchantStoreSlug(value: string | null | undefined) {
+  let raw = toLatinDigits(String(value ?? '')).trim();
+  if (!raw) return null;
+  try {
+    if (/^https?:\/\//i.test(raw)) raw = new URL(raw).pathname;
+  } catch { return null; }
+  raw = raw.split(/[?#]/, 1)[0].replace(/^\/+/, '').replace(/^store\//i, '');
+  try { raw = decodeURIComponent(raw); } catch { return null; }
+  const slug = raw.trim().toLowerCase();
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ? slug : null;
+}
+
+function toLatinDigits(value: string) {
+  return value.replace(/[٠-٩۰-۹]/g, digit => String('٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹'.indexOf(digit) % 10));
 }
 
 export async function attachMarketerMerchantReferral(

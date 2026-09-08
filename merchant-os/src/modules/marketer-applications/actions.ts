@@ -8,7 +8,7 @@ import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-
 import { ValidationError } from '@/lib/errors';
 import { reviewAcquisitionApplication, reviewProductApplication } from './marketer-applications.service';
 import prisma from '@/lib/db/prisma';
-import { backfillMarketerMerchantReferral } from '@/modules/marketer-referrals/marketer-referrals.service';
+import { backfillMarketerMerchantReferral, normalizeMarketerReferralCode, normalizeMerchantStoreSlug } from '@/modules/marketer-referrals/marketer-referrals.service';
 
 const reviewSchema = z.object({
   applicationId: z.string().cuid(),
@@ -17,8 +17,8 @@ const reviewSchema = z.object({
 });
 
 const backfillReferralSchema = z.object({
-  merchantSlug: z.string().trim().min(2).max(100).regex(/^[a-z0-9-]+$/),
-  marketerCode: z.string().trim().min(9).max(27),
+  merchantSlug: z.string().trim().min(1).max(500),
+  marketerCode: z.string().trim().min(1).max(64),
 });
 
 export async function backfillMarketerMerchantReferralAction(formData: FormData) {
@@ -27,9 +27,11 @@ export async function backfillMarketerMerchantReferralAction(formData: FormData)
   try {
     await requirePlatformPermission(PLATFORM_PERMISSIONS.MERCHANTS_MANAGE);
     const parsed = backfillReferralSchema.safeParse(Object.fromEntries(formData));
-    if (!parsed.success) notice = 'راجع رابط المتجر ورمز المسوّق.';
+    const merchantSlug = parsed.success ? normalizeMerchantStoreSlug(parsed.data.merchantSlug) : null;
+    const marketerCode = parsed.success ? normalizeMarketerReferralCode(parsed.data.marketerCode) : null;
+    if (!parsed.success || !merchantSlug || !marketerCode) notice = 'أدخل رابط المتجر أو اسمه المختصر بشكل صحيح، ورمز المسوّق بصيغة MK-XXXXXX.';
     else {
-    const referral = await prisma.$transaction(tx => backfillMarketerMerchantReferral(tx, { merchantSlug: parsed.data.merchantSlug, code: parsed.data.marketerCode }));
+    const referral = await prisma.$transaction(tx => backfillMarketerMerchantReferral(tx, { merchantSlug, code: marketerCode }));
       if (!referral) notice = 'لم يتم الإسناد: تأكد من تفعيل البرنامج وصحة رمز المسوّق.';
       else if (referral.status === 'REJECTED') notice = 'رفض النظام الإسناد لحماية البرنامج من الإحالة المكررة أو الذاتية.';
       else { notice = 'تم إسناد التاجر للمسوّق بنجاح وتحديث العمولة إن كان الاشتراك مدفوعاً.'; outcome = 'success'; }
