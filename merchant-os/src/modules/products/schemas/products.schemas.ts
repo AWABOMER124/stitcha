@@ -10,7 +10,7 @@ const productImageUrlSchema = z.string().max(2048).refine(
   'Product image must be a secure URL or a managed upload',
 );
 
-export const createProductSchema = z.object({
+const productFieldsSchema = z.object({
   itemType: z.enum(['PRODUCT', 'SERVICE']).optional(),
   name: z.string().min(2, 'Product name must be at least 2 characters').max(200),
   description: z.string().max(1000).optional(),
@@ -33,14 +33,22 @@ export const createProductSchema = z.object({
     advancePaymentPercent: z.number().int().min(0).max(100).default(0),
     cancellationPolicy: z.string().max(2_000).optional(),
   }).optional(),
-}).superRefine((data, ctx) => {
+});
+
+export const createProductSchema = productFieldsSchema.superRefine((data, ctx) => {
   if (data.itemType === 'SERVICE' && !data.serviceProfile) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['serviceProfile'], message: 'Service settings are required for services' });
   }
 });
 
 /** Schema for updating a product */
-export const updateProductSchema = createProductSchema.partial();
+// Keep the update schema based on the unrefined object. Zod intentionally
+// disallows `.partial()` on schemas with refinements at module evaluation time.
+export const updateProductSchema = productFieldsSchema.partial().superRefine((data, ctx) => {
+  if (data.itemType === 'SERVICE' && data.serviceProfile === null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['serviceProfile'], message: 'Service settings cannot be removed' });
+  }
+});
 
 /** Schema for filtering/listing products */
 export const productFilterSchema = z.object({
