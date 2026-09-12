@@ -75,7 +75,10 @@ export async function createProduct(merchantId: string, data: CreateProductInput
     // products avoids false low-stock alerts and reservation failures.
     if (itemType !== 'SERVICE') {
       await tx.inventoryItem.create({
-        data: { productId: newProduct.id, merchantId, quantity: 0, lowStockThreshold: 5 },
+        // New merchants are not asked for stock during product creation. Do
+        // not block their first customer order until they explicitly opt in to
+        // inventory tracking from the inventory screen.
+        data: { productId: newProduct.id, merchantId, quantity: 0, lowStockThreshold: 5, trackInventory: false },
       });
     }
 

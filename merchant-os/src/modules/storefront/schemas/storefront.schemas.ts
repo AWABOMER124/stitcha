@@ -2,8 +2,10 @@ import { z } from 'zod';
 
 /** Public storefront checkout schema */
 export const placeOrderSchema = z.object({
-  customerName: z.string().min(1, 'Name is required'),
-  customerPhone: z.string().min(9, 'Valid phone is required'),
+  customerName: z.string().trim().min(2, 'Name is required').max(120),
+  // Storefront customers can use any international number. Registration and
+  // checkout must not impose a Sudan-only length assumption.
+  customerPhone: z.string().trim().min(7, 'Valid phone is required').max(32),
   items: z.array(z.object({
     productId: z.string().min(1),
     quantity: z.number().int().min(1),

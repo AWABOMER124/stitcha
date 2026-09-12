@@ -38,12 +38,20 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
     // localStorage is unavailable during SSR, so this can't be a lazy useState initializer.
     const raw = sp.get('cart');
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (raw) try { setCart(JSON.parse(decodeURIComponent(raw))); } catch {}
+    if (raw) try {
+      const parsed = JSON.parse(decodeURIComponent(raw));
+      if (Array.isArray(parsed) && parsed.every((item) => item && typeof item.productId === 'string' && Number.isInteger(item.quantity) && item.quantity > 0 && Number.isFinite(item.totalPrice))) setCart(parsed);
+      else setError(ar ? 'السلة غير صالحة أو انتهت صلاحيتها. ارجع للمتجر وأضف المنتجات من جديد.' : 'Your cart is invalid or expired. Please return to the store and add items again.');
+    } catch { setError(ar ? 'تعذر قراءة السلة. ارجع للمتجر وأضف المنتجات من جديد.' : 'Could not read your cart. Please return to the store and add items again.'); }
     else {
       const saved = localStorage.getItem(`cart-${slug}`);
       if (saved) try { setCart(JSON.parse(saved)); } catch {}
     }
-  }, [slug, sp]);
+  }, [slug, sp, ar]);
+
+  useEffect(() => {
+    if (settings?.pickupEnabled === false && settings.deliveryEnabled !== false) setMethod('MERCHANT_DELIVERY');
+  }, [settings?.pickupEnabled, settings?.deliveryEnabled]);
 
   const subtotal = cart.reduce((s, i) => s + i.totalPrice, 0);
   const minOrder = Number(settings?.minimumOrderAmount ?? 0);
@@ -70,6 +78,7 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (cart.length === 0) { setError(ar ? 'سلتك فارغة. ارجع للمتجر وأضف منتجاً قبل إتمام الطلب.' : 'Your cart is empty. Return to the store and add a product first.'); return; }
     if (!name.trim() || !phone.trim()) { setError(t.errNameRequired); return; }
     if (method === 'MERCHANT_DELIVERY' && !address.trim()) { setError(t.errAddressRequired); return; }
     if (subtotal < minOrder) { setError(t.errMinOrder.replace('{min}', String(minOrder))); return; }
@@ -96,7 +105,7 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
     let result: { orderId?: string; error?: string };
     try {
       const response = await fetch(`/api/store/${encodeURIComponent(slug)}/orders`, { method: 'POST', body: form });
-      result = await response.json() as { orderId?: string; error?: string };
+      result = await response.json().catch(() => ({ error: ar ? 'تعذر التواصل مع المتجر. حاول مرة أخرى.' : 'Could not reach the store. Please try again.' })) as { orderId?: string; error?: string };
       if (!response.ok || !result.orderId) throw new Error(result.error || t.errGeneric);
     } catch (caught) {
       setLoading(false); setError(caught instanceof Error ? caught.message : t.errGeneric); return;
@@ -146,7 +155,7 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
           </div>
           <div>
             <label className="text-sm text-stone-600 mb-1 block">{t.phoneLabel}</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} required type="tel" placeholder="+249 912 000 000" className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--sp)]" />
+            <input value={phone} onChange={e => setPhone(e.target.value)} required minLength={7} maxLength={32} type="tel" inputMode="tel" placeholder="+249 912 000 000" className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--sp)]" />
           </div>
         </div>
 
@@ -198,7 +207,8 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
           </div>}
         </div>
 
-        {error && <p className="text-sm text-red-600 text-center bg-red-50 rounded-xl py-2.5">{error}</p>}
+        {cart.length === 0 && !error && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800"><p>سلتك فارغة.</p><button type="button" onClick={() => router.push(`/store/${slug}`)} className="mt-2 font-bold underline">العودة للمتجر</button></div>}
+        {error && <p role="alert" aria-live="polite" className="text-sm text-red-600 text-center bg-red-50 rounded-xl py-2.5">{error}</p>}
 
         <button type="submit" disabled={loading || cart.length === 0} className="w-full py-4 rounded-2xl text-white font-bold text-base disabled:opacity-50 transition-all active:scale-95 shadow-lg" style={{ background: primary }}>
           {loading ? t.placingOrder : `${t.confirmOrder} — ${subtotal.toLocaleString()} SDG`}

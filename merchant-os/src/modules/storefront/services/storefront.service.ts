@@ -63,6 +63,12 @@ export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?:
   if (settings && !settings.isOpen) {
     throw new ValidationError('Store is currently closed');
   }
+  if (settings?.pickupEnabled === false && data.deliveryMethod === 'PICKUP') {
+    throw new ValidationError('Pickup is unavailable for this store');
+  }
+  if (settings?.deliveryEnabled === false && data.deliveryMethod === 'MERCHANT_DELIVERY') {
+    throw new ValidationError('Delivery is unavailable for this store');
+  }
 
   // Validate products
   const productIds = data.items.map((i) => i.productId);
