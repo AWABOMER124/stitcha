@@ -154,7 +154,12 @@ export async function toggleProductStatus(merchantId: string, id: string) {
 async function assertActiveProductCapacity(tx: Prisma.TransactionClient, merchantId: string) {
   // Serialize capacity claims so simultaneous imports/AI actions cannot both
   // pass the FREE-plan limit.
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'active-products:' + merchantId}))`;
+  // pg_advisory_xact_lock returns PostgreSQL's `void` type. Prisma cannot
+  // deserialize that type directly, so select a concrete sentinel instead.
+  await tx.$queryRaw<Array<{ locked: number }>>`
+    SELECT 1::int AS "locked"
+    FROM (SELECT pg_advisory_xact_lock(hashtext(${'active-products:' + merchantId}))) AS active_products_lock
+  `;
   const plan = await getMerchantPlanSnapshot(merchantId, new Date(), tx);
   const limit = plan.entitlements.maxActiveProducts;
   if (limit === -1) return;

@@ -81,7 +81,10 @@ export async function createPublicBooking(merchantSlug: string, productSlug: str
       if (!branch) throw new ValidationError('Selected branch is unavailable');
     }
     if (startsAt) {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`service-slot:${profile.id}:${input.branchId ?? 'none'}:${startsAt.toISOString()}`}))`;
+      await tx.$queryRaw<Array<{ locked: number }>>`
+        SELECT 1::int AS "locked"
+        FROM (SELECT pg_advisory_xact_lock(hashtext(${`service-slot:${profile.id}:${input.branchId ?? 'none'}:${startsAt.toISOString()}`}))) AS service_slot_lock
+      `;
       const reserved = await tx.serviceBooking.aggregate({ where: { serviceProfileId: profile.id, branchId: input.branchId ?? null, startsAt, status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] } }, _sum: { participantCount: true } });
       if ((reserved._sum.participantCount ?? 0) + participants > profile.maxParticipants) throw new BusinessRuleError('This appointment is fully booked');
     }

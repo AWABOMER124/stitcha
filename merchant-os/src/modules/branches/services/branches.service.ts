@@ -23,7 +23,10 @@ export async function getBranch(merchantId: string, id: string) {
 /** Create a new branch */
 export async function createBranch(merchantId: string, data: CreateBranchInput) {
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'branches:' + merchantId}))`;
+    await tx.$queryRaw<Array<{ locked: number }>>`
+      SELECT 1::int AS "locked"
+      FROM (SELECT pg_advisory_xact_lock(hashtext(${'branches:' + merchantId}))) AS branches_lock
+    `;
     const plan = await getMerchantPlanSnapshot(merchantId, new Date(), tx);
     const current = await tx.branch.count({ where: { merchantId } });
     if (plan.entitlements.maxBranches !== -1 && current >= plan.entitlements.maxBranches) {

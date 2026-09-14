@@ -82,7 +82,10 @@ export async function inviteUser(merchantId: string, email: string, role: string
   }
 
   const membership = await prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'staff-users:' + merchantId}))`;
+    await tx.$queryRaw<Array<{ locked: number }>>`
+      SELECT 1::int AS "locked"
+      FROM (SELECT pg_advisory_xact_lock(hashtext(${'staff-users:' + merchantId}))) AS staff_users_lock
+    `;
     const existing = await tx.merchantUser.findUnique({
       where: { userId_merchantId: { userId: user!.id, merchantId } },
       select: { isActive: true },

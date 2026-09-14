@@ -34,7 +34,10 @@ export async function createCategory(merchantId: string, data: CreateCategoryInp
   const finalSlug = existing ? `${slug}-${Date.now().toString(36)}` : slug;
 
   return prisma.$transaction(async tx => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'categories:' + merchantId}))`;
+    await tx.$queryRaw<Array<{ locked: number }>>`
+      SELECT 1::int AS "locked"
+      FROM (SELECT pg_advisory_xact_lock(hashtext(${'categories:' + merchantId}))) AS categories_lock
+    `;
     const plan = await getMerchantPlanSnapshot(merchantId, new Date(), tx);
     const limit = plan.entitlements.maxCategories;
     if (limit !== -1) {
