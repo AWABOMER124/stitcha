@@ -20,7 +20,11 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
   const [cart, setCart] = useState<CartItem[]>([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [method, setMethod] = useState<'PICKUP' | 'MERCHANT_DELIVERY'>('PICKUP');
+  const [method, setMethod] = useState<'PICKUP' | 'MERCHANT_DELIVERY'>(() =>
+    settings?.pickupEnabled === false && settings.deliveryEnabled !== false
+      ? 'MERCHANT_DELIVERY'
+      : 'PICKUP',
+  );
   const [address, setAddress] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
@@ -35,23 +39,31 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // localStorage is unavailable during SSR, so this can't be a lazy useState initializer.
-    const raw = sp.get('cart');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (raw) try {
-      const parsed = JSON.parse(decodeURIComponent(raw));
-      if (Array.isArray(parsed) && parsed.every((item) => item && typeof item.productId === 'string' && Number.isInteger(item.quantity) && item.quantity > 0 && Number.isFinite(item.totalPrice))) setCart(parsed);
-      else setError(ar ? 'السلة غير صالحة أو انتهت صلاحيتها. ارجع للمتجر وأضف المنتجات من جديد.' : 'Your cart is invalid or expired. Please return to the store and add items again.');
-    } catch { setError(ar ? 'تعذر قراءة السلة. ارجع للمتجر وأضف المنتجات من جديد.' : 'Could not read your cart. Please return to the store and add items again.'); }
-    else {
-      const saved = localStorage.getItem(`cart-${slug}`);
-      if (saved) try { setCart(JSON.parse(saved)); } catch {}
-    }
-  }, [slug, sp, ar]);
+    // Restore after hydration because localStorage is unavailable during SSR.
+    const restore = window.setTimeout(() => {
+      const raw = sp.get('cart');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(decodeURIComponent(raw));
+          if (Array.isArray(parsed) && parsed.every((item) => item && typeof item.productId === 'string' && Number.isInteger(item.quantity) && item.quantity > 0 && Number.isFinite(item.totalPrice))) {
+            setCart(parsed);
+          } else {
+            setError(ar ? 'السلة غير صالحة أو انتهت صلاحيتها. ارجع للمتجر وأضف المنتجات من جديد.' : 'Your cart is invalid or expired. Please return to the store and add items again.');
+          }
+        } catch {
+          setError(ar ? 'تعذر قراءة السلة. ارجع للمتجر وأضف المنتجات من جديد.' : 'Could not read your cart. Please return to the store and add items again.');
+        }
+        return;
+      }
 
-  useEffect(() => {
-    if (settings?.pickupEnabled === false && settings.deliveryEnabled !== false) setMethod('MERCHANT_DELIVERY');
-  }, [settings?.pickupEnabled, settings?.deliveryEnabled]);
+      const saved = localStorage.getItem(`cart-${slug}`);
+      if (saved) {
+        try { setCart(JSON.parse(saved)); } catch { /* Ignore stale local carts. */ }
+      }
+    }, 0);
+
+    return () => window.clearTimeout(restore);
+  }, [slug, sp, ar]);
 
   const subtotal = cart.reduce((s, i) => s + i.totalPrice, 0);
   const minOrder = Number(settings?.minimumOrderAmount ?? 0);

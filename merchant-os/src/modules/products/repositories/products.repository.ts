@@ -109,7 +109,8 @@ export async function create(merchantId: string, data: CreateProductInput & { sl
  * Update an existing product.
  */
 export async function update(merchantId: string, id: string, data: UpdateProductInput): Promise<Product> {
-  const { serviceProfile: _serviceProfile, ...productData } = data;
+  const { serviceProfile, ...productData } = data;
+  void serviceProfile;
   const product = await prisma.product.update({
     where: { id, merchantId },
     data: productData,
