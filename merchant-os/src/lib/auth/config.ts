@@ -5,6 +5,9 @@ import prisma from '@/lib/db/prisma';
 import type { UserRole } from '@prisma/client';
 import { enforceRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { ROLE_PERMISSIONS } from '@/lib/permissions/constants';
+import { isSessionSecurityStateValid } from './session-security';
+
+const SESSION_SECURITY_RECHECK_MS = 5 * 60_000;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: process.env.AUTH_TRUST_HOST === 'true',
@@ -111,6 +114,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.deliveryPartnerId = (user as { deliveryPartnerId?: string | null }).deliveryPartnerId ?? null;
         token.deliveryPartnerSlug = (user as { deliveryPartnerSlug?: string | null }).deliveryPartnerSlug ?? null;
         token.permissions = (user as { permissions?: string[] }).permissions ?? [];
+        token.securityCheckedAt = Date.now();
+        return token;
+      }
+
+      if (!token.id) return null;
+      const now = Date.now();
+      if (now - (token.securityCheckedAt ?? 0) >= SESSION_SECURITY_RECHECK_MS) {
+        try {
+          if (!await isSessionSecurityStateValid(token)) return null;
+          token.securityCheckedAt = now;
+        } catch {
+          // A transient database outage should not destroy every active JWT.
+          // Protected application pages still need the database to operate.
+          return token;
+        }
       }
       return token;
     },

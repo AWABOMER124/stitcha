@@ -34,5 +34,6 @@ declare module 'next-auth/jwt' {
     deliveryPartnerSlug: string | null;
     permissions: string[];
     authVersion?: number;
+    securityCheckedAt?: number;
   }
 }
