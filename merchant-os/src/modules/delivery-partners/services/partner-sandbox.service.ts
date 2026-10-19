@@ -36,7 +36,32 @@ export async function createSandboxShipment(partnerId: string, idempotencyKey: s
     const previous = await tx.partnerSandboxShipment.findUnique({ where: { storeId_idempotencyKey: { storeId: store.id, idempotencyKey } } });
     if (previous) return previous;
     if (await tx.partnerSandboxShipment.count({ where: { storeId: store.id } }) >= 100) throw new Error('حد الاختبار 100 شحنة لكل متجر؛ تواصل مع الدعم لتوسعة الاختبار');
-    return tx.partnerSandboxShipment.create({ data: { storeId: store.id, idempotencyKey, trackingCode: `TEST-${randomUUID()}`, events: [{ status: 'REQUESTED', at: new Date().toISOString(), source: 'SANDBOX' }] } });
+    return tx.partnerSandboxShipment.create({ data: { storeId: store.id, idempotencyKey, kind: 'FORWARD', trackingCode: `TEST-${randomUUID()}`, events: [{ status: 'REQUESTED', at: new Date().toISOString(), source: 'SANDBOX', type: 'shipment.created' }] } });
+  });
+}
+
+export function validateSandboxReturnSource(kind: string, status: PlatformShipmentStatus) {
+  if (kind !== 'FORWARD') throw new Error('لا يمكن إنشاء استرجاع من بوليصة استرجاع');
+  if (status !== 'DELIVERED') throw new Error('لا يمكن إصدار بوليصة استرجاع قبل تسليم الشحنة الأصلية');
+}
+
+export async function createSandboxReturnShipment(partnerId: string, shipmentId: string, idempotencyKey: string) {
+  z.string().min(8).max(120).parse(idempotencyKey);
+  await activePartner(partnerId);
+  return prisma.$transaction(async tx => {
+    const store = await tx.partnerSandboxStore.findUniqueOrThrow({ where: { partnerId } });
+    await tx.$queryRaw`SELECT id FROM partner_sandbox_stores WHERE id = ${store.id} FOR UPDATE`;
+    const source = await tx.partnerSandboxShipment.findFirst({ where: { id: shipmentId, storeId: store.id, kind: 'FORWARD' } });
+    if (!source) throw new Error('الشحنة الأصلية غير موجودة');
+    validateSandboxReturnSource(source.kind, source.status);
+    const previous = await tx.partnerSandboxShipment.findUnique({ where: { storeId_parentShipmentId_kind: { storeId: store.id, parentShipmentId: source.id, kind: 'RETURN' } } });
+    if (previous) return previous;
+    if (await tx.partnerSandboxShipment.count({ where: { storeId: store.id } }) >= 100) throw new Error('حد الاختبار 100 شحنة لكل متجر؛ تواصل مع الدعم لتوسعة الاختبار');
+    return tx.partnerSandboxShipment.create({ data: {
+      storeId: store.id, idempotencyKey, kind: 'RETURN', parentShipmentId: source.id,
+      trackingCode: `TEST-RTN-${randomUUID()}`, orderStatus: 'DELIVERED',
+      events: [{ status: 'REQUESTED', at: new Date().toISOString(), source: 'SANDBOX', type: 'shipment.return_created', parentTrackingCode: source.trackingCode }],
+    } });
   });
 }
 export function sandboxTransition(current: PlatformShipmentStatus, next: PlatformShipmentStatus, order: OrderStatus, api = false) {

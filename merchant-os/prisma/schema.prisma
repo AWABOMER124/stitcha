@@ -423,6 +423,8 @@ model PartnerSandboxShipment {
   storeId        String
   idempotencyKey String
   trackingCode   String                 @unique
+  kind           String                 @default("FORWARD")
+  parentShipmentId String?
   status         PlatformShipmentStatus @default(REQUESTED)
   orderStatus    OrderStatus            @default(READY)
   events         Json                   @default("[]")
@@ -431,6 +433,7 @@ model PartnerSandboxShipment {
   store          PartnerSandboxStore    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, idempotencyKey])
+  @@unique([storeId, parentShipmentId, kind])
   @@index([storeId, createdAt])
   @@map("partner_sandbox_shipments")
 }

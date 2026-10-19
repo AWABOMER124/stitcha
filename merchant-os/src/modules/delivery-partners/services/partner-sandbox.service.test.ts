@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { sandboxTransition, validSandboxSignature } from './partner-sandbox.service';
+import { sandboxTransition, validSandboxSignature, validateSandboxReturnSource } from './partner-sandbox.service';
 import { partnerCodeHash, partnerPassword } from './partner-security.service';
 describe('Sandbox boundaries and transitions', () => {
   it('mirrors pickup and delivery to the sample order', () => {
@@ -22,6 +22,11 @@ describe('Sandbox boundaries and transitions', () => {
   it('allows forward webhook jumps but not UI jumps', () => {
     expect(() => sandboxTransition('REQUESTED', 'DELIVERED', 'READY')).toThrow();
     expect(sandboxTransition('REQUESTED', 'DELIVERED', 'READY', true).orderStatus).toBe('DELIVERED');
+  });
+  it('issues a return only from a delivered forward shipment', () => {
+    expect(() => validateSandboxReturnSource('FORWARD', 'DELIVERED')).not.toThrow();
+    expect(() => validateSandboxReturnSource('FORWARD', 'IN_TRANSIT')).toThrow(/قبل تسليم/);
+    expect(() => validateSandboxReturnSource('RETURN', 'DELIVERED')).toThrow(/بوليصة استرجاع/);
   });
   it('validates exact signed bytes and rejects altered or foreign signatures', () => {
     const raw = '{"status":"ASSIGNED"}';
