@@ -90,21 +90,23 @@ export async function listMerchantPayments(merchantId: string) {
   const payments = await prisma.merchantSubscriptionPayment.findMany({
     where: { merchantId }, include: { paymentAccount: true, targetPlan: { select: { code: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 10,
   });
-  return payments.map(payment => ({ ...payment, amount: Number(payment.amount), proofStorageKey: undefined }));
+  return payments.map(payment => ({ ...payment, amount: Number(payment.amount), hasProof: Boolean(payment.proofStorageKey), proofStorageKey: undefined }));
 }
 
 export async function submitManualSubscriptionPayment(merchantId: string, input: {
   paymentAccountId: string; transactionRef: string; senderName?: string; transferredAt?: Date;
 }, evidence: PrivateEvidence) {
-  const [account, changeRequest, currentPayment, settings] = await Promise.all([
+  const [account, changeRequest, currentPayment, settings, stripeSubscription] = await Promise.all([
     prisma.platformPaymentAccount.findFirst({ where: { id: input.paymentAccountId, isActive: true } }),
     prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { monthlyPrice: true, currency: true } } }, orderBy: { createdAt: 'desc' } }),
     prisma.merchantSubscriptionPayment.findFirst({ where: { merchantId, status: { in: ['PENDING', 'VERIFIED'] } } }),
     getPlatformBillingSettings(),
+    prisma.merchantSubscription.findFirst({ where: { merchantId, billingProvider: 'stripe', externalSubscriptionId: { not: null }, status: { not: 'CANCELLED' } }, select: { id: true } }),
   ]);
   if (!account) throw new NotFoundError('Payment account');
   if (!changeRequest) throw new ValidationError('Request a Pro upgrade before submitting payment');
   if (currentPayment) throw new ConflictError('A subscription payment is already under review or verified');
+  if (stripeSubscription) throw new ConflictError('Cancel the active Stripe subscription before paying by transfer');
   const quote = quotePlanInSdg(changeRequest.targetPlan, settings.usdToSdgRate);
 
   const transactionRef = input.transactionRef.trim().toUpperCase();
@@ -148,7 +150,7 @@ export async function listPaymentsForReview() {
     include: { merchant: { select: { name: true, slug: true } }, targetPlan: { select: { code: true, name: true } }, paymentAccount: true },
     orderBy: [{ status: 'asc' }, { createdAt: 'desc' }], take: 100,
   });
-  return payments.map(payment => ({ ...payment, amount: Number(payment.amount), proofStorageKey: undefined }));
+  return payments.map(payment => ({ ...payment, amount: Number(payment.amount), hasProof: Boolean(payment.proofStorageKey), proofStorageKey: undefined }));
 }
 
 export async function reviewSubscriptionPayment(paymentId: string, reviewerId: string, decision: 'VERIFY' | 'REJECT', reason?: string) {
@@ -157,6 +159,7 @@ export async function reviewSubscriptionPayment(paymentId: string, reviewerId: s
   return prisma.$transaction(async tx => {
     const payment = await tx.merchantSubscriptionPayment.findUnique({ where: { id: paymentId } });
     if (!payment) throw new NotFoundError('Subscription payment');
+    if (payment.provider !== 'manual') throw new ValidationError('Stripe payments are verified automatically');
     if (payment.status !== 'PENDING') throw new ConflictError('Payment was already reviewed');
     if (decision === 'REJECT') {
       const rejected = await tx.merchantSubscriptionPayment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'REJECTED', rejectionReason: reason!.trim(), reviewedById: reviewerId, reviewedAt: now } });
@@ -193,5 +196,6 @@ export async function getPaymentProof(paymentId: string, actor: { role?: string;
   const payment = await prisma.merchantSubscriptionPayment.findUnique({ where: { id: paymentId }, select: { merchantId: true, proofStorageKey: true } });
   if (!payment) throw new NotFoundError('Subscription payment');
   if (!isPlatformRole(actor.role ?? '') && actor.merchantId !== payment.merchantId) throw new NotFoundError('Subscription payment');
+  if (!payment.proofStorageKey) throw new NotFoundError('Payment proof');
   return privateStorageService.download(payment.proofStorageKey);
 }

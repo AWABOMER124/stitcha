@@ -8,6 +8,9 @@ import { ValidationError } from '@/lib/errors';
 import type { PrivateEvidence } from '@/services/storage/private-evidence-input';
 import { ZodError } from 'zod';
 import { AFFILIATE_COOKIE } from '@/modules/store-affiliates/store-affiliates.service';
+import { createOrderStripeCheckout } from '@/modules/stripe-payments/stripe-payments.service';
+import { resolvePublicOrigin } from '@/lib/public-origin';
+import * as ordersRepo from '@/modules/orders/repositories/orders.repository';
 
 export const runtime = 'nodejs';
 
@@ -45,7 +48,16 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/sto
       evidence = await normalizePrivateEvidence(proofInput);
     }
     const result = await placeOrder(slug, data, evidence, request.cookies.get(AFFILIATE_COOKIE)?.value);
-    return NextResponse.json(result, { status: 201 });
+    if (paymentMethod === 'ONLINE') {
+      try {
+        const checkout = await createOrderStripeCheckout({ orderId: result.orderId, merchantId: result.merchantId, origin: resolvePublicOrigin(request.headers) });
+        return NextResponse.json({ orderId: result.orderId, orderNumber: result.orderNumber, checkoutUrl: checkout.checkoutUrl }, { status: 201 });
+      } catch (error) {
+        await ordersRepo.updateStatus(result.merchantId, result.orderId, 'CANCELLED', 'Online checkout could not start').catch(() => undefined);
+        throw error;
+      }
+    }
+    return NextResponse.json({ orderId: result.orderId, orderNumber: result.orderNumber }, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) return NextResponse.json({ error: error.issues[0]?.message ?? 'Invalid order' }, { status: 400 });
     const handled = handleError(error);

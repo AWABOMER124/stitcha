@@ -11,6 +11,8 @@ export interface CheckoutSessionInput {
   cancelUrl: string;
   customerEmail?: string;
   metadata?: Record<string, string>;
+  destinationAccountId?: string;
+  applicationFeeAmount?: number;
 }
 
 export interface CheckoutSessionResult {

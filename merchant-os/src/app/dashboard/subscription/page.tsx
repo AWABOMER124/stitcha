@@ -11,6 +11,8 @@ import { UpgradeButton } from './upgrade-button';
 import { ManualPaymentForm } from './manual-payment-form';
 import { getManualPaymentQuote, listActivePaymentAccounts, listMerchantPayments } from '@/modules/subscription-payments/subscription-payments.service';
 import { getMerchantAiUsageSummary } from '@/modules/ai-usage';
+import { getStripeStatus } from '@/modules/stripe-payments/stripe-payments.service';
+import { StripeCheckoutButton } from './stripe-checkout-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +31,7 @@ const FEATURES = [
   ['whatsappAiConversationsMonthly', 'ردود واتساب الذكية شهرياً', 'Monthly WhatsApp AI replies'],
 ] as const;
 
-export default async function SubscriptionPage() {
+export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ stripe?: string }> }) {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
   const locale = (await cookies()).get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'ar';
@@ -43,6 +45,8 @@ export default async function SubscriptionPage() {
     getManualPaymentQuote(session.user.merchantId),
   ]);
   const ar = locale === 'ar';
+  const stripe = getStripeStatus();
+  const stripeResult = (await searchParams).stripe;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -52,6 +56,9 @@ export default async function SubscriptionPage() {
           {ar ? 'ابدأ مجاناً، وطوّر أدوات متجرك عندما يحتاج نشاطك.' : 'Start free and upgrade your tools when the business needs them.'}
         </p>
       </header>
+
+      {stripeResult === 'success' && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{ar ? 'اكتمل الدفع في Stripe. قد يستغرق تحديث الباقة بضع ثوانٍ؛ حدّث الصفحة إذا لم تظهر فوراً.' : 'Stripe payment completed. The plan may take a few seconds to update.'}</p>}
+      {stripeResult === 'cancelled' && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900">{ar ? 'تم إلغاء الدفع ولم يتم تغيير باقتك.' : 'Payment was cancelled and your plan was not changed.'}</p>}
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5" aria-labelledby="current-plan-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -126,9 +133,9 @@ export default async function SubscriptionPage() {
         })}
       </div>
 
-      {pending && !payments.some(payment => payment.status === 'PENDING' || payment.status === 'VERIFIED') && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} quote={paymentQuote} locale={locale}/></section>}
+      {pending && !payments.some(payment => payment.status === 'PENDING' || payment.status === 'VERIFIED') && <section className="grid gap-5 lg:grid-cols-2"><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'الدفع الفوري عبر Stripe' : 'Instant Stripe payment'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'ادفع بالبطاقة وتُفعّل الباقة آلياً بعد تأكيد Stripe.' : 'Pay by card and activate automatically after Stripe confirmation.'}</p>{stripe.enabled && stripe.configured ? <StripeCheckoutButton locale={locale}/> : <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">{ar ? 'Stripe غير مفعّل حالياً. استخدم التحويل اليدوي.' : 'Stripe is not enabled yet. Use manual transfer.'}</p>}</article><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} quote={paymentQuote} locale={locale}/></article></section>}
 
-      {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount.label} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
+      {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount?.label ?? 'Stripe'} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
 
       <p className="text-xs leading-6 text-[var(--muted-foreground)]">
         {ar

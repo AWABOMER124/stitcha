@@ -9,6 +9,7 @@ import type {
 } from './types';
 
 const STRIPE_CHECKOUT_URL = 'https://api.stripe.com/v1/checkout/sessions';
+const STRIPE_API_URL = 'https://api.stripe.com/v1';
 const ZERO_DECIMAL_CURRENCIES = new Set(['BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF']);
 
 export interface StripeGatewayConfig {
@@ -21,6 +22,24 @@ interface StripeCheckoutResponse {
   id?: string;
   url?: string;
   error?: { type?: string };
+}
+
+export interface StripeConnectedAccount {
+  id: string;
+  country: string;
+  detailsSubmitted: boolean;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+}
+
+export interface StripeSubscriptionSnapshot {
+  id: string;
+  customerId?: string;
+  status: string;
+  currentPeriodStart?: Date;
+  currentPeriodEnd?: Date;
+  cancelAtPeriodEnd: boolean;
+  metadata: Record<string, string>;
 }
 
 export class StripeGateway implements PaymentGateway {
@@ -48,6 +67,15 @@ export class StripeGateway implements PaymentGateway {
     for (const [key, value] of Object.entries(input.metadata ?? {})) {
       if (key === 'internal_reference' || !/^[A-Za-z0-9_-]{1,40}$/.test(key) || value.length > 500) throw new ValidationError('Stripe metadata is invalid');
       body.set(`metadata[${key}]`, value);
+      if (input.mode === 'subscription') body.set(`subscription_data[metadata][${key}]`, value);
+      if (input.mode === 'payment') body.set(`payment_intent_data[metadata][${key}]`, value);
+    }
+    if (input.destinationAccountId) {
+      if (!/^acct_[A-Za-z0-9]+$/.test(input.destinationAccountId)) throw new ValidationError('Stripe destination account is invalid');
+      body.set('payment_intent_data[transfer_data][destination]', input.destinationAccountId);
+      if (input.applicationFeeAmount !== undefined) {
+        body.set('payment_intent_data[application_fee_amount]', String(toMinorUnits(input.applicationFeeAmount, input.currency)));
+      }
     }
 
     const response = await fetch(STRIPE_CHECKOUT_URL, {
@@ -66,6 +94,50 @@ export class StripeGateway implements PaymentGateway {
       throw new BusinessRuleError('Stripe checkout is temporarily unavailable');
     }
     return { provider: 'STRIPE', sessionId: payload.id, checkoutUrl: payload.url };
+  }
+
+  async createConnectedAccount(input: { merchantId: string; country: string; email?: string }): Promise<StripeConnectedAccount> {
+    this.requireReady();
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(input.merchantId)) throw new ValidationError('Merchant reference is invalid');
+    if (!/^[A-Z]{2}$/.test(input.country)) throw new ValidationError('Stripe country must be an ISO country code');
+    const body = new URLSearchParams({
+      type: 'express',
+      country: input.country,
+      'capabilities[card_payments][requested]': 'true',
+      'capabilities[transfers][requested]': 'true',
+      'metadata[merchant_id]': input.merchantId,
+    });
+    if (input.email) body.set('email', input.email);
+    const payload = await this.requestStripe<Record<string, unknown>>('/accounts', body);
+    return parseConnectedAccount(payload);
+  }
+
+  async createAccountLink(input: { accountId: string; refreshUrl: string; returnUrl: string }): Promise<string> {
+    this.requireReady();
+    validateStripeAccountId(input.accountId);
+    validateHttpsUrl(input.refreshUrl);
+    validateHttpsUrl(input.returnUrl);
+    const payload = await this.requestStripe<Record<string, unknown>>('/account_links', new URLSearchParams({
+      account: input.accountId,
+      refresh_url: input.refreshUrl,
+      return_url: input.returnUrl,
+      type: 'account_onboarding',
+    }));
+    if (typeof payload.url !== 'string' || !payload.url.startsWith('https://')) throw new BusinessRuleError('Stripe onboarding is temporarily unavailable');
+    return payload.url;
+  }
+
+  async retrieveConnectedAccount(accountId: string): Promise<StripeConnectedAccount> {
+    this.requireReady();
+    validateStripeAccountId(accountId);
+    return parseConnectedAccount(await this.requestStripe<Record<string, unknown>>(`/accounts/${encodeURIComponent(accountId)}`));
+  }
+
+  async retrieveSubscription(subscriptionId: string): Promise<StripeSubscriptionSnapshot> {
+    this.requireReady();
+    if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) throw new ValidationError('Stripe subscription is invalid');
+    const payload = await this.requestStripe<Record<string, unknown>>(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
+    return parseSubscription(payload);
   }
 
   constructWebhookEvent(rawBody: string, signature: string | null, now = new Date()): StripeWebhookEvent {
@@ -92,6 +164,24 @@ export class StripeGateway implements PaymentGateway {
     if (!this.config.enabled) throw new BusinessRuleError('Stripe payments are not enabled');
     if (!this.config.secretKey || !this.config.webhookSecret) throw new BusinessRuleError('Stripe payments are not configured');
   }
+
+  private async requestStripe<T>(path: string, body?: URLSearchParams): Promise<T> {
+    const response = await fetch(`${STRIPE_API_URL}${path}`, {
+      method: body ? 'POST' : 'GET',
+      headers: {
+        Authorization: `Bearer ${this.config.secretKey}`,
+        ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+      },
+      body,
+      signal: AbortSignal.timeout(20_000),
+    });
+    const payload = await response.json().catch(() => ({})) as T & { error?: { type?: string } };
+    if (!response.ok) {
+      console.error('[stripe] API request failed', path, response.status, payload.error?.type ?? 'unknown');
+      throw new BusinessRuleError('Stripe is temporarily unavailable');
+    }
+    return payload;
+  }
 }
 
 export function toMinorUnits(amount: number, currency: string): number {
@@ -111,6 +201,41 @@ function validateCheckoutInput(input: CheckoutSessionInput) {
     try { parsed = new URL(url); } catch { throw new ValidationError('Stripe return URL is invalid'); }
     if (!['https:', ...(process.env.NODE_ENV === 'production' ? [] : ['http:'])].includes(parsed.protocol)) throw new ValidationError('Stripe return URL must use HTTPS');
   }
+}
+
+function validateStripeAccountId(value: string) {
+  if (!/^acct_[A-Za-z0-9]+$/.test(value)) throw new ValidationError('Stripe account is invalid');
+}
+
+function validateHttpsUrl(value: string) {
+  let url: URL;
+  try { url = new URL(value); } catch { throw new ValidationError('Stripe return URL is invalid'); }
+  if (!['https:', ...(process.env.NODE_ENV === 'production' ? [] : ['http:'])].includes(url.protocol)) throw new ValidationError('Stripe return URL must use HTTPS');
+}
+
+function parseConnectedAccount(payload: Record<string, unknown>): StripeConnectedAccount {
+  if (typeof payload.id !== 'string' || !payload.id.startsWith('acct_')) throw new BusinessRuleError('Stripe returned an invalid account');
+  return {
+    id: payload.id,
+    country: typeof payload.country === 'string' ? payload.country : '',
+    detailsSubmitted: payload.details_submitted === true,
+    chargesEnabled: payload.charges_enabled === true,
+    payoutsEnabled: payload.payouts_enabled === true,
+  };
+}
+
+function parseSubscription(payload: Record<string, unknown>): StripeSubscriptionSnapshot {
+  const metadata = payload.metadata && typeof payload.metadata === 'object' ? payload.metadata as Record<string, string> : {};
+  if (typeof payload.id !== 'string' || !payload.id.startsWith('sub_') || typeof payload.status !== 'string') throw new BusinessRuleError('Stripe returned an invalid subscription');
+  return {
+    id: payload.id,
+    customerId: typeof payload.customer === 'string' ? payload.customer : undefined,
+    status: payload.status,
+    currentPeriodStart: typeof payload.current_period_start === 'number' ? new Date(payload.current_period_start * 1000) : undefined,
+    currentPeriodEnd: typeof payload.current_period_end === 'number' ? new Date(payload.current_period_end * 1000) : undefined,
+    cancelAtPeriodEnd: payload.cancel_at_period_end === true,
+    metadata,
+  };
 }
 
 function isStripeWebhookEvent(value: unknown): value is StripeWebhookEvent {

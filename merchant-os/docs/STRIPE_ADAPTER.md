@@ -1,26 +1,55 @@
-# Stripe adapter (disabled by default)
+# Stripe billing and storefront payments
 
-WASLA includes a server-only Stripe Checkout adapter, but no Stripe button or public webhook route is enabled in this release. Manual Bankak/MyCashy flows remain the live payment paths until the external Stripe account, settlement country, prices, and secrets are approved.
+WASLA supports two independent Stripe flows while preserving the existing Bankak/MyCashy paths.
 
-## Safety model
+## Platform subscriptions
 
-- `STRIPE_PAYMENTS_ENABLED` defaults to `false`.
-- Checkout creation fails closed unless the release flag, secret key, and webhook secret are all present.
-- Secret values remain server-side and are never part of the public runtime configuration.
-- Each session requires an internal reference and an idempotency key.
-- Amounts are converted to Stripe minor units with explicit zero-decimal currency handling.
-- Only HTTPS return URLs are allowed in production.
-- Webhook verification uses the unmodified raw body, the `Stripe-Signature` timestamp and every `v1` signature, constant-time comparison, and a five-minute tolerance.
-- Provider error details are logged by type only and are not returned to customers.
+- A merchant requests a paid plan, then chooses Stripe or manual transfer.
+- Stripe Checkout runs in recurring `subscription` mode.
+- The signed webhook activates the requested plan, stores the Stripe customer/subscription IDs, completes the plan-change request, and evaluates referral commissions once.
+- Subscription updates, renewals, failures, cancellation, and duplicate webhook delivery are handled idempotently.
 
-## Activation checklist (external setup phase)
+## Store customer payments
 
-1. Confirm that the Stripe account and settlement country support WASLA's intended currencies and business model.
-2. Create test/live keys and a dedicated webhook endpoint secret; store them in Dokploy secrets.
-3. Add persistence for provider session/event IDs and an idempotent webhook application service.
-4. Expose authenticated subscription and/or order checkout endpoints that derive amount, currency, and metadata from WASLA records only.
-5. Subscribe to the minimum required Checkout events and verify them against the raw request body.
-6. Run test-mode success, cancellation, duplicate event, delayed event, refund, and reconciliation scenarios.
-7. Enable `STRIPE_PAYMENTS_ENABLED=true` only after those checks pass.
+- Each merchant connects an Express account from **Storefront → Payments**.
+- Card checkout appears only after Stripe reports `details_submitted`, `charges_enabled`, and `payouts_enabled`.
+- Checkout uses a destination charge, so the payment is transferred to the merchant's connected Stripe account rather than retained by WASLA.
+- SDG catalog totals are converted to USD using the platform exchange rate snapshotted on the payment record. Both the store amount and Stripe charge amount are retained for reconciliation.
+- A failed Checkout creation cancels the new order and restores reserved inventory. The order becomes paid only after a correctly signed Stripe webhook matches its server-calculated amount and currency.
 
-Implementation follows Stripe's hosted Checkout Sessions and signed-webhook guidance: <https://docs.stripe.com/api/checkout/sessions/create> and <https://docs.stripe.com/webhooks/signature>.
+## Production configuration
+
+Set these only in Dokploy secrets:
+
+```env
+STRIPE_PAYMENTS_ENABLED=true
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_APP_URL=https://wassla-sd.shop
+```
+
+Create one Stripe webhook endpoint:
+
+```text
+https://wassla-sd.shop/api/stripe/webhook
+```
+
+Subscribe it to:
+
+- `checkout.session.completed`
+- `account.updated`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
+- `charge.refunded`
+
+Apply migration `20261019120000_add_stripe_payments` before enabling the feature.
+
+## Safety and operational boundaries
+
+- Secret keys never reach the browser or database.
+- Checkout amounts, currencies, plan IDs, order IDs, destination accounts, and exchange rates are resolved server-side.
+- Webhooks use the unmodified request body, timestamp tolerance, constant-time signature comparison, payload hashes, and an idempotent event ledger.
+- Connect is available only to merchants with a legal entity in a Stripe-supported country. Do not enter a false country to bypass Stripe onboarding.
+- Start in Stripe test mode and verify success, cancellation, renewal, payment failure, duplicate webhook, refund, and Connect onboarding before switching to live keys.

@@ -15,7 +15,7 @@ export const placeOrderSchema = z.object({
   deliveryLat: z.number().min(-90).max(90).optional(),
   deliveryLng: z.number().min(-180).max(180).optional(),
   notes: z.string().optional(),
-  paymentMethod: z.enum(['CASH', 'MANUAL_TRANSFER']).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'MANUAL_TRANSFER', 'ONLINE']).default('CASH'),
   paymentAccountId: z.string().optional(),
   transactionRef: z.string().trim().min(4).max(100).optional(),
   senderName: z.string().trim().max(120).optional(),

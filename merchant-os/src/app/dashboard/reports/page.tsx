@@ -25,7 +25,7 @@ function changeColor(v: number) {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: { range?: string };
+  searchParams: Promise<{ range?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
@@ -43,7 +43,7 @@ export default async function ReportsPage({
     { value: 'quarter', label: t.ranges.quarter },
   ];
 
-  const range: DateRange = (searchParams.range as DateRange) ?? 'month';
+  const range: DateRange = ((await searchParams).range as DateRange) ?? 'month';
   const report = await getFullReport(session.user.merchantId, range);
   const { summary, dailyRevenue, ordersByStatus, hourlyOrders, topProducts, topCustomers, branchStats, financialSummary } = report;
 

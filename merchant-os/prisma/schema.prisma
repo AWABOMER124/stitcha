@@ -987,6 +987,7 @@ model Merchant {
   planChangeRequests             MerchantPlanChangeRequest[]
   subscriptionPayments           MerchantSubscriptionPayment[]
   storePaymentAccounts           MerchantPaymentAccount[]
+  stripeAccount                 MerchantStripeAccount?
   orderPaymentProofs             OrderPaymentProof[]
   whatsappAiUsage                WhatsAppAiUsage[]
   aiUsageBuckets                 AiUsageBucket[]
@@ -1851,17 +1852,20 @@ model MerchantSubscriptionPayment {
   merchantId          String
   targetPlanId        String
   planChangeRequestId String?
-  paymentAccountId    String
+  paymentAccountId    String?
   amount              Decimal                   @db.Decimal(12, 2)
   currency            String
-  channel             ManualPaymentChannel
+  channel             ManualPaymentChannel?
   transactionRef      String
   senderName          String?
   transferredAt       DateTime?
-  proofStorageKey     String
-  proofMimeType       String
-  proofSize           Int
-  proofSha256         String
+  proofStorageKey     String?
+  proofMimeType       String?
+  proofSize           Int?
+  proofSha256         String?
+  provider            String                    @default("manual")
+  externalCheckoutId  String?                   @unique
+  externalPaymentId   String?
   status              ManualPaymentReviewStatus @default(PENDING)
   reviewedById        String?
   reviewedAt          DateTime?
@@ -1872,7 +1876,7 @@ model MerchantSubscriptionPayment {
   merchant           Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   targetPlan         MerchantPlan                @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
   planChangeRequest  MerchantPlanChangeRequest?  @relation(fields: [planChangeRequestId], references: [id], onDelete: SetNull)
-  paymentAccount     PlatformPaymentAccount      @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
+  paymentAccount     PlatformPaymentAccount?     @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
   referralCommission MerchantReferralCommission?
   marketerCommission MarketerSubscriptionCommission?
 
@@ -2639,6 +2643,26 @@ model MerchantPaymentAccount {
 
   @@index([merchantId, isActive, sortOrder])
   @@map("merchant_payment_accounts")
+}
+
+/// Stripe Connect destination owned by one merchant. Secret keys never live
+/// here; only Stripe's non-secret account identifier and readiness flags do.
+model MerchantStripeAccount {
+  id                    String    @id @default(cuid())
+  merchantId            String    @unique
+  stripeAccountId       String    @unique
+  country               String
+  detailsSubmitted      Boolean   @default(false)
+  chargesEnabled        Boolean   @default(false)
+  payoutsEnabled        Boolean   @default(false)
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([chargesEnabled, payoutsEnabled])
+  @@map("merchant_stripe_accounts")
 }
 
 /// Private transfer evidence attached to a storefront order payment.

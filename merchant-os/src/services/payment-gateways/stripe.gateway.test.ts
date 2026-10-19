@@ -49,6 +49,17 @@ describe('Stripe fail-closed gateway', () => {
     expect(() => toMinorUnits(-1, 'USD')).toThrow('positive');
   });
 
+  it('creates destination checkout without exposing the platform secret', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ id: 'cs_test_order', url: 'https://checkout.stripe.com/c/pay/cs_test_order' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const gateway = new StripeGateway({ enabled: true, secretKey: 'sk_test', webhookSecret: 'whsec_test' });
+    await gateway.createCheckoutSession({ ...input, mode: 'payment', destinationAccountId: 'acct_123ABC', metadata: { kind: 'ORDER', order_id: 'order_1' } });
+    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1].body as URLSearchParams;
+    expect(body.get('payment_intent_data[transfer_data][destination]')).toBe('acct_123ABC');
+    expect(body.get('payment_intent_data[metadata][order_id]')).toBe('order_1');
+    expect(body.get('subscription_data[metadata][order_id]')).toBeNull();
+  });
+
   it('verifies the raw webhook body, timestamp, and v1 signature', () => {
     const secret = 'whsec_test';
     const raw = JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed', data: { object: { id: 'cs_1' } } });

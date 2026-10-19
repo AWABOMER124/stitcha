@@ -163,7 +163,7 @@ export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?:
     throw error;
   }
 
-  return { orderId: order.id, orderNumber: order.orderNumber };
+  return { orderId: order.id, orderNumber: order.orderNumber, merchantId: merchant.id };
 }
 
 /** Get order status for public tracking */

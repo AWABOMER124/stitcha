@@ -5,6 +5,7 @@ import {
   toggleMerchantPaymentAccountAction,
 } from '@/modules/store-payments/actions';
 import { listMerchantPaymentAccounts } from '@/modules/store-payments/store-payments.service';
+import { getMerchantStripeStatus, getStripeStatus } from '@/modules/stripe-payments/stripe-payments.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,10 +13,19 @@ export default async function StorePaymentSettingsPage() {
   const session = await auth();
   const merchantId = session?.user?.merchantId;
   if (!merchantId) redirect('/login');
-  const accounts = await listMerchantPaymentAccounts(merchantId);
+  const [accounts, stripeAccount] = await Promise.all([listMerchantPaymentAccounts(merchantId), getMerchantStripeStatus(merchantId)]);
+  const stripe = getStripeStatus();
 
   return <div className="max-w-4xl space-y-6 p-6">
     <header><h1 className="text-2xl font-bold">طرق دفع المتجر</h1><p className="mt-1 text-sm text-[var(--muted-foreground)]">أضف حسابات بنكك أو ماي كاشي التي تظهر لعملائك عند إتمام الطلب.</p></header>
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><h2 className="font-bold">الدفع بالبطاقات عبر Stripe</h2><p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">اربط حساب Stripe لنشاطك حتى تصل مدفوعات العملاء إلى حسابك مباشرة. الربط متاح فقط لكيان قانوني في دولة يدعمها Stripe.</p></div>
+        <span className={`rounded-full px-3 py-1 text-xs font-bold ${stripeAccount?.ready ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{stripeAccount?.ready ? 'جاهز لاستقبال الدفع' : 'غير مكتمل'}</span>
+      </div>
+      {!stripe.enabled || !stripe.configured ? <p className="mt-4 rounded-xl bg-slate-100 p-4 text-sm text-slate-700">سيظهر زر الربط بعد تفعيل مفاتيح Stripe وWebhook في إعدادات الخادم.</p> : <form action="/api/stripe/connect/start" method="post" className="mt-4 flex flex-wrap items-end gap-3"><label className="text-sm">دولة تسجيل النشاط (ISO)<input name="country" defaultValue={stripeAccount?.country ?? 'AE'} required pattern="[A-Za-z]{2}" maxLength={2} dir="ltr" className="mt-1 w-28 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 uppercase"/></label><button className="rounded-lg bg-[#635bff] px-4 py-2.5 font-bold text-white">{stripeAccount ? 'متابعة/تحديث ربط Stripe' : 'ربط حساب Stripe'}</button></form>}
+      {stripeAccount && <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-3"><div><dt className="text-[var(--muted-foreground)]">البيانات</dt><dd>{stripeAccount.detailsSubmitted ? 'مكتملة' : 'غير مكتملة'}</dd></div><div><dt className="text-[var(--muted-foreground)]">استقبال الدفع</dt><dd>{stripeAccount.chargesEnabled ? 'مفعّل' : 'غير مفعّل'}</dd></div><div><dt className="text-[var(--muted-foreground)]">التحويل للحساب</dt><dd>{stripeAccount.payoutsEnabled ? 'مفعّل' : 'غير مفعّل'}</dd></div></dl>}
+    </section>
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
       <h2 className="font-bold">إضافة حساب تحويل</h2>
       <form action={createMerchantPaymentAccountAction} className="mt-4 grid gap-3 md:grid-cols-2">

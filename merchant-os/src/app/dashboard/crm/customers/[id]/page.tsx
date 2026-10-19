@@ -15,13 +15,14 @@ interface CustomerOrder {
   total: number | string;
 }
 
-export default async function CustomerProfilePage({ params }: { params: { id: string } }) {
+export default async function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
+  const { id } = await params;
 
   const [customerRes, ordersRes, cookieStore] = await Promise.all([
-    getCustomerAction(params.id),
-    getCustomerOrdersAction(params.id),
+    getCustomerAction(id),
+    getCustomerOrdersAction(id),
     cookies(),
   ]);
 

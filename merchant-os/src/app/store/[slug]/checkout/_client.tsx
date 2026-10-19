@@ -5,9 +5,9 @@ import { useLocale } from '@/lib/i18n/context';
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
 type PaymentAccount = { id: string; channel: string; label: string; accountName: string; accountNumber: string; instructions: string | null };
-export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null; storePaymentAccounts: PaymentAccount[] };
+export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null; storePaymentAccounts: PaymentAccount[]; stripeAccount: { detailsSubmitted: boolean; chargesEnabled: boolean; payoutsEnabled: boolean } | null };
 
-export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: string }) {
+export function CheckoutClient({ merchant, slug, usdToSdgRate }: { merchant: Merchant; slug: string; usdToSdgRate: number }) {
   const router = useRouter();
   const sp = useSearchParams();
   const { dict, dir, locale } = useLocale();
@@ -29,7 +29,7 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
   const [deliveryLocation, setDeliveryLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MANUAL_TRANSFER'>('CASH');
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MANUAL_TRANSFER' | 'ONLINE'>('CASH');
   const [paymentAccountId, setPaymentAccountId] = useState(merchant.storePaymentAccounts[0]?.id ?? '');
   const [transactionRef, setTransactionRef] = useState('');
   const [senderName, setSenderName] = useState('');
@@ -114,15 +114,19 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
       if (transferredAt) form.set('transferredAt', transferredAt);
       if (proof) form.set('proof', proof);
     }
-    let result: { orderId?: string; error?: string };
+    let result: { orderId?: string; checkoutUrl?: string; error?: string };
     try {
       const response = await fetch(`/api/store/${encodeURIComponent(slug)}/orders`, { method: 'POST', body: form });
-      result = await response.json().catch(() => ({ error: ar ? 'تعذر التواصل مع المتجر. حاول مرة أخرى.' : 'Could not reach the store. Please try again.' })) as { orderId?: string; error?: string };
+      result = await response.json().catch(() => ({ error: ar ? 'تعذر التواصل مع المتجر. حاول مرة أخرى.' : 'Could not reach the store. Please try again.' })) as { orderId?: string; checkoutUrl?: string; error?: string };
       if (!response.ok || !result.orderId) throw new Error(result.error || t.errGeneric);
     } catch (caught) {
       setLoading(false); setError(caught instanceof Error ? caught.message : t.errGeneric); return;
     }
     setLoading(false);
+    if (result.checkoutUrl) {
+      window.location.assign(result.checkoutUrl);
+      return;
+    }
     localStorage.removeItem(`cart-${slug}`);
     router.push(`/store/${slug}/order/${result.orderId}`);
   }
@@ -207,6 +211,8 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
         <div className="bg-white rounded-2xl border border-stone-100 p-4 space-y-3">
           <h2 className="font-bold text-stone-900 mb-3">{t.paymentMethodTitle}</h2>
           <button type="button" onClick={() => setPaymentMethod('CASH')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'CASH' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💵</span><span className="text-sm text-stone-700">{t.cashOnDelivery}</span></button>
+          {merchant.stripeAccount?.detailsSubmitted && merchant.stripeAccount.chargesEnabled && merchant.stripeAccount.payoutsEnabled && <button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'ONLINE' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💳</span><span className="text-sm text-stone-700">{ar ? 'بطاقة عبر Stripe' : 'Card via Stripe'}</span></button>}
+          {paymentMethod === 'ONLINE' && <p className="rounded-xl bg-indigo-50 p-3 text-xs text-indigo-900">{ar ? `سيتم تحصيل ما يعادل تقريباً ${(subtotal / usdToSdgRate).toFixed(2)} USD عبر Stripe وفق سعر الصرف المعتمد وقت الدفع.` : `Stripe will charge approximately ${(subtotal / usdToSdgRate).toFixed(2)} USD using the exchange rate active at checkout.`}</p>}
           {merchant.storePaymentAccounts.length > 0 && <button type="button" onClick={() => setPaymentMethod('MANUAL_TRANSFER')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'MANUAL_TRANSFER' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">🏦</span><span className="text-sm text-stone-700">{ar ? 'تحويل بنكك أو ماي كاشي' : 'Bankak or MyCashy transfer'}</span></button>}
           {paymentMethod === 'MANUAL_TRANSFER' && <div className="space-y-3 rounded-xl bg-stone-50 p-3">
             <p className="text-sm text-stone-600">{ar ? 'حوّل المبلغ الكامل ثم ارفع إشعار التحويل. سيؤكد المتجر الطلب بعد المطابقة.' : 'Transfer the full amount and upload the receipt. The store confirms after review.'}</p>
@@ -223,7 +229,7 @@ export function CheckoutClient({ merchant, slug }: { merchant: Merchant; slug: s
         {error && <p role="alert" aria-live="polite" className="text-sm text-red-600 text-center bg-red-50 rounded-xl py-2.5">{error}</p>}
 
         <button type="submit" disabled={loading || cart.length === 0} className="w-full py-4 rounded-2xl text-white font-bold text-base disabled:opacity-50 transition-all active:scale-95 shadow-lg" style={{ background: primary }}>
-          {loading ? t.placingOrder : `${t.confirmOrder} — ${subtotal.toLocaleString()} SDG`}
+          {loading ? t.placingOrder : paymentMethod === 'ONLINE' ? (ar ? `المتابعة للدفع — ${subtotal.toLocaleString()} SDG` : `Continue to payment — ${subtotal.toLocaleString()} SDG`) : `${t.confirmOrder} — ${subtotal.toLocaleString()} SDG`}
         </button>
       </form>
     </div>
