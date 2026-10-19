@@ -38,6 +38,7 @@ function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
     { type: "link", label: nav.financeDashboard, href: "/dashboard/finance", icon: "💰" },
     { type: "link", label: nav.transactions, href: "/dashboard/finance/transactions", icon: "💳" },
     { type: "link", label: nav.settlements, href: "/dashboard/finance/settlements", icon: "🧾" },
+    { type: "link", label: "تسويات الدفع الإلكتروني", href: "/dashboard/finance/online-settlements", icon: "🏦" },
     { type: "link", label: nav.invoices, href: "/dashboard/invoices", icon: "🧮" },
     { type: "link", label: nav.dataExport, href: "/dashboard/exports", icon: "📊" },
     { type: "section", label: nav.crmSection },

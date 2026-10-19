@@ -5,9 +5,9 @@ import { useLocale } from '@/lib/i18n/context';
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
 type PaymentAccount = { id: string; channel: string; label: string; accountName: string; accountNumber: string; instructions: string | null };
-export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null; storePaymentAccounts: PaymentAccount[]; stripeAccount: { detailsSubmitted: boolean; chargesEnabled: boolean; payoutsEnabled: boolean } | null };
+export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null; storePaymentAccounts: PaymentAccount[] };
 
-export function CheckoutClient({ merchant, slug, usdToSdgRate }: { merchant: Merchant; slug: string; usdToSdgRate: number }) {
+export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEnabled }: { merchant: Merchant; slug: string; usdToSdgRate: number; onlinePaymentsEnabled: boolean }) {
   const router = useRouter();
   const sp = useSearchParams();
   const { dict, dir, locale } = useLocale();
@@ -211,7 +211,7 @@ export function CheckoutClient({ merchant, slug, usdToSdgRate }: { merchant: Mer
         <div className="bg-white rounded-2xl border border-stone-100 p-4 space-y-3">
           <h2 className="font-bold text-stone-900 mb-3">{t.paymentMethodTitle}</h2>
           <button type="button" onClick={() => setPaymentMethod('CASH')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'CASH' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💵</span><span className="text-sm text-stone-700">{t.cashOnDelivery}</span></button>
-          {merchant.stripeAccount?.detailsSubmitted && merchant.stripeAccount.chargesEnabled && merchant.stripeAccount.payoutsEnabled && <button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'ONLINE' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💳</span><span className="text-sm text-stone-700">{ar ? 'بطاقة عبر Stripe' : 'Card via Stripe'}</span></button>}
+          {onlinePaymentsEnabled && <button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'ONLINE' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💳</span><span className="text-sm text-stone-700">{ar ? 'دفع إلكتروني آمن عبر وصلة' : 'Secure online payment via WASLA'}</span></button>}
           {paymentMethod === 'ONLINE' && <p className="rounded-xl bg-indigo-50 p-3 text-xs text-indigo-900">{ar ? `سيتم تحصيل ما يعادل تقريباً ${(subtotal / usdToSdgRate).toFixed(2)} USD عبر Stripe وفق سعر الصرف المعتمد وقت الدفع.` : `Stripe will charge approximately ${(subtotal / usdToSdgRate).toFixed(2)} USD using the exchange rate active at checkout.`}</p>}
           {merchant.storePaymentAccounts.length > 0 && <button type="button" onClick={() => setPaymentMethod('MANUAL_TRANSFER')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'MANUAL_TRANSFER' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">🏦</span><span className="text-sm text-stone-700">{ar ? 'تحويل بنكك أو ماي كاشي' : 'Bankak or MyCashy transfer'}</span></button>}
           {paymentMethod === 'MANUAL_TRANSFER' && <div className="space-y-3 rounded-xl bg-stone-50 p-3">

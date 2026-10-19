@@ -4,6 +4,7 @@ import {
   togglePaymentAccountAction,
   updatePaymentAccountAction,
   updateUsdToSdgRateAction,
+  updateOnlineSettlementSettingsAction,
 } from '@/modules/subscription-payments/actions';
 import {
   listAllPaymentAccounts,
@@ -36,6 +37,16 @@ export default async function SubscriptionPaymentsAdminPage() {
       <h2 className="font-bold">تسعير التحويل بالجنيه السوداني</h2><p className="mt-1 text-sm text-[var(--muted-foreground)]">أسعار الباقات تبقى بالدولار. يُستخدم هذا السعر لحساب مبلغ التحويل ويُثبّت عند إرسال الإيصال.</p>
       {canManageAccounts && <form action={updateUsdToSdgRateAction} className="mt-4 flex max-w-md gap-3"><label className="flex-1 text-sm">1 USD = <input name="usdToSdgRate" required type="number" min="1" step="0.01" defaultValue={billing.usdToSdgRate} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/> SDG</label><button className="mt-6 rounded-lg bg-[var(--primary)] px-4 py-2 font-semibold text-white">تحديث السعر</button></form>}
       <p className="mt-3 text-xs text-[var(--muted-foreground)]">آخر تحديث: {billing.updatedAt?.toLocaleString('ar-SD') ?? 'القيمة الافتراضية'}</p>
+    </section>
+
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
+      <h2 className="font-bold">إعدادات تحصيل المتاجر والتسوية</h2>
+      <p className="mt-1 text-sm text-[var(--muted-foreground)]">وصلة تحصّل مدفوعات العملاء مركزياً. رسوم Stripe وعمولة وصلة تخصمان قبل إنشاء التسوية الأسبوعية.</p>
+      {canManageAccounts && <form action={updateOnlineSettlementSettingsAction} className="mt-4 grid max-w-xl gap-3 sm:grid-cols-2">
+        <label className="text-sm">عمولة وصلة %<input name="commissionRate" required type="number" min="0" max="100" step="0.01" defaultValue={billing.onlinePaymentCommissionRate} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
+        <label className="text-sm">فترة الحجز بالأيام<input name="holdDays" required type="number" min="0" max="90" step="1" defaultValue={billing.onlineSettlementHoldDays} className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"/></label>
+        <button className="rounded-lg bg-[var(--primary)] px-4 py-2.5 font-semibold text-white sm:col-span-2">حفظ إعدادات التسوية</button>
+      </form>}
     </section>
 
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">

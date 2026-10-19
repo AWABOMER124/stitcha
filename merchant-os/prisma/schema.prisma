@@ -196,6 +196,18 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum MerchantSettlementEntryType {
+  ONLINE_PAYMENT
+  REFUND
+  ADJUSTMENT
+}
+
+enum MerchantSettlementEntryStatus {
+  HELD
+  AVAILABLE
+  SETTLED
+}
+
 enum InvoiceStatus {
   DRAFT
   ISSUED
@@ -987,7 +999,7 @@ model Merchant {
   planChangeRequests             MerchantPlanChangeRequest[]
   subscriptionPayments           MerchantSubscriptionPayment[]
   storePaymentAccounts           MerchantPaymentAccount[]
-  stripeAccount                 MerchantStripeAccount?
+  stripeAccount                  MerchantStripeAccount?
   orderPaymentProofs             OrderPaymentProof[]
   whatsappAiUsage                WhatsAppAiUsage[]
   aiUsageBuckets                 AiUsageBucket[]
@@ -1001,7 +1013,7 @@ model Merchant {
   referralReceived               MerchantReferral?                    @relation("ReferralReferred")
   referralRewards                MerchantReferralReward[]             @relation("ReferralRewardMerchant")
   referralCommissions            MerchantReferralCommission[]
-  marketerReferralReceived       MarketerMerchantReferral?             @relation("MarketerReferralReferred")
+  marketerReferralReceived       MarketerMerchantReferral?            @relation("MarketerReferralReferred")
   affiliateProgram               StoreAffiliateProgram?
   storeAffiliates                StoreAffiliate[]
   affiliateVisits                StoreAffiliateVisit[]
@@ -1011,9 +1023,11 @@ model Merchant {
   referralPayoutProfile          MerchantReferralPayoutProfile?
   customDomains                  MerchantDomain[]
   affiliateIdentityVerifications StoreAffiliateIdentityVerification[]
-  subscriptionEvents            MerchantSubscriptionEvent[]
+  subscriptionEvents             MerchantSubscriptionEvent[]
   affiliatePayoutProfiles        StoreAffiliatePayoutProfile[]
   marketerApplications           MarketerApplication[]
+  onlineSettlementEntries        MerchantSettlementEntry[]
+  onlineSettlementBatches        MerchantSettlementBatch[]
 
   @@index([slug])
   @@index([status])
@@ -1084,7 +1098,7 @@ model PlatformReferralProgram {
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
 
-  referrals MerchantReferral[]
+  referrals         MerchantReferral[]
   marketerReferrals MarketerMerchantReferral[]
 
   @@map("platform_referral_programs")
@@ -1226,24 +1240,24 @@ model StoreAffiliateProgram {
 }
 
 model StoreAffiliate {
-  id                       String               @id @default(cuid())
-  merchantId               String
-  marketerAccountId        String?
-  programId                String
-  name                     String
-  phone                    String
-  email                    String?
-  code                     String
-  status                   StoreAffiliateStatus @default(ACTIVE)
-  onboardingTokenHash      String?              @unique
-  onboardingTokenExpiresAt DateTime?
+  id                         String               @id @default(cuid())
+  merchantId                 String
+  marketerAccountId          String?
+  programId                  String
+  name                       String
+  phone                      String
+  email                      String?
+  code                       String
+  status                     StoreAffiliateStatus @default(ACTIVE)
+  onboardingTokenHash        String?              @unique
+  onboardingTokenExpiresAt   DateTime?
   // Rotating, opaque link for the marketer's own read-only portal. Only a
   // keyed fingerprint is stored, so the shareable access URL cannot be read
   // from the database.
-  portalAccessTokenHash    String?              @unique
+  portalAccessTokenHash      String?              @unique
   portalAccessTokenExpiresAt DateTime?
-  createdAt                DateTime             @default(now())
-  updatedAt                DateTime             @updatedAt
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
 
   merchant             Merchant                            @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   marketerAccount      MarketerAccount?                    @relation(fields: [marketerAccountId], references: [id], onDelete: SetNull)
@@ -1265,32 +1279,32 @@ model StoreAffiliate {
 /// Public marketer application. Acquisition applications are reviewed by
 /// WASLA; product applications are tenant-scoped and reviewed by the store.
 model MarketerApplication {
-  id              String                    @id @default(cuid())
-  applicationKey  String                    @unique
-  type            MarketerApplicationType
-  merchantId      String?
+  id                String                    @id @default(cuid())
+  applicationKey    String                    @unique
+  type              MarketerApplicationType
+  merchantId        String?
   marketerAccountId String?
-  name            String
-  phone           String
-  email           String
-  city            String
-  channels        String[]
-  experience      String?
-  audienceSize    Int?
-  portfolioUrl    String?
-  notes           String?
-  status          MarketerApplicationStatus @default(PENDING)
-  affiliateId     String?                   @unique
-  reviewedById    String?
-  reviewedAt      DateTime?
-  rejectionReason String?
-  termsAcceptedAt DateTime
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  name              String
+  phone             String
+  email             String
+  city              String
+  channels          String[]
+  experience        String?
+  audienceSize      Int?
+  portfolioUrl      String?
+  notes             String?
+  status            MarketerApplicationStatus @default(PENDING)
+  affiliateId       String?                   @unique
+  reviewedById      String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  termsAcceptedAt   DateTime
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
 
-  merchant  Merchant?       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchant        Merchant?        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   marketerAccount MarketerAccount? @relation(fields: [marketerAccountId], references: [id], onDelete: SetNull)
-  affiliate StoreAffiliate? @relation(fields: [affiliateId], references: [id], onDelete: SetNull)
+  affiliate       StoreAffiliate?  @relation(fields: [affiliateId], references: [id], onDelete: SetNull)
 
   @@index([type, status, createdAt])
   @@index([merchantId, status, createdAt])
@@ -1302,24 +1316,24 @@ model MarketerApplication {
 /// A single identity for a marketer. It may participate in many independent
 /// storefront programs without sharing one merchant's access with another.
 model MarketerAccount {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  acquisitionCode String @unique
-  isActive    Boolean  @default(true)
-  bio         String?
-  city        String?
-  cvStorageKey String? @unique
-  cvFileName  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  acquisitionCode String   @unique
+  isActive        Boolean  @default(true)
+  bio             String?
+  city            String?
+  cvStorageKey    String?  @unique
+  cvFileName      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  applications MarketerApplication[]
-  affiliates   StoreAffiliate[]
-  referrals    MarketerMerchantReferral[]
-  commissions  MarketerSubscriptionCommission[]
+  user                 User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications         MarketerApplication[]
+  affiliates           StoreAffiliate[]
+  referrals            MarketerMerchantReferral[]
+  commissions          MarketerSubscriptionCommission[]
   identityVerification MarketerIdentityVerification?
-  payoutProfile MarketerPayoutProfile?
+  payoutProfile        MarketerPayoutProfile?
 
   @@map("marketer_accounts")
 }
@@ -1340,64 +1354,67 @@ model MarketerIdentityVerification {
   updatedAt               DateTime                   @updatedAt
   marketerAccount         MarketerAccount            @relation(fields: [marketerAccountId], references: [id], onDelete: Cascade)
   documents               MarketerIdentityDocument[]
+
   @@index([status, submittedAt])
   @@map("marketer_identity_verifications")
 }
 
 model MarketerIdentityDocument {
-  id             String               @id @default(cuid())
+  id             String                       @id @default(cuid())
   verificationId String
   side           IdentityDocumentSide
-  storageKey     String               @unique
+  storageKey     String                       @unique
   fileName       String
   mimeType       String
   size           Int
   sha256         String
-  createdAt      DateTime             @default(now())
+  createdAt      DateTime                     @default(now())
   verification   MarketerIdentityVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
   @@unique([verificationId, side])
   @@map("marketer_identity_documents")
 }
 
 model MarketerPayoutProfile {
-  id                     String       @id @default(cuid())
-  marketerAccountId      String       @unique
+  id                     String          @id @default(cuid())
+  marketerAccountId      String          @unique
   method                 PayoutMethod
   bankName               String?
   accountNameEncrypted   String
   accountNumberEncrypted String
   ibanEncrypted          String?
-  createdAt              DateTime     @default(now())
-  updatedAt              DateTime     @updatedAt
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
   marketerAccount        MarketerAccount @relation(fields: [marketerAccountId], references: [id], onDelete: Cascade)
+
   @@map("marketer_payout_profiles")
 }
 
 /// Separate attribution for a platform marketer who brings a new merchant.
 /// It intentionally never reuses merchant-to-merchant referral records.
 model MarketerMerchantReferral {
-  id                        String                    @id @default(cuid())
-  programId                 String
-  marketerAccountId         String
-  referredMerchantId        String                    @unique
-  codeSnapshot              String
-  identityFingerprint       String
-  status                    MerchantReferralStatus    @default(REGISTERED)
-  holdDaysSnapshot          Int
-  commissionRateSnapshot    Decimal                   @db.Decimal(5, 2)
-  commissionMonthsSnapshot  Int
-  minimumPayoutSnapshot     Decimal                   @db.Decimal(12, 2)
-  registeredAt              DateTime                  @default(now())
-  activatedAt               DateTime?
-  qualifiedAt               DateTime?
-  rejectedAt                DateTime?
-  rejectionReason           String?
-  createdAt                 DateTime                  @default(now())
-  updatedAt                 DateTime                  @updatedAt
+  id                       String                 @id @default(cuid())
+  programId                String
+  marketerAccountId        String
+  referredMerchantId       String                 @unique
+  codeSnapshot             String
+  identityFingerprint      String
+  status                   MerchantReferralStatus @default(REGISTERED)
+  holdDaysSnapshot         Int
+  commissionRateSnapshot   Decimal                @db.Decimal(5, 2)
+  commissionMonthsSnapshot Int
+  minimumPayoutSnapshot    Decimal                @db.Decimal(12, 2)
+  registeredAt             DateTime               @default(now())
+  activatedAt              DateTime?
+  qualifiedAt              DateTime?
+  rejectedAt               DateTime?
+  rejectionReason          String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
 
-  program          PlatformReferralProgram       @relation(fields: [programId], references: [id], onDelete: Restrict)
-  marketerAccount  MarketerAccount               @relation(fields: [marketerAccountId], references: [id], onDelete: Restrict)
-  referredMerchant Merchant                      @relation("MarketerReferralReferred", fields: [referredMerchantId], references: [id], onDelete: Restrict)
+  program          PlatformReferralProgram          @relation(fields: [programId], references: [id], onDelete: Restrict)
+  marketerAccount  MarketerAccount                  @relation(fields: [marketerAccountId], references: [id], onDelete: Restrict)
+  referredMerchant Merchant                         @relation("MarketerReferralReferred", fields: [referredMerchantId], references: [id], onDelete: Restrict)
   commissions      MarketerSubscriptionCommission[]
 
   @@index([marketerAccountId, status, registeredAt])
@@ -1428,9 +1445,9 @@ model MarketerSubscriptionCommission {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  referralRecord      MarketerMerchantReferral      @relation(fields: [referralId], references: [id], onDelete: Restrict)
-  marketerAccount     MarketerAccount                @relation(fields: [marketerAccountId], references: [id], onDelete: Restrict)
-  subscriptionPayment MerchantSubscriptionPayment    @relation(fields: [subscriptionPaymentId], references: [id], onDelete: Restrict)
+  referralRecord      MarketerMerchantReferral    @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  marketerAccount     MarketerAccount             @relation(fields: [marketerAccountId], references: [id], onDelete: Restrict)
+  subscriptionPayment MerchantSubscriptionPayment @relation(fields: [subscriptionPaymentId], references: [id], onDelete: Restrict)
 
   @@index([marketerAccountId, status, holdUntil])
   @@index([referralId, createdAt])
@@ -1721,31 +1738,31 @@ model MerchantPlan {
 /// Current SaaS subscription for a merchant. One row per merchant keeps plan
 /// checks cheap while preserving a safe path to direct platform billing.
 model MerchantSubscription {
-  id                    String                     @id @default(cuid())
-  merchantId            String                     @unique
-  planId                String
-  status                MerchantSubscriptionStatus @default(ACTIVE)
+  id                     String                      @id @default(cuid())
+  merchantId             String                      @unique
+  planId                 String
+  status                 MerchantSubscriptionStatus  @default(ACTIVE)
   billingInterval        SubscriptionBillingInterval @default(MONTHLY)
-  startsAt              DateTime                   @default(now())
-  trialStartedAt        DateTime?
-  trialEndsAt           DateTime?
-  currentPeriodStartsAt DateTime?
-  currentPeriodEndsAt   DateTime?
-  graceEndsAt           DateTime?
-  cancelAtPeriodEnd     Boolean                    @default(false)
-  cancelledAt           DateTime?
-  priceOverride         Decimal?                   @db.Decimal(10, 2)
-  currencyOverride      String?
+  startsAt               DateTime                    @default(now())
+  trialStartedAt         DateTime?
+  trialEndsAt            DateTime?
+  currentPeriodStartsAt  DateTime?
+  currentPeriodEndsAt    DateTime?
+  graceEndsAt            DateTime?
+  cancelAtPeriodEnd      Boolean                     @default(false)
+  cancelledAt            DateTime?
+  priceOverride          Decimal?                    @db.Decimal(10, 2)
+  currencyOverride       String?
   entitlementOverrides   Json?
   billingProvider        String?
   externalCustomerId     String?
-  externalSubscriptionId String?                    @unique
-  isGrandfathered       Boolean                    @default(false)
-  createdAt             DateTime                   @default(now())
-  updatedAt             DateTime                   @updatedAt
+  externalSubscriptionId String?                     @unique
+  isGrandfathered        Boolean                     @default(false)
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 
-  merchant Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  plan     MerchantPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  merchant Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  plan     MerchantPlan                @relation(fields: [planId], references: [id], onDelete: Restrict)
   events   MerchantSubscriptionEvent[]
 
   @@index([planId, status])
@@ -1837,11 +1854,13 @@ model PlatformPaymentAccount {
 /// Single platform billing configuration. Plan prices remain USD references;
 /// manual SDG quotes use this value and are snapshotted on each payment.
 model PlatformBillingSettings {
-  id             String   @id @default("default")
-  usdToSdgRate   Decimal  @default(100000) @db.Decimal(14, 2)
-  updatedById    String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                          String   @id @default("default")
+  usdToSdgRate                Decimal  @default(100000) @db.Decimal(14, 2)
+  onlinePaymentCommissionRate Decimal  @default(0) @db.Decimal(5, 2)
+  onlineSettlementHoldDays    Int      @default(7)
+  updatedById                 String?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 
   @@map("platform_billing_settings")
 }
@@ -1873,10 +1892,10 @@ model MerchantSubscriptionPayment {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
 
-  merchant           Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  targetPlan         MerchantPlan                @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
-  planChangeRequest  MerchantPlanChangeRequest?  @relation(fields: [planChangeRequestId], references: [id], onDelete: SetNull)
-  paymentAccount     PlatformPaymentAccount?     @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
+  merchant           Merchant                        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  targetPlan         MerchantPlan                    @relation(fields: [targetPlanId], references: [id], onDelete: Restrict)
+  planChangeRequest  MerchantPlanChangeRequest?      @relation(fields: [planChangeRequestId], references: [id], onDelete: SetNull)
+  paymentAccount     PlatformPaymentAccount?         @relation(fields: [paymentAccountId], references: [id], onDelete: Restrict)
   referralCommission MerchantReferralCommission?
   marketerCommission MarketerSubscriptionCommission?
 
@@ -1958,10 +1977,10 @@ model Branch {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant       Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  merchantUsers  MerchantUser[]
-  inventoryItems InventoryItem[]
-  orders         Order[]
+  merchant            Merchant                    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantUsers       MerchantUser[]
+  inventoryItems      InventoryItem[]
+  orders              Order[]
   serviceAvailability ServiceAvailabilityWindow[]
   serviceBookings     ServiceBooking[]
 
@@ -2029,11 +2048,11 @@ model Product {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant      Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  category      Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  modifiers     ProductModifier[]
-  inventoryItem InventoryItem?
-  orderItems    OrderItem[]
+  merchant       Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  category       Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  modifiers      ProductModifier[]
+  inventoryItem  InventoryItem?
+  orderItems     OrderItem[]
   serviceProfile ServiceProfile?
 
   @@unique([merchantId, slug])
@@ -2049,28 +2068,28 @@ model ServiceProfile {
   id        String @id @default(cuid())
   productId String @unique
 
-  durationMinutes      Int     @default(60)
-  bufferMinutes        Int     @default(0)
-  bookingRequired      Boolean @default(true)
-  fulfillmentType      ServiceFulfillmentType @default(AT_BRANCH)
-  minimumNoticeMinutes Int     @default(120)
-  maxParticipants      Int     @default(1)
-  advancePaymentPercent Int    @default(0)
-  cancellationPolicy   String? @db.Text
+  durationMinutes       Int                    @default(60)
+  bufferMinutes         Int                    @default(0)
+  bookingRequired       Boolean                @default(true)
+  fulfillmentType       ServiceFulfillmentType @default(AT_BRANCH)
+  minimumNoticeMinutes  Int                    @default(120)
+  maxParticipants       Int                    @default(1)
+  advancePaymentPercent Int                    @default(0)
+  cancellationPolicy    String?                @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product      Product                     @relation(fields: [productId], references: [id], onDelete: Cascade)
   availability ServiceAvailabilityWindow[]
-  bookings ServiceBooking[]
+  bookings     ServiceBooking[]
 
   @@map("service_profiles")
 }
 
 /// Recurring weekly availability. Times are interpreted using the merchant timezone.
 model ServiceAvailabilityWindow {
-  id               String @id @default(cuid())
+  id               String  @id @default(cuid())
   serviceProfileId String
   branchId         String?
   dayOfWeek        Int
@@ -2082,7 +2101,7 @@ model ServiceAvailabilityWindow {
   updatedAt DateTime @updatedAt
 
   serviceProfile ServiceProfile @relation(fields: [serviceProfileId], references: [id], onDelete: Cascade)
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch         Branch?        @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@index([serviceProfileId, dayOfWeek])
   @@index([branchId])
@@ -2091,29 +2110,29 @@ model ServiceAvailabilityWindow {
 
 /// The operational record for a scheduled service. An order may have one booking.
 model ServiceBooking {
-  id               String @id @default(cuid())
+  id               String  @id @default(cuid())
   merchantId       String
   serviceProfileId String
   orderId          String? @unique
   customerId       String
   branchId         String?
 
-  startsAt DateTime?
-  endsAt   DateTime?
-  status   ServiceBookingStatus @default(PENDING)
-  participantCount Int @default(1)
-  customerNote String?
-  internalNote String?
+  startsAt            DateTime?
+  endsAt              DateTime?
+  status              ServiceBookingStatus @default(PENDING)
+  participantCount    Int                  @default(1)
+  customerNote        String?
+  internalNote        String?
   fulfillmentSnapshot Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchant       Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   serviceProfile ServiceProfile @relation(fields: [serviceProfileId], references: [id], onDelete: Restrict)
-  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  order          Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch         Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@index([merchantId, status, startsAt])
   @@index([serviceProfileId, startsAt])
@@ -2229,11 +2248,11 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   // Relations
-  merchant       Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  account        CustomerAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  addresses      CustomerAddress[]
-  orders         Order[]
-  loyaltyAccount LoyaltyAccount?
+  merchant        Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  account         CustomerAccount?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  addresses       CustomerAddress[]
+  orders          Order[]
+  loyaltyAccount  LoyaltyAccount?
   serviceBookings ServiceBooking[]
 
   @@unique([merchantId, phone])
@@ -2618,10 +2637,77 @@ model Payment {
   updatedAt DateTime @updatedAt
 
   // Relations
-  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  manualProof OrderPaymentProof?
+  order             Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  manualProof       OrderPaymentProof?
+  settlementEntries MerchantSettlementEntry[]
 
   @@map("payments")
+}
+
+/// Immutable merchant balance movements created from centrally-collected
+/// online payments. Positive entries are merchant receivables; refund and
+/// adjustment entries may be negative and are applied to the next batch.
+model MerchantSettlementEntry {
+  id                String                        @id @default(cuid())
+  merchantId        String
+  orderId           String?
+  paymentId         String?
+  settlementBatchId String?
+  type              MerchantSettlementEntryType
+  status            MerchantSettlementEntryStatus @default(HELD)
+  grossAmount       Decimal                       @db.Decimal(14, 2)
+  processingFee     Decimal                       @default(0) @db.Decimal(14, 2)
+  platformFee       Decimal                       @default(0) @db.Decimal(14, 2)
+  netAmount         Decimal                       @db.Decimal(14, 2)
+  currency          String
+  provider          String                        @default("stripe")
+  providerReference String                        @unique
+  availableAt       DateTime
+  settledAt         DateTime?
+  metadata          Json?
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+
+  merchant        Merchant                 @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  payment         Payment?                 @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  settlementBatch MerchantSettlementBatch? @relation(fields: [settlementBatchId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId, status, availableAt])
+  @@index([settlementBatchId])
+  @@index([orderId])
+  @@map("merchant_settlement_entries")
+}
+
+/// Weekly payout instruction generated by WASLA. The actual local bank or
+/// wallet transfer is confirmed by a finance administrator.
+model MerchantSettlementBatch {
+  id              String           @id @default(cuid())
+  merchantId      String
+  status          SettlementStatus @default(PENDING)
+  periodFrom      DateTime
+  periodTo        DateTime
+  grossAmount     Decimal          @db.Decimal(14, 2)
+  processingFees  Decimal          @default(0) @db.Decimal(14, 2)
+  platformFees    Decimal          @default(0) @db.Decimal(14, 2)
+  netAmount       Decimal          @db.Decimal(14, 2)
+  currency        String
+  totalPayments   Int              @default(0)
+  totalRefunds    Int              @default(0)
+  payoutMethod    String?
+  payoutReference String?
+  notes           String?
+  paidAt          DateTime?
+  paidById        String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  merchant Merchant                  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  entries  MerchantSettlementEntry[]
+
+  @@unique([merchantId, currency, periodFrom, periodTo])
+  @@index([status, periodTo])
+  @@index([merchantId, createdAt])
+  @@map("merchant_settlement_batches")
 }
 
 /// A merchant-owned transfer destination displayed only on that merchant's checkout.

@@ -35,6 +35,7 @@ function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
     { type: 'section', label: nav.financeReportsSection },
     ...(isOwner || isAdmin || isFinance ? [
       { type: 'link' as const, label: nav.finance, href: '/admin/finance', icon: '💰' },
+      { type: 'link' as const, label: 'تسويات الدفع الإلكتروني', href: '/admin/online-settlements', icon: '🏦' },
       { type: 'link' as const, label: nav.customerSubscriptions, href: '/admin/customer-subscriptions', icon: '⭐' },
       { type: 'link' as const, label: nav.subscriptionPayments, href: '/admin/subscription-payments', icon: '🧾' },
       { type: 'link' as const, label: nav.plans, href: '/admin/plans', icon: '📦' },

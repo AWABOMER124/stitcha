@@ -12,9 +12,6 @@ export async function getMerchantBySlug(slug: string) {
       id: true, name: true, slug: true, description: true, logo: true,
       coverImage: true, phone: true, businessType: true,
       storefrontSettings: true,
-      stripeAccount: {
-        select: { detailsSubmitted: true, chargesEnabled: true, payoutsEnabled: true },
-      },
       storePaymentAccounts: {
         where: { isActive: true },
         orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],

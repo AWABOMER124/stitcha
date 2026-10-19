@@ -60,6 +60,23 @@ describe('Stripe fail-closed gateway', () => {
     expect(body.get('subscription_data[metadata][order_id]')).toBeNull();
   });
 
+  it('keeps central store checkout on the platform account when no destination is supplied', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ id: 'cs_test_central', url: 'https://checkout.stripe.com/c/pay/cs_test_central' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const gateway = new StripeGateway({ enabled: true, secretKey: 'sk_test', webhookSecret: 'whsec_test' });
+    await gateway.createCheckoutSession({ ...input, mode: 'payment', metadata: { kind: 'ORDER', order_id: 'order_1' } });
+    const body = (fetchMock.mock.calls[0] as [string, RequestInit])[1].body as URLSearchParams;
+    expect(body.get('payment_intent_data[transfer_data][destination]')).toBeNull();
+  });
+
+  it('reads Stripe processing fees from the expanded balance transaction', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ latest_charge: { id: 'ch_123', balance_transaction: { amount: 1000, fee: 59, net: 941, currency: 'usd' } } }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const gateway = new StripeGateway({ enabled: true, secretKey: 'sk_test', webhookSecret: 'whsec_test' });
+    await expect(gateway.retrievePaymentCost('pi_123ABC')).resolves.toEqual({ chargeId: 'ch_123', amount: 10, fee: 0.59, net: 9.41, currency: 'USD' });
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('expand[]=latest_charge.balance_transaction');
+  });
+
   it('verifies the raw webhook body, timestamp, and v1 signature', () => {
     const secret = 'whsec_test';
     const raw = JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed', data: { object: { id: 'cs_1' } } });

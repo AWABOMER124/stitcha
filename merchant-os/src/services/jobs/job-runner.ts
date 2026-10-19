@@ -5,6 +5,7 @@ import { notificationJobHandlers } from './notification.jobs';
 import prisma from '@/lib/db/prisma';
 import { deliveryPartnerJobHandlers } from './delivery-partner.jobs';
 import { expireAiUsageReservations } from '@/modules/ai-usage';
+import { generateWeeklyOnlineSettlements } from '@/modules/online-settlements/online-settlements.service';
 
 const handlers: OutboxHandlers = new Map([
   ...billingJobHandlers,
@@ -13,14 +14,15 @@ const handlers: OutboxHandlers = new Map([
 ]);
 
 export async function runScheduledJobs(now = new Date()) {
-  const [, expiredAiReservations] = await Promise.all([
+  const [, expiredAiReservations, onlineSettlements] = await Promise.all([
     enqueueSubscriptionBilling(now),
     expireAiUsageReservations(now),
+    generateWeeklyOnlineSettlements(now),
   ]);
   const result = await processOutboxBatch({
     workerId: `scheduler-${randomUUID()}`,
     handlers,
   });
   const deadLetters = await prisma.outboxJob.count({ where: { status: 'FAILED' } });
-  return { ...result, deadLetters, expiredAiReservations };
+  return { ...result, deadLetters, expiredAiReservations, onlineSettlements };
 }

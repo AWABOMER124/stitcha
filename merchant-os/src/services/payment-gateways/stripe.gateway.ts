@@ -42,6 +42,14 @@ export interface StripeSubscriptionSnapshot {
   metadata: Record<string, string>;
 }
 
+export interface StripePaymentCost {
+  chargeId: string;
+  amount: number;
+  fee: number;
+  net: number;
+  currency: string;
+}
+
 export class StripeGateway implements PaymentGateway {
   constructor(private readonly config: StripeGatewayConfig) {}
 
@@ -138,6 +146,26 @@ export class StripeGateway implements PaymentGateway {
     if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) throw new ValidationError('Stripe subscription is invalid');
     const payload = await this.requestStripe<Record<string, unknown>>(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
     return parseSubscription(payload);
+  }
+
+  async retrievePaymentCost(paymentIntentId: string): Promise<StripePaymentCost> {
+    this.requireReady();
+    if (!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId)) throw new ValidationError('Stripe payment intent is invalid');
+    const payload = await this.requestStripe<Record<string, unknown>>(`/payment_intents/${encodeURIComponent(paymentIntentId)}?expand[]=latest_charge.balance_transaction`);
+    const charge = payload.latest_charge;
+    if (!charge || typeof charge !== 'object' || Array.isArray(charge)) throw new BusinessRuleError('Stripe payment cost is not available yet');
+    const balance = (charge as Record<string, unknown>).balance_transaction;
+    if (!balance || typeof balance !== 'object' || Array.isArray(balance)) throw new BusinessRuleError('Stripe payment cost is not available yet');
+    const amount = (balance as Record<string, unknown>).amount;
+    const fee = (balance as Record<string, unknown>).fee;
+    const net = (balance as Record<string, unknown>).net;
+    const currency = (balance as Record<string, unknown>).currency;
+    const chargeId = (charge as Record<string, unknown>).id;
+    if (![amount, fee, net].every(value => typeof value === 'number') || typeof currency !== 'string' || typeof chargeId !== 'string') {
+      throw new BusinessRuleError('Stripe returned invalid payment costs');
+    }
+    const divisor = ZERO_DECIMAL_CURRENCIES.has(currency.toUpperCase()) ? 1 : 100;
+    return { chargeId, amount: (amount as number) / divisor, fee: (fee as number) / divisor, net: (net as number) / divisor, currency: currency.toUpperCase() };
   }
 
   constructWebhookEvent(rawBody: string, signature: string | null, now = new Date()): StripeWebhookEvent {

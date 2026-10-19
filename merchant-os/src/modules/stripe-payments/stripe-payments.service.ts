@@ -6,11 +6,30 @@ import { createStripeGatewayFromEnv } from '@/services/payment-gateways';
 import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
 import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referrals/marketer-referrals.service';
 import { getPlatformBillingSettings } from '@/modules/subscription-payments/subscription-payments.service';
+import { recordOnlinePaymentEntry, recordRefundEntry } from '@/modules/online-settlements/online-settlements.service';
 
 const PROVIDER = 'stripe';
 
 export function getStripeStatus() {
   return createStripeGatewayFromEnv().status();
+}
+
+export async function isMerchantEligibleForCentralStripe(merchantId: string) {
+  const merchant = await prisma.merchant.findUnique({
+    where: { id: merchantId },
+    select: {
+      isActive: true,
+      status: true,
+      identityVerification: { select: { status: true } },
+      referralPayoutProfile: { select: { id: true } },
+    },
+  });
+  return Boolean(
+    merchant?.isActive
+    && merchant.status === 'ACTIVE'
+    && merchant.identityVerification?.status === 'APPROVED'
+    && merchant.referralPayoutProfile,
+  );
 }
 
 export async function getMerchantStripeStatus(merchantId: string) {
@@ -117,14 +136,15 @@ export async function createSubscriptionStripeCheckout(input: {
 }
 
 export async function createOrderStripeCheckout(input: { orderId: string; merchantId: string; origin: string }) {
+  if (!(await isMerchantEligibleForCentralStripe(input.merchantId))) {
+    throw new BusinessRuleError('Online payments require approved merchant identity and payout details');
+  }
   const order = await prisma.order.findFirst({
     where: { id: input.orderId, merchantId: input.merchantId },
-    include: { merchant: { include: { stripeAccount: true } }, payment: true },
+    include: { merchant: true, payment: true },
   });
   if (!order || !order.payment) throw new NotFoundError('Order');
   if (order.payment.method !== 'ONLINE' || order.payment.status !== 'PENDING') throw new ConflictError('Order is not awaiting online payment');
-  const connected = order.merchant.stripeAccount;
-  if (!connected?.detailsSubmitted || !connected.chargesEnabled || !connected.payoutsEnabled) throw new BusinessRuleError('Stripe is not ready for this store');
   const storeAmount = Number(order.total);
   const storeCurrency = order.merchant.currency.toUpperCase();
   const billing = storeCurrency === 'SDG' ? await getPlatformBillingSettings() : null;
@@ -140,7 +160,6 @@ export async function createOrderStripeCheckout(input: { orderId: string; mercha
     currency: chargeCurrency,
     successUrl: `${input.origin}/store/${order.merchant.slug}/order/${order.id}?payment=success`,
     cancelUrl: `${input.origin}/store/${order.merchant.slug}/checkout?payment=cancelled`,
-    destinationAccountId: connected.stripeAccountId,
     metadata: { kind: 'ORDER', order_id: order.id, merchant_id: input.merchantId },
   });
   await prisma.payment.update({
@@ -177,7 +196,7 @@ export async function processStripeWebhook(rawBody: string, signature: string | 
     else if (event.type === 'account.updated') processed = await processConnectedAccountUpdate(object);
     else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') processed = await processSubscriptionUpdate(object, event.type);
     else if (event.type === 'invoice.payment_succeeded' || event.type === 'invoice.payment_failed') processed = await processInvoiceUpdate(object, gateway, event.type);
-    else if (event.type === 'charge.refunded') processed = await processRefund(object);
+    else if (event.type === 'charge.refunded') processed = await processRefund(object, event.id);
     await prisma.billingWebhookEvent.update({
       where: key,
       data: { status: processed ? 'PROCESSED' : 'IGNORED', processedAt: new Date() },
@@ -195,7 +214,7 @@ export async function processStripeWebhook(rawBody: string, signature: string | 
 async function processCompletedCheckout(object: Record<string, unknown>, gateway: ReturnType<typeof createStripeGatewayFromEnv>) {
   const metadata = readMetadata(object.metadata);
   if (object.payment_status !== 'paid') return false;
-  if (metadata.kind === 'ORDER') return completeOrderPayment(object, metadata);
+  if (metadata.kind === 'ORDER') return completeOrderPayment(object, metadata, gateway);
   if (metadata.kind !== 'SUBSCRIPTION') return false;
   const subscriptionId = typeof object.subscription === 'string' ? object.subscription : '';
   if (!subscriptionId) throw new ValidationError('Stripe checkout has no subscription');
@@ -282,7 +301,7 @@ async function processCompletedCheckout(object: Record<string, unknown>, gateway
   return true;
 }
 
-async function completeOrderPayment(object: Record<string, unknown>, metadata: Record<string, string>) {
+async function completeOrderPayment(object: Record<string, unknown>, metadata: Record<string, string>, gateway: ReturnType<typeof createStripeGatewayFromEnv>) {
   const orderId = metadata.order_id;
   const merchantId = metadata.merchant_id;
   if (!orderId || !merchantId) throw new ValidationError('Stripe order metadata is incomplete');
@@ -290,10 +309,14 @@ async function completeOrderPayment(object: Record<string, unknown>, metadata: R
   const currency = typeof object.currency === 'string' ? object.currency.toUpperCase() : '';
   const paymentIntent = typeof object.payment_intent === 'string' ? object.payment_intent : undefined;
   const sessionId = typeof object.id === 'string' ? object.id : '';
+  if (!paymentIntent) throw new ValidationError('Stripe order payment intent is missing');
+  const [stripeCost, billing] = await Promise.all([
+    gateway.retrievePaymentCost(paymentIntent),
+    getPlatformBillingSettings(),
+  ]);
   return prisma.$transaction(async tx => {
     const order = await tx.order.findFirst({ where: { id: orderId, merchantId }, include: { merchant: true, payment: true } });
     if (!order?.payment || order.payment.method !== 'ONLINE') throw new NotFoundError('Online order payment');
-    if (order.payment.status === 'COMPLETED') return true;
     const quote = order.payment.metadata && typeof order.payment.metadata === 'object' && !Array.isArray(order.payment.metadata)
       ? order.payment.metadata as Prisma.JsonObject
       : {};
@@ -302,7 +325,10 @@ async function completeOrderPayment(object: Record<string, unknown>, metadata: R
     if (currency !== expectedCurrency || amountTotal !== toMinorUnits(expectedAmount, currency)) {
       throw new ValidationError('Stripe amount does not match the order');
     }
-    const updated = await tx.payment.updateMany({
+    if (stripeCost.currency !== expectedCurrency || toMinorUnits(stripeCost.amount, stripeCost.currency) !== amountTotal) {
+      throw new ValidationError('Stripe balance transaction does not match the order');
+    }
+    await tx.payment.updateMany({
       where: { id: order.payment.id, status: 'PENDING' },
       data: {
         status: 'COMPLETED',
@@ -311,7 +337,34 @@ async function completeOrderPayment(object: Record<string, unknown>, metadata: R
         metadata: { ...quote, provider: PROVIDER, checkoutSessionId: sessionId, paymentIntentId: paymentIntent ?? null },
       },
     });
-    return updated.count === 1;
+    const storeAmount = typeof quote.storeAmount === 'number' ? quote.storeAmount : Number(order.payment.amount);
+    const storeCurrency = typeof quote.storeCurrency === 'string' ? quote.storeCurrency.toUpperCase() : order.merchant.currency.toUpperCase();
+    const exchangeRate = typeof quote.usdToSdgRate === 'number' ? quote.usdToSdgRate : null;
+    const processingFee = stripeCost.currency === storeCurrency
+      ? stripeCost.fee
+      : storeCurrency === 'SDG' && stripeCost.currency === 'USD' && exchangeRate
+        ? stripeCost.fee * exchangeRate
+        : (() => { throw new ValidationError('Stripe fee currency cannot be converted for settlement'); })();
+    const platformFee = storeAmount * billing.onlinePaymentCommissionRate / 100;
+    await recordOnlinePaymentEntry(tx, {
+      merchantId,
+      orderId,
+      paymentId: order.payment.id,
+      providerReference: `stripe:payment:${paymentIntent}`,
+      grossAmount: storeAmount,
+      processingFee,
+      platformFee,
+      currency: storeCurrency,
+      holdDays: billing.onlineSettlementHoldDays,
+      metadata: {
+        checkoutSessionId: sessionId,
+        chargeId: stripeCost.chargeId,
+        chargeAmount: stripeCost.amount,
+        chargeCurrency: stripeCost.currency,
+        exchangeRate,
+      },
+    });
+    return true;
   });
 }
 
@@ -382,15 +435,11 @@ async function processInvoiceUpdate(object: Record<string, unknown>, gateway: Re
   return true;
 }
 
-async function processRefund(object: Record<string, unknown>) {
+async function processRefund(object: Record<string, unknown>, eventId: string) {
   if (object.refunded !== true) return false;
   const paymentIntentId = typeof object.payment_intent === 'string' ? object.payment_intent : '';
   if (!paymentIntentId) return false;
-  const result = await prisma.payment.updateMany({
-    where: { transactionRef: paymentIntentId, status: 'COMPLETED' },
-    data: { status: 'REFUNDED' },
-  });
-  return result.count > 0;
+  return recordRefundEntry({ eventId, paymentIntentId });
 }
 
 function readInvoiceSubscriptionId(object: Record<string, unknown>) {

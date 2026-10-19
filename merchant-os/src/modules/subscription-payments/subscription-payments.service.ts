@@ -19,12 +19,27 @@ const DEFAULT_USD_TO_SDG = 100_000;
 
 export async function getPlatformBillingSettings() {
   const setting = await prisma.platformBillingSettings.findUnique({ where: { id: 'default' } });
-  return { usdToSdgRate: Number(setting?.usdToSdgRate ?? DEFAULT_USD_TO_SDG), updatedAt: setting?.updatedAt ?? null };
+  return {
+    usdToSdgRate: Number(setting?.usdToSdgRate ?? DEFAULT_USD_TO_SDG),
+    onlinePaymentCommissionRate: Number(setting?.onlinePaymentCommissionRate ?? 0),
+    onlineSettlementHoldDays: setting?.onlineSettlementHoldDays ?? 7,
+    updatedAt: setting?.updatedAt ?? null,
+  };
 }
 
 export async function setUsdToSdgRate(usdToSdgRate: number, updatedById: string) {
   if (!Number.isFinite(usdToSdgRate) || usdToSdgRate <= 0 || usdToSdgRate > 10_000_000) throw new ValidationError('Exchange rate is invalid');
   return prisma.platformBillingSettings.upsert({ where: { id: 'default' }, update: { usdToSdgRate, updatedById }, create: { id: 'default', usdToSdgRate, updatedById } });
+}
+
+export async function setOnlineSettlementSettings(input: { commissionRate: number; holdDays: number }, updatedById: string) {
+  if (!Number.isFinite(input.commissionRate) || input.commissionRate < 0 || input.commissionRate > 100) throw new ValidationError('Online payment commission is invalid');
+  if (!Number.isInteger(input.holdDays) || input.holdDays < 0 || input.holdDays > 90) throw new ValidationError('Settlement hold period is invalid');
+  return prisma.platformBillingSettings.upsert({
+    where: { id: 'default' },
+    update: { onlinePaymentCommissionRate: input.commissionRate, onlineSettlementHoldDays: input.holdDays, updatedById },
+    create: { id: 'default', onlinePaymentCommissionRate: input.commissionRate, onlineSettlementHoldDays: input.holdDays, updatedById },
+  });
 }
 
 function quotePlanInSdg(plan: { monthlyPrice: { toString(): string } | number; currency: string }, usdToSdgRate: number) {

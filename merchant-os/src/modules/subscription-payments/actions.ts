@@ -7,6 +7,7 @@ import { z } from 'zod';
 import {
   createPlatformPaymentAccount,
   setUsdToSdgRate,
+  setOnlineSettlementSettings,
   reviewSubscriptionPayment,
   setPlatformPaymentAccountActive,
   updatePlatformPaymentAccount,
@@ -23,6 +24,10 @@ const paymentAccountSchema = z.object({
 });
 
 const exchangeRateSchema = z.object({ usdToSdgRate: z.coerce.number().positive().max(10_000_000) });
+const settlementSettingsSchema = z.object({
+  commissionRate: z.coerce.number().min(0).max(100),
+  holdDays: z.coerce.number().int().min(0).max(90),
+});
 
 export async function createPaymentAccountAction(formData: FormData) {
   await requirePlatformPermission(PLATFORM_PERMISSIONS.SETTINGS_MANAGE);
@@ -59,6 +64,15 @@ export async function updateUsdToSdgRateAction(formData: FormData) {
   await setUsdToSdgRate(parsed.data.usdToSdgRate, actor.id);
   revalidatePath('/admin/subscription-payments');
   revalidatePath('/dashboard/subscription');
+}
+
+export async function updateOnlineSettlementSettingsAction(formData: FormData) {
+  const actor = await requirePlatformPermission(PLATFORM_PERMISSIONS.SETTINGS_MANAGE);
+  const parsed = settlementSettingsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  await setOnlineSettlementSettings(parsed.data, actor.id);
+  revalidatePath('/admin/subscription-payments');
+  revalidatePath('/admin/online-settlements');
 }
 
 export async function reviewSubscriptionPaymentFormAction(formData: FormData) {
