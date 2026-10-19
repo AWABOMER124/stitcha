@@ -13,7 +13,8 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
     await tx.$queryRaw`SELECT id FROM delivery_partners WHERE id = ${initial.partnerId} FOR SHARE`;
     await tx.$queryRaw`SELECT id FROM platform_shipments WHERE id = ${shipmentId} FOR UPDATE`;
     const shipment = await tx.platformShipment.findUniqueOrThrow({ where: { id: shipmentId }, include: {
-      partner: { include: { providerConfig: true } }, order: { include: { branch: true, merchant: true, delivery: true, items: true, payment: true } },
+      partner: { include: { providerConfig: true } }, installation: true,
+      order: { include: { branch: true, merchant: true, customer: true, delivery: true, items: true, payment: true } },
     } });
     if (shipment.providerReference) return { providerReference: shipment.providerReference };
     // A cancellation can win the race with the queued create job. Treating it
@@ -28,33 +29,70 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
       await tx.platformShipment.update({ where: { id: shipment.id }, data: { providerReference } });
       return { providerReference };
     }
-    if (config.providerKey !== 'PARTNER_HTTP_V1' || !config.apiBaseUrl || !config.credentials) throw new BusinessRuleError('Partner integration is incomplete');
-    validatePartnerEndpoint(config.apiBaseUrl);
+    const connection = shipment.installation ?? await tx.merchantDeliveryPartner.findUnique({ where: { merchantId_partnerId: { merchantId: shipment.order.merchantId, partnerId: shipment.partnerId } } });
+    if (!connection?.isActive || connection.revokedAt || connection.merchantId !== shipment.order.merchantId || connection.partnerId !== shipment.partnerId) throw new BusinessRuleError('Partner installation is inactive');
+    if (!shipment.installationId) await tx.platformShipment.update({ where: { id: shipment.id }, data: { installationId: connection.id } });
     const pickup = shipment.order.branch ?? await tx.branch.findFirst({ where: { merchantId: shipment.order.merchantId, isMain: true, isActive: true } });
     if (pickup?.lat == null || pickup.lng == null || shipment.order.delivery?.lat == null || shipment.order.delivery.lng == null) throw new BusinessRuleError('Pickup and dropoff coordinates required');
-    const response = await fetch(`${config.apiBaseUrl.replace(/\/$/, '')}/shipments`, {
+    const appPayload = {
+      id: `evt_${shipment.id}_created`, type: 'shipment.created', apiVersion: '2026-10-20', occurredAt: new Date().toISOString(),
+      partner: { id: shipment.partnerId, clientId: config.clientId ?? null },
+      installation: { id: connection.id, merchantId: connection.merchantId },
+      store: { id: shipment.order.merchant.id, name: shipment.order.merchant.name, slug: shipment.order.merchant.slug,
+        phone: shipment.order.merchant.phone, email: shipment.order.merchant.email, currency: shipment.order.merchant.currency },
+      shipment: { id: shipment.id, trackingCode: shipment.trackingCode, orderId: shipment.order.id, orderNumber: shipment.order.orderNumber,
+        status: shipment.status, createdAt: shipment.createdAt.toISOString() },
+      sender: { branchId: pickup.id, name: pickup.name, phone: pickup.phone ?? shipment.order.merchant.phone,
+        email: pickup.email ?? shipment.order.merchant.email, address: pickup.address ?? shipment.order.merchant.address,
+        location: { lat: pickup.lat, lng: pickup.lng } },
+      recipient: { customerId: shipment.order.customerId, name: shipment.order.customerName ?? shipment.order.customer.name,
+        phone: shipment.order.customerPhone ?? shipment.order.customer.phone, email: shipment.order.customer.email,
+        address: shipment.order.customerAddress ?? shipment.order.customer.address,
+        location: { lat: shipment.order.delivery.lat, lng: shipment.order.delivery.lng } },
+      payment: { method: shipment.order.paymentMethod, status: shipment.order.payment?.status ?? null,
+        codAmount: shipment.order.paymentMethod === 'CASH' ? Number(shipment.order.total) : 0, currency: shipment.currency },
+      amounts: { subtotal: Number(shipment.order.subtotal), discount: Number(shipment.order.discount), tax: Number(shipment.order.tax),
+        deliveryFee: Number(shipment.fee), orderTotal: Number(shipment.order.total), currency: shipment.currency },
+      packages: [{ reference: shipment.order.orderNumber, items: shipment.order.items.map(item => {
+        const snapshot = item.productSnapshot as { name?: unknown; sku?: unknown; image?: unknown } | null;
+        return { productId: item.productId, name: typeof snapshot?.name === 'string' ? snapshot.name : 'Item',
+          sku: typeof snapshot?.sku === 'string' ? snapshot.sku : null, image: typeof snapshot?.image === 'string' ? snapshot.image : null,
+          quantity: item.quantity, unitPrice: Number(item.unitPrice), total: Number(item.total), modifiers: item.modifiers, notes: item.notes };
+      }) }],
+      notes: shipment.order.notes,
+    };
+    const appMode = config.integrationMode === 'APP_V1';
+    const legacyPayload = {
+      event: 'shipment.create', version: '2026-10-01', eventId: `shipment.create:${shipment.id}`,
+      occurredAt: new Date().toISOString(), shipmentId: shipment.id, trackingCode: shipment.trackingCode, orderNumber: shipment.order.orderNumber,
+      pickup: { name: pickup.name, phone: pickup.phone ?? shipment.order.merchant.phone, address: pickup.address ?? shipment.order.merchant.address, lat: pickup.lat, lng: pickup.lng },
+      dropoff: { name: shipment.order.customerName, phone: shipment.order.customerPhone, address: shipment.order.customerAddress, lat: shipment.order.delivery.lat, lng: shipment.order.delivery.lng },
+      payment: appPayload.payment, pricing: { deliveryFee: Number(shipment.fee), orderTotal: Number(shipment.order.total), currency: shipment.currency },
+      items: shipment.order.items.map(item => {
+        const snapshot = item.productSnapshot as { name?: unknown; sku?: unknown } | null;
+        return { name: typeof snapshot?.name === 'string' ? snapshot.name : 'Item', sku: typeof snapshot?.sku === 'string' ? snapshot.sku : null,
+          quantity: item.quantity, unitPrice: Number(item.unitPrice), total: Number(item.total), notes: item.notes };
+      }), notes: shipment.order.notes,
+    };
+    const endpoint = appMode ? config.outboundWebhookUrl : config.apiBaseUrl ? `${config.apiBaseUrl.replace(/\/$/, '')}/shipments` : null;
+    const signingSecret = appMode ? config.webhookSigningSecret : config.credentials;
+    if (!endpoint || !signingSecret || (appMode && !config.clientId)) throw new BusinessRuleError('Partner integration is incomplete');
+    validatePartnerEndpoint(endpoint, config.approvedOrigin);
+    const rawBody = JSON.stringify(appMode ? appPayload : legacyPayload);
+    const response = await fetch(endpoint, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${decryptSecret(config.credentials)}`, 'idempotency-key': shipment.id },
-      body: JSON.stringify({
-        event: 'shipment.create', version: '2026-10-01', eventId: `shipment.create:${shipment.id}`,
-        occurredAt: new Date().toISOString(), shipmentId: shipment.id, trackingCode: shipment.trackingCode, orderNumber: shipment.order.orderNumber,
-        pickup: { name: pickup.name, phone: pickup.phone ?? shipment.order.merchant.phone, address: pickup.address ?? shipment.order.merchant.address, lat: pickup.lat, lng: pickup.lng },
-        dropoff: { name: shipment.order.customerName, phone: shipment.order.customerPhone, address: shipment.order.customerAddress, lat: shipment.order.delivery.lat, lng: shipment.order.delivery.lng },
-        payment: { method: shipment.order.paymentMethod, status: shipment.order.payment?.status ?? null,
-          codAmount: shipment.order.paymentMethod === 'CASH' ? Number(shipment.order.total) : 0, currency: shipment.currency },
-        pricing: { deliveryFee: Number(shipment.fee), orderTotal: Number(shipment.order.total), currency: shipment.currency },
-        items: shipment.order.items.map(item => {
-          const snapshot = item.productSnapshot as { name?: unknown; sku?: unknown } | null;
-          return { name: typeof snapshot?.name === 'string' ? snapshot.name : 'Item', sku: typeof snapshot?.sku === 'string' ? snapshot.sku : null,
-            quantity: item.quantity, unitPrice: Number(item.unitPrice), total: Number(item.total), notes: item.notes };
-        }),
-        notes: shipment.order.notes,
-      }),
+      headers: appMode
+        ? { 'content-type': 'application/json', 'x-wasla-client-id': config.clientId!, 'x-wasla-event': appPayload.type,
+            'x-wasla-event-id': appPayload.id, 'x-wasla-signature': `sha256=${createHmac('sha256', decryptSecret(signingSecret)).update(rawBody).digest('hex')}`,
+            'idempotency-key': appPayload.id }
+        : { 'content-type': 'application/json', authorization: `Bearer ${decryptSecret(signingSecret)}`, 'idempotency-key': shipment.id },
+      body: rawBody,
     });
     if (!response.ok) throw new BusinessRuleError(`Partner API rejected shipment (${response.status})`);
-    const result = z.object({ providerReference: z.string().trim().min(1).max(200) }).parse(await response.json());
-    await tx.platformShipment.update({ where: { id: shipment.id }, data: { providerReference: result.providerReference } });
-    return result;
+    if (response.status === 204 || !response.headers.get('content-type')?.includes('application/json')) return { accepted: true as const };
+    const result = z.object({ providerReference: z.string().trim().min(1).max(200).optional() }).parse(await response.json());
+    if (result.providerReference) await tx.platformShipment.update({ where: { id: shipment.id }, data: { providerReference: result.providerReference } });
+    return { accepted: true as const, ...result };
   }, { timeout: 20_000, maxWait: 20_000 });
 }
 
@@ -62,21 +100,39 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
 export async function cancelShipmentAtPartner(shipmentId: string) {
   const shipment = await prisma.platformShipment.findUnique({
     where: { id: shipmentId },
-    include: { partner: { include: { providerConfig: true } }, order: { select: { orderNumber: true } } },
+    include: { partner: { include: { providerConfig: true } }, installation: true,
+      order: { select: { id: true, merchantId: true, orderNumber: true } } },
   });
-  if (!shipment || shipment.status !== 'CANCELLED' || !shipment.providerReference) return { skipped: true as const };
+  if (!shipment || shipment.status !== 'CANCELLED') return { skipped: true as const };
   const config = shipment.partner.providerConfig;
   if (config?.providerKey === 'TEST_SIMULATOR') return { cancelled: true as const };
-  if (!shipment.partner.isActive || shipment.partner.status !== 'ACTIVE' || config?.providerKey !== 'PARTNER_HTTP_V1' || !config.isActive || !config.apiBaseUrl || !config.credentials) {
+  if (!shipment.partner.isActive || shipment.partner.status !== 'ACTIVE' || !config?.isActive) {
     throw new BusinessRuleError('Partner cancellation integration is inactive');
   }
-  validatePartnerEndpoint(config.apiBaseUrl);
-  const response = await fetch(`${config.apiBaseUrl.replace(/\/$/, '')}/shipments/${encodeURIComponent(shipment.providerReference)}/cancel`, {
+  const appMode = config.integrationMode === 'APP_V1';
+  if (!appMode && !shipment.providerReference) return { skipped: true as const };
+  const endpoint = appMode ? config.outboundWebhookUrl : config.apiBaseUrl ? `${config.apiBaseUrl.replace(/\/$/, '')}/shipments/${encodeURIComponent(shipment.providerReference!)}/cancel` : null;
+  const signingSecret = appMode ? config.webhookSigningSecret : config.credentials;
+  if (!endpoint || !signingSecret || (appMode && !config.clientId)) throw new BusinessRuleError('Partner cancellation integration is incomplete');
+  validatePartnerEndpoint(endpoint, config.approvedOrigin);
+  const payload = appMode
+    ? { id: `evt_${shipment.id}_cancelled`, type: 'shipment.cancelled', apiVersion: '2026-10-20', occurredAt: new Date().toISOString(),
+        partner: { id: shipment.partnerId, clientId: config.clientId },
+        installation: { id: shipment.installation?.id ?? null, merchantId: shipment.order.merchantId },
+        shipment: { id: shipment.id, providerReference: shipment.providerReference, trackingCode: shipment.trackingCode,
+          orderId: shipment.order.id, orderNumber: shipment.order.orderNumber, status: shipment.status }, reason: 'ORDER_CANCELLED' }
+    : { event: 'shipment.cancel', version: '2026-10-01', eventId: `shipment.cancel:${shipment.id}`,
+        occurredAt: new Date().toISOString(), shipmentId: shipment.id, providerReference: shipment.providerReference,
+        trackingCode: shipment.trackingCode, orderNumber: shipment.order.orderNumber, reason: 'ORDER_CANCELLED' };
+  const rawBody = JSON.stringify(payload);
+  const response = await fetch(endpoint, {
     method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10_000),
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${decryptSecret(config.credentials)}`, 'idempotency-key': `cancel:${shipment.id}` },
-    body: JSON.stringify({ event: 'shipment.cancel', version: '2026-10-01', eventId: `shipment.cancel:${shipment.id}`,
-      occurredAt: new Date().toISOString(), shipmentId: shipment.id, providerReference: shipment.providerReference,
-      trackingCode: shipment.trackingCode, orderNumber: shipment.order.orderNumber, reason: 'ORDER_CANCELLED' }),
+    headers: appMode
+      ? { 'content-type': 'application/json', 'x-wasla-client-id': config.clientId!, 'x-wasla-event': 'shipment.cancelled',
+          'x-wasla-event-id': `evt_${shipment.id}_cancelled`, 'x-wasla-signature': `sha256=${createHmac('sha256', decryptSecret(signingSecret)).update(rawBody).digest('hex')}`,
+          'idempotency-key': `evt_${shipment.id}_cancelled` }
+      : { 'content-type': 'application/json', authorization: `Bearer ${decryptSecret(signingSecret)}`, 'idempotency-key': `cancel:${shipment.id}` },
+    body: rawBody,
   });
   if (!response.ok) throw new BusinessRuleError(`Partner API rejected cancellation (${response.status})`);
   return { cancelled: true as const };

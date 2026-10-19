@@ -21,4 +21,14 @@ describe('operator-approved delivery endpoints', () => {
     vi.stubEnv('NODE_ENV', 'production'); vi.stubEnv('DELIVERY_PARTNER_ALLOW_LOCAL_TEST', 'true');
     expect(() => validatePartnerEndpoint('http://127.0.0.1:1234')).toThrow();
   });
+  it('accepts the exact database-approved origin without an env entry', () => {
+    vi.stubEnv('DELIVERY_PARTNER_API_ORIGINS', '');
+    expect(validatePartnerEndpoint('https://carrier.example/events', 'https://carrier.example').pathname).toBe('/events');
+    expect(() => validatePartnerEndpoint('https://other.example/events', 'https://carrier.example')).toThrow();
+  });
+  it('allows a safe public endpoint to be stored pending admin review', () => {
+    vi.stubEnv('DELIVERY_PARTNER_API_ORIGINS', '');
+    expect(validatePartnerEndpoint('https://carrier.example/events', null, true).origin).toBe('https://carrier.example');
+    expect(() => validatePartnerEndpoint('https://127.0.0.1/events', null, true)).toThrow();
+  });
 });

@@ -4,6 +4,7 @@ import {
   PLATFORM_PERMISSIONS,
   requirePlatformPermission,
 } from "@/lib/platform-permissions";
+import { validatePartnerEndpoint } from '@/modules/delivery-partners/services/partner-endpoint';
 
 async function createTestPartner() {
   "use server";
@@ -103,11 +104,19 @@ async function updatePartner(formData: FormData) {
       where: { id },
       data: { supportsCod: false },
     });
-  if (intent === "publish")
-    await prisma.deliveryPartner.update({
-      where: { id },
-      data: { appStatus: "PUBLISHED" },
-    });
+  if (intent === "publish") {
+    const config = await prisma.deliveryPartnerProviderConfig.findUnique({ where: { partnerId: id } });
+    if (!config) throw new Error('إعدادات الربط غير مكتملة');
+    const endpoint = config.integrationMode === 'APP_V1' ? config.outboundWebhookUrl : config.apiBaseUrl;
+    if (!endpoint) throw new Error('رابط التكامل غير موجود');
+    if (config.integrationMode === 'APP_V1' && (!config.clientId || !config.clientSecretHash || !config.webhookSigningSecret)) throw new Error('مفاتيح التطبيق غير مكتملة');
+    if (config.integrationMode === 'LEGACY_HTTP' && !config.credentials) throw new Error('مفتاح الربط القديم غير موجود');
+    const approvedOrigin = validatePartnerEndpoint(endpoint, null, true).origin;
+    await prisma.$transaction([
+      prisma.deliveryPartner.update({ where: { id }, data: { appStatus: "PUBLISHED" } }),
+      prisma.deliveryPartnerProviderConfig.update({ where: { partnerId: id }, data: { approvedOrigin, isActive: true } }),
+    ]);
+  }
   if (intent === "reject")
     await prisma.deliveryPartner.update({
       where: { id },
@@ -120,6 +129,7 @@ export default async function DeliveryPartnersPage() {
   await requirePlatformPermission(PLATFORM_PERMISSIONS.DELIVERY_MANAGE);
   const partners = await prisma.deliveryPartner.findMany({
     include: {
+      providerConfig: true,
       _count: {
         select: { serviceAreas: true, couriers: true, shipments: true },
       },
@@ -181,6 +191,7 @@ export default async function DeliveryPartnersPage() {
                 <dd className="font-bold">{partner._count.shipments}</dd>
               </div>
             </dl>
+            {partner.providerConfig && <div className="mt-4 rounded-xl bg-[var(--muted)] p-3 text-xs leading-6"><p><strong>نمط الربط:</strong> {partner.providerConfig.integrationMode === 'APP_V1' ? 'تطبيق احترافي' : 'مباشر قديم'}</p><p dir="ltr" className="truncate text-left"><strong>Client ID:</strong> {partner.providerConfig.clientId ?? '—'}</p><p dir="ltr" className="truncate text-left"><strong>Endpoint:</strong> {partner.providerConfig.integrationMode === 'APP_V1' ? partner.providerConfig.outboundWebhookUrl : partner.providerConfig.apiBaseUrl}</p><p><strong>اعتماد النطاق:</strong> {partner.providerConfig.approvedOrigin ?? 'بانتظار المراجعة'}</p></div>}
             <div className="mt-4 flex flex-wrap gap-2">
               <form action={updatePartner}>
                 <input type="hidden" name="id" value={partner.id} />

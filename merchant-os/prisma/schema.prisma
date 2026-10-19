@@ -638,6 +638,7 @@ model DeliveryPartner {
   settlements         DeliveryPartnerSettlement[]
   users               DeliveryPartnerUser[]
   merchantConnections MerchantDeliveryPartner[]
+  apiEvents           DeliveryPartnerApiEvent[]
 
   @@index([status, isActive])
   @@map("delivery_partners")
@@ -666,11 +667,15 @@ model MerchantDeliveryPartner {
   merchantId String
   partnerId  String
   isActive   Boolean  @default(true)
+  scopes     Json?
+  installedAt DateTime @default(now())
+  revokedAt   DateTime?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   merchant Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   partner  DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  shipments PlatformShipment[]
 
   @@unique([merchantId, partnerId])
   @@index([merchantId, isActive])
@@ -685,6 +690,13 @@ model DeliveryPartnerProviderConfig {
   apiBaseUrl   String?
   credentials  String?
   webhookToken String   @unique @default(cuid())
+  integrationMode String @default("LEGACY_HTTP")
+  clientId            String? @unique
+  clientSecretHash    String?
+  outboundWebhookUrl  String?
+  approvedOrigin      String?
+  webhookSigningSecret String?
+  subscribedEvents    Json?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -805,6 +817,7 @@ model PlatformShipment {
   orderId           String                 @unique
   quoteId           String?                @unique
   partnerId         String
+  installationId    String?
   courierId         String?
   trackingCode      String                 @unique
   providerReference String?
@@ -820,14 +833,34 @@ model PlatformShipment {
   order         Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   quote         DeliveryQuote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   partner       DeliveryPartner          @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  installation  MerchantDeliveryPartner? @relation(fields: [installationId], references: [id], onDelete: SetNull)
   courier       DeliveryCourier?         @relation(fields: [courierId], references: [id], onDelete: SetNull)
   events        DeliveryEvent[]
   proof         PlatformProofOfDelivery?
   codCollection CodCollection?
+  partnerApiEvents DeliveryPartnerApiEvent[]
 
   @@index([partnerId, status])
+  @@index([installationId, status])
   @@index([courierId, status])
   @@map("platform_shipments")
+}
+
+model DeliveryPartnerApiEvent {
+  id         String   @id @default(cuid())
+  partnerId  String
+  shipmentId String
+  eventId    String
+  status     String   @default("RECEIVED")
+  createdAt  DateTime @default(now())
+  processedAt DateTime?
+
+  partner  DeliveryPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  shipment PlatformShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, eventId])
+  @@index([shipmentId, createdAt])
+  @@map("delivery_partner_api_events")
 }
 
 model DeliveryEvent {

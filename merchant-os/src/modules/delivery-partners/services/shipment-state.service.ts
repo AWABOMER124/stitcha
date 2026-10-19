@@ -14,7 +14,7 @@ const rank: Partial<Record<PlatformShipmentStatus, number>> = { REQUESTED: 0, AS
 export async function applyShipmentState(input: {
   partnerId: string; shipmentId: string; status: PlatformShipmentStatus;
   actorType: 'PARTNER_API' | 'DELIVERY_PARTNER'; actorId?: string; note?: string;
-  metadata?: { eventId?: string | null; occurredAt?: string | null };
+  metadata?: { eventId?: string | null; occurredAt?: string | null; installationId?: string | null };
 }) {
   return prisma.$transaction(async tx => {
     const initial = await tx.platformShipment.findFirst({ where: { id: input.shipmentId, partnerId: input.partnerId } });

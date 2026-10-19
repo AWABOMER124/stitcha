@@ -29,8 +29,10 @@ async function togglePartner(formData: FormData) {
       merchantId: session.user.merchantId,
       partnerId,
       isActive: enabled,
+      scopes: ['shipping.read_write'],
+      revokedAt: enabled ? null : new Date(),
     },
-    update: { isActive: enabled },
+    update: { isActive: enabled, scopes: ['shipping.read_write'], revokedAt: enabled ? null : new Date() },
   });
   revalidatePath("/dashboard/delivery/partners");
 }
@@ -107,6 +109,7 @@ export default async function DeliveryMarketplacePage() {
                   p.description ??
                   "خدمة توصيل متكاملة للمتاجر."}
               </p>
+              <p className="mt-3 rounded-xl bg-blue-50 p-3 text-xs leading-6 text-blue-950">عند التفعيل تسمح للتطبيق باستلام بيانات الشحن للطلبات المسندة إليه فقط: بيانات الفرع والمستلم والأصناف والدفع. لا يحصل على بقية بيانات متجرك.</p>
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
                 {p.supportsCod && (
                   <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-emerald-700">

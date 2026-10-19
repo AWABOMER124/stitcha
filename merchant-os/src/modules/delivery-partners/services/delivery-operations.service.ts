@@ -68,7 +68,7 @@ export async function quotePlatformDelivery(orderId: string) {
         appStatus: "PUBLISHED",
         providerConfig: { isActive: true },
         merchantConnections: {
-          some: { merchantId: order.merchantId, isActive: true },
+          some: { merchantId: order.merchantId, isActive: true, revokedAt: null },
         },
       },
       OR: [{ maxDistanceKm: null }, { maxDistanceKm: { gte: tripDistanceKm } }],
@@ -177,12 +177,19 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     await tx.$queryRaw`SELECT id FROM delivery_partners WHERE id = ${quote.partnerId} FOR SHARE`;
     const partner = await tx.deliveryPartner.findUniqueOrThrow({ where: { id: quote.partnerId }, include: { providerConfig: true } });
     const connection = await tx.merchantDeliveryPartner.findUnique({ where: { merchantId_partnerId: { merchantId: quote.order.merchantId, partnerId: quote.partnerId } } });
-    if (!partner.isActive || partner.status !== 'ACTIVE' || partner.appStatus !== 'PUBLISHED' || !partner.supportsCod || !connection?.isActive) throw new BusinessRuleError('Partner is no longer eligible');
+    if (!partner.isActive || partner.status !== 'ACTIVE' || partner.appStatus !== 'PUBLISHED' || !partner.supportsCod || !connection?.isActive || connection.revokedAt) throw new BusinessRuleError('Partner is no longer eligible');
     const config = partner.providerConfig;
     if (!config?.isActive || !['PARTNER_HTTP_V1', 'TEST_SIMULATOR'].includes(config.providerKey)) throw new BusinessRuleError('Partner integration is inactive');
     if (config.providerKey === 'PARTNER_HTTP_V1') {
-      if (!config.apiBaseUrl || !config.credentials) throw new BusinessRuleError('Partner integration is incomplete');
-      validatePartnerEndpoint(config.apiBaseUrl);
+      if (config.integrationMode === 'APP_V1') {
+        const scopes = Array.isArray(connection.scopes) ? connection.scopes : [];
+        if (!scopes.includes('shipping.read_write')) throw new BusinessRuleError('Partner installation is missing shipping permission');
+        if (!config.clientId || !config.clientSecretHash || !config.outboundWebhookUrl || !config.webhookSigningSecret) throw new BusinessRuleError('Partner app integration is incomplete');
+        validatePartnerEndpoint(config.outboundWebhookUrl, config.approvedOrigin);
+      } else {
+        if (!config.apiBaseUrl || !config.credentials) throw new BusinessRuleError('Partner integration is incomplete');
+        validatePartnerEndpoint(config.apiBaseUrl, config.approvedOrigin);
+      }
     }
     const rule = quote.pricingRule;
     const area = rule?.serviceArea;
@@ -226,6 +233,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
         orderId,
         quoteId: quote.id,
         partnerId: quote.partnerId,
+        installationId: connection.id,
         trackingCode: `WSL-${nanoid(10).toUpperCase()}`,
         fee,
         currency: quote.currency,
