@@ -1,6 +1,6 @@
 # دليل ربط وصلة مع شركات الشحن والتوصيل
 
-> الحالة: منفذ وجاهز لاختبار الشريك — آخر تحديث 2026-08-28
+> الحالة: منفذ وجاهز لاختبار قبول أول شريك — آخر تحديث 2026-10-19
 > النطاق: تعاقد وصلة مباشرة مع شركات التوصيل، إنشاء الشحنات، التتبع، إثبات التسليم، والتحصيل عند الاستلام.
 
 ## 1. الملخص التنفيذي
@@ -12,7 +12,7 @@
 | مناطق الخدمة والأسعار | جاهز | تحميل أسعار وعقود الشركات المعتمدة |
 | عروض التوصيل | جاهز داخلياً | خيار طلب سعر لحظي من الشركة لاحقاً |
 | قبول العرض وتحديث إجمالي الطلب | جاهز وذري | لا تغيير |
-| إنشاء سجل الشحنة ورقم تتبع وصلة | جاهز | مراقبة المحاولات وإضافة retry دائم قبل الإنتاج الواسع |
+| إنشاء سجل الشحنة ورقم تتبع وصلة | جاهز مع Outbox و8 محاولات | مراقبة الوظائف الفاشلة والتنبيه عليها |
 | تكامل شركة خارجية | `PARTNER_HTTP_V1` جاهز | اختبار عقد API مع كل شركة |
 | Webhook | جاهز للشركاء مع HMAC SHA-256 | اختبار التوقيع وإعادة الإرسال مع كل شركة |
 | بوابة الشريك وسوق التطبيقات | جاهز | مراجعة قانونية وتشغيل UAT |
@@ -88,6 +88,10 @@ Request:
 
 ```json
 {
+  "event": "shipment.create",
+  "version": "2026-10-01",
+  "eventId": "shipment.create:clx_platform_shipment_id",
+  "occurredAt": "2026-10-19T10:30:00.000Z",
   "shipmentId": "clx_platform_shipment_id",
   "orderNumber": "WSL-ORDER-1042",
   "trackingCode": "WSL-N8Q2K7F4A1",
@@ -95,20 +99,20 @@ Request:
     "name": "فرع السوق العربي",
     "phone": "+249...",
     "address": "الخرطوم، السوق العربي",
-    "latitude": 15.5932,
-    "longitude": 32.5363,
-    "readyAt": "2026-08-27T11:00:00Z"
+    "lat": 15.5932,
+    "lng": 32.5363
   },
   "dropoff": {
     "name": "اسم العميل",
     "phone": "+249...",
     "address": "الخرطوم، الرياض",
-    "latitude": 15.5701,
-    "longitude": 32.5752,
-    "notes": "الاتصال قبل الوصول"
+    "lat": 15.5701,
+    "lng": 32.5752
   },
-  "codAmount": 24500,
-  "currency": "SDG"
+  "payment": { "method": "CASH", "status": "PENDING", "codAmount": 24500, "currency": "SDG" },
+  "pricing": { "deliveryFee": 1500, "orderTotal": 24500, "currency": "SDG" },
+  "items": [{ "name": "منتج", "sku": "SKU-1", "quantity": 1, "unitPrice": 23000, "total": 23000, "notes": null }],
+  "notes": "الاتصال قبل الوصول"
 }
 ```
 
@@ -116,11 +120,7 @@ Success `201` أو إعادة نفس النتيجة عند تكرار `Idempoten
 
 ```json
 {
-  "providerReference": "SHIP-883140",
-  "status": "accepted",
-  "trackingUrl": "https://courier.example/track/SHIP-883140",
-  "estimatedPickupAt": "2026-08-27T11:15:00Z",
-  "estimatedDeliveryAt": "2026-08-27T12:00:00Z"
+  "providerReference": "SHIP-883140"
 }
 ```
 
@@ -134,6 +134,8 @@ X-Wasla-Signature: sha256=<hex-hmac-of-raw-body>
 
 ```json
 {
+  "eventId": "carrier-event-0001",
+  "occurredAt": "2026-10-19T10:45:00.000Z",
   "providerReference": "SHIP-883140",
   "status": "IN_TRANSIT",
   "note": "غادر المندوب نقطة الاستلام"
@@ -144,23 +146,29 @@ X-Wasla-Signature: sha256=<hex-hmac-of-raw-body>
 
 ### 5.3 إلغاء شحنة
 
-`POST {providerBaseUrl}/v1/shipments/{providerReference}/cancel`
+`POST {providerBaseUrl}/shipments/{providerReference}/cancel`
 
 ```json
 {
-  "externalReference": "clx_platform_shipment_id",
-  "reasonCode": "CUSTOMER_CANCELLED",
-  "reason": "ألغى العميل الطلب قبل الاستلام"
+  "event": "shipment.cancel",
+  "version": "2026-10-01",
+  "eventId": "shipment.cancel:clx_platform_shipment_id",
+  "occurredAt": "2026-10-19T10:50:00.000Z",
+  "shipmentId": "clx_platform_shipment_id",
+  "providerReference": "SHIP-883140",
+  "trackingCode": "WSL-N8Q2K7F4A1",
+  "orderNumber": "WSL-ORDER-1042",
+  "reason": "ORDER_CANCELLED"
 }
 ```
 
 يجب أن يكون الإلغاء idempotent. إذا كانت الشحنة مسلّمة، تعيد الشركة `409` مع كود واضح مثل `SHIPMENT_NOT_CANCELLABLE`.
 
-### 5.4 قراءة حالة الشحنة
+### 5.4 قراءة حالة الشحنة — مرحلة لاحقة
 
 `GET {providerBaseUrl}/v1/shipments/{providerReference}`
 
-يستخدم للمطابقة والإصلاح عند فقد Webhook، وليس بديلاً عن Webhooks.
+هذا المسار غير مستهلك في الإصدار الحالي. يضاف لاحقاً للمطابقة والإصلاح عند فقد Webhook، وليس بديلاً عن Webhooks.
 
 ### 5.5 التسعير اللحظي — اختياري في المرحلة الثانية
 
@@ -176,90 +184,55 @@ X-Wasla-Signature: sha256=<hex-hmac-of-raw-body>
 POST https://wassla-sd.shop/api/webhooks/delivery-partners/{webhookToken}
 ```
 
-> هذا المسار **مقترح وغير منفذ حالياً**. المسار الحالي `/api/webhooks/delivery/{token}` مرتبط بالنموذج القديم.
+> هذا المسار منفذ وهو المسار المعتمد للنموذج الجديد. `/api/webhooks/delivery/{token}` للتوافق مع النموذج القديم فقط.
 
 Headers القياسية:
 
 ```http
 Content-Type: application/json
-X-Delivery-Event-Id: evt_01J...
-X-Delivery-Timestamp: 1787824800
-X-Delivery-Signature: sha256=<hex-hmac>
+X-Wasla-Signature: sha256=<hex-hmac-of-raw-body>
 ```
 
 التوقيع:
 
 ```text
-HMAC_SHA256(webhookSecret, timestamp + "." + rawRequestBody)
+HMAC_SHA256(webhookSecret, rawRequestBody)
 ```
 
 قواعد التحقق:
 
 - استخدام النص الخام للطلب قبل JSON parsing.
 - مقارنة التوقيع بزمن ثابت.
-- رفض timestamp أقدم من خمس دقائق.
-- حفظ `eventId` كقيمة فريدة لمنع replay والتكرار.
-- إعادة `200` للحدث المكرر بعد التأكد أنه عولج سابقاً.
-- تدوير السر مع فترة تقاطع تسمح بسر حالي وسابق.
+- إرسال `eventId` و`occurredAt` لتسهيل التتبع والتدقيق.
+- إعادة `200` للحدث المكرر أو المتأخر بعد التأكد أنه لا يغير الحالة.
+- عدم إعادة إرسال 4xx قبل تصحيح الطلب؛ إعادة 5xx و429 بتراجع تدريجي.
 
 Payload:
 
 ```json
 {
   "eventId": "evt_01J7QG8H2T",
-  "eventType": "shipment.status_changed",
-  "occurredAt": "2026-08-27T11:32:14Z",
+  "occurredAt": "2026-10-19T11:32:14.000Z",
   "providerReference": "SHIP-883140",
-  "externalReference": "clx_platform_shipment_id",
-  "status": "picked_up",
-  "courier": {
-    "providerCourierId": "DRV-90",
-    "name": "محمد أحمد",
-    "phone": "+249...",
-    "vehicleType": "MOTORCYCLE",
-    "vehiclePlate": "خ 12345"
-  },
-  "location": {
-    "latitude": 15.582,
-    "longitude": 32.556,
-    "recordedAt": "2026-08-27T11:31:59Z"
-  },
+  "status": "PICKED_UP",
   "note": "تم الاستلام من المتجر"
 }
 ```
 
-حدث التسليم يمكن أن يضيف:
-
-```json
-{
-  "proofOfDelivery": {
-    "recipientName": "اسم المستلم",
-    "deliveredAt": "2026-08-27T12:04:10Z",
-    "otpVerified": true,
-    "photoUrl": "https://provider.example/private-proof/..."
-  },
-  "cod": {
-    "status": "collected",
-    "expectedAmount": 24500,
-    "collectedAmount": 24500,
-    "currency": "SDG"
-  }
-}
-```
+العقد الحالي صارم ويرفض الحقول الإضافية. بيانات المندوب والموقع وإثبات التسليم ومطابقة COD موجودة كنماذج داخلية، لكنها ليست جزءاً من Webhook v1 بعد؛ تضاف في إصدار عقد جديد دون كسر v1.
 
 ## 7. توحيد الحالات
 
-| حالة الشركة | `PlatformShipmentStatus` | أثر الطلب |
+| الحدث الذي ترسله الشركة | `PlatformShipmentStatus` | أثر الطلب |
 |---|---|---|
-| `requested`, `pending` | `REQUESTED` | بدون تغيير |
-| `accepted`, `courier_assigned` | `ASSIGNED` | بدون تغيير |
-| `picked_up` | `PICKED_UP` | `OUT_FOR_DELIVERY` |
-| `in_transit`, `arriving` | `IN_TRANSIT` | `OUT_FOR_DELIVERY` |
-| `delivered` | `DELIVERED` | `DELIVERED` |
-| `failed`, `delivery_failed` | `FAILED` | مراجعة تشغيلية؛ لا يُلغى الطلب تلقائياً |
-| `cancelled` | `CANCELLED` | يطبق قرار الإلغاء حسب مصدره وحالة الطلب |
+| `ASSIGNED` | `ASSIGNED` | بدون تغيير |
+| `PICKED_UP` | `PICKED_UP` | `OUT_FOR_DELIVERY` |
+| `IN_TRANSIT` | `IN_TRANSIT` | `OUT_FOR_DELIVERY` |
+| `DELIVERED` | `DELIVERED` | `DELIVERED` |
+| `FAILED` | `FAILED` | مراجعة تشغيلية؛ لا يُلغى الطلب تلقائياً |
+| `CANCELLED` | `CANCELLED` | لا يلغي الطلب التجاري تلقائياً |
 
-الأحداث الخارجة عن الترتيب تُحفظ في `DeliveryEvent`، لكن لا يجوز لها إعادة الحالة إلى الخلف. `DELIVERED` و`CANCELLED` حالتان نهائيتان، وأي تصحيح بعدهما يحتاج إجراء إداري مدقق.
+على كل شركة تحويل حالاتها الداخلية إلى القيم القياسية الكبيرة أعلاه قبل الإرسال. الأحداث المكررة أو الأقدم لا تعيد الحالة إلى الخلف. `DELIVERED` و`CANCELLED` و`FAILED` حالات نهائية، وأي تصحيح بعدها يحتاج إجراءً إدارياً مدققاً.
 
 ## 8. تصميم Adapter داخل وصلة
 

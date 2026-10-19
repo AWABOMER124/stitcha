@@ -14,6 +14,7 @@ const rank: Partial<Record<PlatformShipmentStatus, number>> = { REQUESTED: 0, AS
 export async function applyShipmentState(input: {
   partnerId: string; shipmentId: string; status: PlatformShipmentStatus;
   actorType: 'PARTNER_API' | 'DELIVERY_PARTNER'; actorId?: string; note?: string;
+  metadata?: { eventId?: string | null; occurredAt?: string | null };
 }) {
   return prisma.$transaction(async tx => {
     const initial = await tx.platformShipment.findFirst({ where: { id: input.shipmentId, partnerId: input.partnerId } });
@@ -45,7 +46,7 @@ export async function applyShipmentState(input: {
     await tx.platformShipment.update({ where: { id: shipment.id }, data: {
       status: input.status, ...(input.status === 'ASSIGNED' ? { assignedAt: now } : {}),
       ...(input.status === 'PICKED_UP' ? { pickedUpAt: now } : {}), ...(input.status === 'DELIVERED' ? { deliveredAt: now } : {}),
-      events: { create: { status: input.status, actorType: input.actorType, actorId: input.actorId, note: input.note?.slice(0, 1000) } },
+      events: { create: { status: input.status, actorType: input.actorType, actorId: input.actorId, note: input.note?.slice(0, 1000), metadata: input.metadata } },
     } });
     if (orderStatus) {
       await tx.order.update({ where: { id: shipment.orderId }, data: { status: orderStatus, ...(orderStatus === 'DELIVERED' ? { completedAt: now } : {}) } });

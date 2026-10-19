@@ -12,6 +12,7 @@ const prismaMock = {
   platformPaymentAccount: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   platformBillingSettings: { findUnique: vi.fn(), upsert: vi.fn() },
   merchantPlanChangeRequest: { findFirst: vi.fn() },
+  merchantSubscription: { findFirst: vi.fn() },
   merchantSubscriptionPayment: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
   $transaction: vi.fn(async (callback: (tx: typeof txMock) => unknown) => callback(txMock)),
 };
@@ -40,6 +41,7 @@ describe('manual subscription payments', () => {
     txMock.merchantReferral.findUnique.mockResolvedValue(null);
     txMock.marketerMerchantReferral.findUnique.mockResolvedValue(null);
     prismaMock.platformBillingSettings.findUnique.mockResolvedValue({ usdToSdgRate: 5_000, updatedAt: new Date() });
+    prismaMock.merchantSubscription.findFirst.mockResolvedValue(null);
     privateStorageMock.upload.mockResolvedValue('private/merchant_1-subscription-payments/receipt.jpg');
     privateStorageMock.delete.mockResolvedValue(undefined);
   });
@@ -79,7 +81,7 @@ describe('manual subscription payments', () => {
   });
 
   it('activates the paid plan only after owner verification', async () => {
-    txMock.merchantSubscriptionPayment.findUnique.mockResolvedValue({ id: 'payment_1', merchantId: 'merchant_1', targetPlanId: 'plan_pro', planChangeRequestId: 'request_1', status: 'PENDING', amount: 25_000, currency: 'SDG' });
+    txMock.merchantSubscriptionPayment.findUnique.mockResolvedValue({ id: 'payment_1', merchantId: 'merchant_1', targetPlanId: 'plan_pro', planChangeRequestId: 'request_1', provider: 'manual', status: 'PENDING', amount: 25_000, currency: 'SDG' });
     txMock.merchantSubscription.upsert.mockResolvedValue({ id: 'subscription_1' });
     txMock.merchantSubscriptionPayment.updateMany.mockResolvedValue({ count: 1 });
     txMock.merchantPlanChangeRequest.update.mockResolvedValue({});
@@ -95,7 +97,7 @@ describe('manual subscription payments', () => {
   });
 
   it('requires a reason when rejecting a payment', async () => {
-    txMock.merchantSubscriptionPayment.findUnique.mockResolvedValue({ id: 'payment_1', status: 'PENDING' });
+    txMock.merchantSubscriptionPayment.findUnique.mockResolvedValue({ id: 'payment_1', provider: 'manual', status: 'PENDING' });
     await expect(reviewSubscriptionPayment('payment_1', 'owner_1', 'REJECT', ' ')).rejects.toThrow('Rejection reason is required');
     expect(txMock.merchantSubscriptionPayment.updateMany).not.toHaveBeenCalled();
   });

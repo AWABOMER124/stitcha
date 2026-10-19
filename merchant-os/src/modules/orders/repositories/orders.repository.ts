@@ -5,6 +5,7 @@ import { serializePrismaArray, serializePrismaObject } from '@/lib/serialization
 import { BusinessRuleError, ValidationError } from '@/lib/errors';
 import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
 import { attachStoreAffiliateAttribution, qualifyStoreAffiliateCommission, voidStoreAffiliateAttribution } from '@/modules/store-affiliates/store-affiliates.service';
+import { enqueueJob } from '@/services/jobs/outbox.service';
 
 // ============================================================================
 // Orders Repository — Data access layer
@@ -18,6 +19,7 @@ const orderIncludes = {
   payment: { include: { manualProof: { select: { id: true, paymentId: true, accountLabel: true, transactionRef: true, senderName: true, transferredAt: true, status: true, reviewedAt: true, rejectionReason: true, createdAt: true, updatedAt: true } } } },
   branch: true,
   merchant: { select: { name: true } },
+  platformShipment: { select: { status: true } },
 };
 
 /** Find an order by ID with all relations */
@@ -309,6 +311,14 @@ export async function updateStatus(
     });
 
     if (status === 'CANCELLED' || status === 'REJECTED') {
+      const shipment = await tx.platformShipment.findUnique({ where: { orderId: id }, select: { id: true, status: true } });
+      if (shipment && ['REQUESTED', 'ASSIGNED'].includes(shipment.status)) {
+        await tx.platformShipment.update({
+          where: { id: shipment.id },
+          data: { status: 'CANCELLED', events: { create: { status: 'CANCELLED', actorType: 'MERCHANT', actorId: changedById, note: note ?? 'Order cancelled by merchant' } } },
+        });
+        await enqueueJob({ topic: 'delivery.partner.cancel', payload: { shipmentId: shipment.id }, idempotencyKey: `delivery:cancel:${shipment.id}`, maxAttempts: 8 }, tx);
+      }
       await voidStoreAffiliateAttribution(tx, id, status === 'CANCELLED' ? 'ORDER_CANCELLED' : 'ORDER_REJECTED');
       const orderItems = await tx.orderItem.findMany({
         where: { orderId: id, productId: { not: null } },

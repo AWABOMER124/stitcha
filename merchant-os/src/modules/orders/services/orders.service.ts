@@ -224,6 +224,13 @@ export async function updateOrderStatus(
     );
   }
 
+  if (newStatus === 'CANCELLED') {
+    const shipment = order.platformShipment;
+    if (shipment && !['REQUESTED', 'ASSIGNED'].includes(shipment.status)) {
+      throw new BusinessRuleError('The delivery shipment can only be cancelled before courier pickup');
+    }
+  }
+
   const updated = await ordersRepo.updateStatus(
     merchantId,
     id,
