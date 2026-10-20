@@ -27,6 +27,10 @@ ENV APP_RELEASE=$APP_RELEASE
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build && node scripts/assert-partner-build.mjs
 
+# Keep the production image free of build/lint-only packages. Prisma and
+# dotenv are runtime dependencies because the entrypoint applies migrations.
+RUN npm prune --omit=dev && npm cache clean --force
+
 # ── Stage 2: Production ───────────────────────────────────────────────────────
 FROM node:24-alpine AS runner
 WORKDIR /app
