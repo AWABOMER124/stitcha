@@ -5,6 +5,7 @@ This record documents the production stabilization pass deployed before the firs
 ## Deployed versions
 
 - WASLA application: `0f3bc3fe9e4f80b1d65411ba21ccd4f85131e2af`
+- Readiness documentation and reusable checks: `545306fc6777c90ba289053d52d7d499571d36f7`
 - AI Gateway: `4778a3e7e1bd71d66652804d981e6adf2419b49e`
 - Public application: `https://wassla-sd.shop`
 - Mail domain: `mail.wassla-sd.shop` (verified by Resend)
@@ -53,9 +54,9 @@ The checks require `AI_CORE_BASE_URL`, `AI_CORE_SECRET_WASLA`, and an appropriat
 ### Build and automated checks
 
 - ESLint passed.
-- 40 automated tests across 9 files passed.
+- 404 automated tests across 77 files passed locally.
 - The production build generated all 99 application routes successfully.
-- GitHub Actions passed for both WASLA and AI Gateway before deployment.
+- GitHub Actions passed for WASLA, its production-container smoke test, Flutter, and AI Gateway.
 - Dokploy completed the WASLA deployment with status `done`.
 
 ## Operational observations
