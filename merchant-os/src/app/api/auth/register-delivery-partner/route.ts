@@ -5,6 +5,7 @@ import prisma from "@/lib/db/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
 import { isValidInternationalPhone, normalizeInternationalPhone } from "@/lib/utils/formatting";
 import { uniqueSlug } from "@/lib/slug";
+import { accountVerificationChannels, sendAccountCode } from '@/modules/account-verification/account-verification.service';
 
 const schema = z
   .object({
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     );
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-  const partner = await prisma.$transaction(async (tx) => {
+  const registration = await prisma.$transaction(async (tx) => {
     const created = await tx.deliveryPartner.create({
       data: {
         name: parsed.data.companyName,
@@ -80,10 +81,26 @@ export async function POST(request: Request) {
         isOwner: true,
       },
     });
-    return created;
+    return { partner: created, user };
   });
+  const channels = accountVerificationChannels();
+  let otpSent = false;
+  let warning: string | undefined;
+  if (channels.email) {
+    try { await sendAccountCode(registration.user.id, 'EMAIL', 'partner'); otpSent = true; }
+    catch (error) { warning = error instanceof Error ? error.message : 'تعذر إرسال رمز البريد'; }
+  } else warning = 'تأكيد البريد غير مهيأ حالياً؛ يمكنك تأكيد واتساب من بوابة الشريك.';
   return NextResponse.json(
-    { partner: { id: partner.id, slug: partner.slug }, status: "PENDING" },
+    {
+      partner: { id: registration.partner.id, slug: registration.partner.slug },
+      userId: registration.user.id,
+      email,
+      verificationRequired: true,
+      otpSent,
+      availableChannels: channels,
+      status: "PENDING",
+      ...(warning && { warning }),
+    },
     { status: 201 },
   );
 }

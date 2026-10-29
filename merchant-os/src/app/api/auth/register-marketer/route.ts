@@ -5,6 +5,7 @@ import prisma from '@/lib/db/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/utils/formatting';
 import { randomBytes } from 'node:crypto';
+import { accountVerificationChannels, sendAccountCode } from '@/modules/account-verification/account-verification.service';
 
 const schema = z.object({
   name: z.string().trim().min(3).max(120), email: z.string().trim().email().max(254),
@@ -18,8 +19,15 @@ export async function POST(request: Request) {
   const phone = normalizeInternationalPhone(parsed.data.phone, parsed.data.countryCode);
   if (!isValidInternationalPhone(phone)) return NextResponse.json({ error: 'أدخل رقم واتساب دولياً صحيحاً مع مفتاح الدولة.' }, { status: 400 });
   const email = parsed.data.email.toLowerCase();
+  if (!accountVerificationChannels().email) {
+    return NextResponse.json({ error: 'تأكيد البريد غير متاح مؤقتاً. تواصل مع دعم وصلة.' }, { status: 503 });
+  }
   const exists = await prisma.user.findFirst({ where: { OR: [{ email: { equals: email, mode: 'insensitive' } }, { phone }] }, select: { id: true } });
   if (exists) return NextResponse.json({ error: 'البريد الإلكتروني أو رقم الهاتف مستخدم مسبقاً.' }, { status: 409 });
   const user = await prisma.user.create({ data: { name: parsed.data.name, email, phone, passwordHash: await bcrypt.hash(parsed.data.password, 12), role: 'MARKETER', marketerAccount: { create: { acquisitionCode: `MK-${randomBytes(5).toString('hex').toUpperCase()}` } } } });
-  return NextResponse.json({ userId: user.id }, { status: 201 });
+  let otpSent = true;
+  let warning: string | undefined;
+  try { await sendAccountCode(user.id, 'EMAIL', 'marketer'); }
+  catch (error) { otpSent = false; warning = error instanceof Error ? error.message : 'تعذر إرسال رمز البريد'; }
+  return NextResponse.json({ userId: user.id, email, verificationRequired: true, otpSent, ...(warning && { warning }) }, { status: 201 });
 }

@@ -195,7 +195,7 @@ export async function getMerchantById(id: string) {
   const merchant = await prisma.merchant.findUnique({
     where: { id },
     include: {
-      users: { where: { isActive: true }, include: { user: { select: { id: true, name: true, email: true, phone: true } } } },
+      users: { where: { isActive: true }, include: { user: { select: { id: true, name: true, email: true, phone: true, emailVerified: true, phoneVerifiedAt: true } } } },
       subscription: { include: { plan: true } },
       storefrontSettings: true,
       _count: { select: { products: true, orders: true, customers: true, branches: true } },

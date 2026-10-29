@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useLocale } from "@/lib/i18n/context";
-import { Check, Eye, EyeOff, MessageCircle, ShieldCheck, Store } from 'lucide-react';
+import { Check, Eye, EyeOff, Mail, MessageCircle, ShieldCheck, Store } from 'lucide-react';
 import { InternationalPhoneInput } from '@/components/ui/international-phone-input';
 
 /**
@@ -33,6 +33,8 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const [verificationToken, setVerificationToken] = useState('');
   const [sentTo, setSentTo] = useState('');
+  const [verificationChannel, setVerificationChannel] = useState<'EMAIL' | 'WHATSAPP'>('EMAIL');
+  const [availableChannels, setAvailableChannels] = useState({ email: true, whatsapp: false });
   const [code, setCode] = useState('');
   const passwordChecks = useMemo(() => [formData.password.length >= 8, /[A-Za-z]/.test(formData.password), /\d/.test(formData.password)], [formData.password]);
 
@@ -68,7 +70,9 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
         router.replace(signInResult?.error ? '/login' : '/dashboard');
       } else {
         setVerificationToken(data.verificationToken);
-        setSentTo(data.phone);
+        setVerificationChannel(data.verificationChannel ?? 'EMAIL');
+        setAvailableChannels(data.availableChannels ?? { email: true, whatsapp: false });
+        setSentTo(data.verificationChannel === 'WHATSAPP' ? data.phone : data.email);
         setStep('otp');
         setError(data.otpSent ? '' : (data.warning || 'تم إنشاء الحساب، لكن تعذر إرسال الرمز. حاول إعادة الإرسال.'));
       }
@@ -84,9 +88,9 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/verify-phone', {
+      const res = await fetch('/api/auth/verify-account', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationToken, code }),
+        body: JSON.stringify({ verificationToken, channel: verificationChannel, code }),
       });
       const data = await res.json();
       if (!res.ok) return setError(data.error || 'فشل تأكيد الرقم');
@@ -105,17 +109,36 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/verify-phone/request', {
+      const res = await fetch('/api/auth/verify-account/request', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationToken }),
+        body: JSON.stringify({ verificationToken, channel: verificationChannel }),
       });
       const data = await res.json();
       if (!res.ok) setError(data.error || 'تعذر إعادة إرسال الرمز');
+      else setSentTo(data.target);
     } catch {
       setError(dict.common.somethingWrong);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function switchVerificationChannel(channel: 'EMAIL' | 'WHATSAPP') {
+    if (channel === verificationChannel || loading) return;
+    setVerificationChannel(channel);
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-account/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationToken, channel }),
+      });
+      const data = await res.json();
+      if (!res.ok) return setError(data.error || 'تعذر إرسال الرمز');
+      setSentTo(data.target);
+      setCode('');
+    } catch { setError(dict.common.somethingWrong); }
+    finally { setLoading(false); }
   }
 
   const businessTypes = [
@@ -131,12 +154,16 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
     return (
       <div className="space-y-5">
         <div className="text-center space-y-2">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"><MessageCircle className="h-7 w-7" /></div>
-          <h1 className="text-2xl font-bold">تأكيد رقم واتساب</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">أرسلنا رمزاً من 6 أرقام إلى <b dir="ltr">{sentTo}</b></p>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">{verificationChannel === 'EMAIL' ? <Mail className="h-7 w-7" /> : <MessageCircle className="h-7 w-7" />}</div>
+          <h1 className="text-2xl font-bold">تأكيد حساب التاجر</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">أرسلنا رمزاً من 6 أرقام عبر {verificationChannel === 'EMAIL' ? 'البريد الإلكتروني' : 'واتساب'} إلى <b dir="ltr">{sentTo}</b></p>
         </div>
         <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-xl shadow-slate-900/5 sm:p-8">
           {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+          {availableChannels.email && availableChannels.whatsapp && <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-[var(--muted)] p-1">
+            <button type="button" onClick={() => switchVerificationChannel('EMAIL')} className={`rounded-lg px-3 py-2 text-sm font-bold ${verificationChannel === 'EMAIL' ? 'bg-[var(--card)] shadow-sm' : ''}`}>البريد الإلكتروني</button>
+            <button type="button" onClick={() => switchVerificationChannel('WHATSAPP')} className={`rounded-lg px-3 py-2 text-sm font-bold ${verificationChannel === 'WHATSAPP' ? 'bg-[var(--card)] shadow-sm' : ''}`}>واتساب</button>
+          </div>}
           <form onSubmit={verifyCode} className="space-y-5">
             <label htmlFor="otp-code" className="block text-center text-sm font-semibold">رمز التأكيد</label>
             <input id="otp-code" autoFocus required inputMode="numeric" autoComplete="one-time-code" maxLength={6}

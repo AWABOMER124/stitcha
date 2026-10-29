@@ -11,6 +11,10 @@ export default function DeliveryPartnerRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [countryCode, setCountryCode] = useState('+249');
   const [phone, setPhone] = useState('');
+  const [step, setStep] = useState<'form'|'verify'>('form');
+  const [userId, setUserId] = useState('');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -24,8 +28,28 @@ export default function DeliveryPartnerRegisterPage() {
     const data = await response.json();
     setLoading(false);
     if (!response.ok) return setError(data.error ?? "تعذر إنشاء الحساب");
-    router.push("/login?partner=registered");
+    setUserId(data.userId);
+    setEmail(String(form.get('email') ?? ''));
+    setStep('verify');
+    if (!data.otpSent) setError(data.warning ?? 'تم إنشاء الحساب، لكن تعذر إرسال رمز البريد. يمكنك إعادة المحاولة أو تأكيد واتساب بعد تسجيل الدخول.');
   }
+  async function verify(event: React.FormEvent) {
+    event.preventDefault(); setLoading(true); setError('');
+    try {
+      const response = await fetch('/api/auth/verify-account', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({userId,channel:'EMAIL',code}) });
+      const data = await response.json();
+      if (!response.ok) return setError(data.error ?? 'تعذر تأكيد البريد');
+      router.push('/login?partner=verified');
+    } catch { setError('تعذر الاتصال. حاول مرة أخرى.'); }
+    finally { setLoading(false); }
+  }
+  async function resend() {
+    setLoading(true); setError('');
+    try { const response=await fetch('/api/auth/verify-account/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({userId,channel:'EMAIL'})}); const data=await response.json(); if(!response.ok)setError(data.error??'تعذر إرسال الرمز'); }
+    catch { setError('تعذر الاتصال. حاول مرة أخرى.'); }
+    finally { setLoading(false); }
+  }
+  if (step === 'verify') return <div className="space-y-6" dir="rtl"><div><p className="text-sm font-bold text-[var(--primary)]">شركاء وصلة</p><h1 className="mt-2 text-3xl font-black">تأكيد البريد الإلكتروني</h1><p className="mt-2 text-sm text-[var(--muted-foreground)]">أرسلنا رمزاً من 6 أرقام إلى <b dir="ltr">{email}</b></p></div><form onSubmit={verify} className="space-y-4 rounded-2xl border bg-[var(--card)] p-6 shadow-sm">{error&&<p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}<input required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} className="w-full rounded-xl border p-4 text-center text-2xl font-black tracking-[.4em]"/><button disabled={loading||code.length!==6} className="w-full rounded-xl bg-[var(--primary)] px-5 py-3 font-bold text-white disabled:opacity-50">{loading?'جارٍ التأكيد…':'تأكيد الحساب'}</button><button type="button" onClick={resend} disabled={loading} className="w-full text-sm font-bold text-[var(--primary)] disabled:opacity-50">إعادة إرسال الرمز</button><Link href="/login" className="block text-center text-sm underline">تأكيد واتساب أو تسجيل الدخول لاحقاً</Link></form></div>;
   return (
     <div className="space-y-6" dir="rtl">
       <div>

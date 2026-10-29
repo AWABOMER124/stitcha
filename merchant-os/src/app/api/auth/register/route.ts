@@ -8,6 +8,7 @@ import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/ut
 import { sendOtp } from '@/modules/phone-verification/services/phone-verification.service';
 import { attachMerchantReferral } from '@/modules/merchant-referrals/merchant-referrals.service';
 import { attachMarketerMerchantReferral } from '@/modules/marketer-referrals/marketer-referrals.service';
+import { accountVerificationChannels, sendAccountCode } from '@/modules/account-verification/account-verification.service';
 
 const directMerchantRegistrationSchema = z.object({
   merchantName: z.string().trim().min(2).max(120),
@@ -56,7 +57,11 @@ export async function POST(req: Request) {
   const slug = `${baseSlug || 'store'}-${Date.now().toString(36)}`;
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const verificationEnabled = process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED === 'true';
+  const availableChannels = accountVerificationChannels();
+  // Fail closed when verification is explicitly required: a transient or
+  // incomplete provider configuration must not silently activate the store.
+  const whatsappEnabled = process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED === 'true';
+  const verificationEnabled = availableChannels.email || whatsappEnabled;
   const registrationToken = verificationEnabled ? crypto.randomBytes(32).toString('base64url') : null;
   const registrationTokenExpiresAt = verificationEnabled ? new Date(Date.now() + 30 * 60 * 1000) : null;
 
@@ -127,10 +132,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ slug: registration.merchant.slug, verificationRequired: false, referralAccepted: registration.referralAccepted }, { status: 201 });
   }
 
+  const verificationChannel = availableChannels.email ? 'EMAIL' as const : 'WHATSAPP' as const;
   let otpSent = true;
   let warning: string | undefined;
   try {
-    await sendOtp(registration.user.id);
+    if (verificationChannel === 'EMAIL') await sendAccountCode(registration.user.id, 'EMAIL', 'merchant');
+    else await sendOtp(registration.user.id);
   } catch (error) {
     otpSent = false;
     warning = error instanceof Error ? error.message : 'تعذر إرسال رمز واتساب';
@@ -140,6 +147,9 @@ export async function POST(req: Request) {
     slug: registration.merchant.slug,
     verificationRequired: true,
     verificationToken: registrationToken,
+    verificationChannel,
+    availableChannels: { email: availableChannels.email, whatsapp: whatsappEnabled },
+    email: normalizedEmail,
     phone,
     expiresInMinutes: 10,
     otpSent,

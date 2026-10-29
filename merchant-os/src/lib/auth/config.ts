@@ -62,6 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;
+        if (user.role === 'MARKETER' && !user.emailVerified) return null;
 
         const merchantUser = user.merchantUsers[0] ?? null;
         const distributorUser = user.distributorUsers[0] ?? null;
