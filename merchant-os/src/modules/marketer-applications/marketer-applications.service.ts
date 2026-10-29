@@ -41,7 +41,7 @@ export async function listPublicAffiliateStores() {
 
 export async function submitMarketerApplication(input: MarketerApplicationInput, now = new Date()) {
   const phone = normalizeInternationalPhone(input.phone.trim(), input.countryCode);
-  if (!isValidInternationalPhone(phone)) throw new ValidationError('أدخل رقم واتساب دولياً صحيحاً مع مفتاح الدولة');
+  if (!isValidInternationalPhone(phone)) throw new ValidationError('أدخل رقم هاتف دولياً صحيحاً مع مفتاح الدولة');
   if (input.type === 'MERCHANT_ACQUISITION' && input.merchantId) throw new ValidationError('طلب استقطاب التجار لا يرتبط بمتجر');
   if (input.type === 'STOREFRONT_PRODUCTS' && !input.merchantId) throw new ValidationError('اختر المتجر الذي تريد التسويق له');
   if (input.type === 'STOREFRONT_PRODUCTS') {

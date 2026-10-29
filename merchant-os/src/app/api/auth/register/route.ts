@@ -5,7 +5,6 @@ import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { isValidInternationalPhone, normalizeInternationalPhone } from '@/lib/utils/formatting';
-import { sendOtp } from '@/modules/phone-verification/services/phone-verification.service';
 import { attachMerchantReferral } from '@/modules/merchant-referrals/merchant-referrals.service';
 import { attachMarketerMerchantReferral } from '@/modules/marketer-referrals/marketer-referrals.service';
 import { accountVerificationChannels, sendAccountCode } from '@/modules/account-verification/account-verification.service';
@@ -33,7 +32,7 @@ export async function POST(req: Request) {
   const normalizedEmail = String(email).trim().toLowerCase();
   const phone = normalizeInternationalPhone(parsed.data.phone, parsed.data.countryCode);
   if (!isValidInternationalPhone(phone)) {
-    return NextResponse.json({ error: 'أدخل رقم واتساب دولياً صحيحاً مع مفتاح الدولة' }, { status: 400 });
+    return NextResponse.json({ error: 'أدخل رقم هاتف دولياً صحيحاً مع مفتاح الدولة' }, { status: 400 });
   }
 
   const existing = await prisma.user.findFirst({
@@ -58,12 +57,12 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 12);
   const availableChannels = accountVerificationChannels();
-  // Fail closed when verification is explicitly required: a transient or
-  // incomplete provider configuration must not silently activate the store.
-  const whatsappEnabled = process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED === 'true';
-  const verificationEnabled = availableChannels.email || whatsappEnabled;
-  const registrationToken = verificationEnabled ? crypto.randomBytes(32).toString('base64url') : null;
-  const registrationTokenExpiresAt = verificationEnabled ? new Date(Date.now() + 30 * 60 * 1000) : null;
+  if (!availableChannels.email) {
+    return NextResponse.json({ error: 'تأكيد البريد غير متاح مؤقتاً. تواصل مع دعم وصلة.' }, { status: 503 });
+  }
+  const verificationEnabled = true;
+  const registrationToken = crypto.randomBytes(32).toString('base64url');
+  const registrationTokenExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
   const registration = await prisma.$transaction(async (tx) => {
     const newMerchant = await tx.merchant.create({
@@ -132,15 +131,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ slug: registration.merchant.slug, verificationRequired: false, referralAccepted: registration.referralAccepted }, { status: 201 });
   }
 
-  const verificationChannel = availableChannels.email ? 'EMAIL' as const : 'WHATSAPP' as const;
+  const verificationChannel = 'EMAIL' as const;
   let otpSent = true;
   let warning: string | undefined;
   try {
-    if (verificationChannel === 'EMAIL') await sendAccountCode(registration.user.id, 'EMAIL', 'merchant');
-    else await sendOtp(registration.user.id);
+    await sendAccountCode(registration.user.id, 'EMAIL', 'merchant');
   } catch (error) {
     otpSent = false;
-    warning = error instanceof Error ? error.message : 'تعذر إرسال رمز واتساب';
+    warning = error instanceof Error ? error.message : 'تعذر إرسال رمز البريد';
   }
 
   return NextResponse.json({
@@ -148,7 +146,7 @@ export async function POST(req: Request) {
     verificationRequired: true,
     verificationToken: registrationToken,
     verificationChannel,
-    availableChannels: { email: availableChannels.email, whatsapp: whatsappEnabled },
+    availableChannels,
     email: normalizedEmail,
     phone,
     expiresInMinutes: 10,

@@ -20,6 +20,9 @@ function hashCode(code: string): string {
 
 /** Generate a fresh OTP and send it to the user's phone via WhatsApp. */
 export async function sendOtp(userId: string) {
+  if (process.env.WHATSAPP_ACCOUNT_VERIFICATION_ENABLED !== 'true') {
+    throw new ValidationError('تأكيد الحساب عبر واتساب متوقف مؤقتاً؛ استخدم البريد الإلكتروني');
+  }
   const user = await repo.getUserForOtp(userId);
   if (!user) throw new NotFoundError('User');
   if (!user.phone) throw new ValidationError('No phone number on this account');
@@ -62,6 +65,9 @@ export async function sendOtp(userId: string) {
 
 /** Verify a submitted OTP code and, on success, mark the phone as verified. */
 export async function verifyOtp(userId: string, code: string) {
+  if (process.env.WHATSAPP_ACCOUNT_VERIFICATION_ENABLED !== 'true') {
+    throw new ValidationError('تأكيد الحساب عبر واتساب متوقف مؤقتاً؛ استخدم البريد الإلكتروني');
+  }
   const pending = await repo.findLatestPending(userId);
   if (!pending) throw new ValidationError('لا يوجد كود بانتظار التحقق — اطلب كودًا جديدًا');
 

@@ -18,15 +18,15 @@ vi.mock('@/lib/security/rate-limit', () => ({
   checkRateLimit: vi.fn().mockReturnValue(true),
   getClientIp: vi.fn().mockReturnValue('127.0.0.1'),
 }));
-vi.mock('@/modules/phone-verification/services/phone-verification.service', () => ({
-  sendOtp: vi.fn().mockResolvedValue({ phone: '+249111222333', expiresInMinutes: 10 }),
+vi.mock('@/modules/account-verification/account-verification.service', () => ({
+  accountVerificationChannels: vi.fn(() => ({ email: true, whatsapp: false })),
+  sendAccountCode: vi.fn().mockResolvedValue({ target: 'owner@example.com', alreadyVerified: false }),
 }));
 
 const { POST } = await import('./route');
 
 describe('POST /api/auth/register', () => {
   beforeEach(() => {
-    process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED = 'true';
     Object.values(txMock).forEach((model) => Object.values(model).forEach((fn) => fn.mockReset()));
     prismaMock.user.findFirst.mockReset().mockResolvedValue(null);
     prismaMock.$transaction.mockClear();
@@ -34,7 +34,7 @@ describe('POST /api/auth/register', () => {
     txMock.user.create.mockResolvedValue({ id: 'user_1' });
   });
 
-  it('creates a pending free-plan merchant and starts WhatsApp verification', async () => {
+  it('creates a pending free-plan merchant and starts email verification', async () => {
     const response = await POST(new Request('http://localhost/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({
@@ -54,24 +54,8 @@ describe('POST /api/auth/register', () => {
     });
     await expect(response.json()).resolves.toEqual(expect.objectContaining({
       slug: 'store-1', verificationRequired: true, verificationToken: expect.any(String),
-      phone: '+249111222333', otpSent: true,
+      phone: '+249111222333', verificationChannel: 'EMAIL',
+      availableChannels: { email: true, whatsapp: false }, otpSent: true,
     }));
-  });
-
-  it('preserves active signup while WhatsApp verification is not enabled', async () => {
-    process.env.WHATSAPP_SIGNUP_VERIFICATION_ENABLED = 'false';
-    const response = await POST(new Request('http://localhost/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        merchantName: 'Pilot Store', ownerName: 'Owner', email: 'pilot@example.com',
-        phone: '0911222333', password: 'password123', businessType: 'RETAIL',
-      }),
-    }));
-
-    expect(response.status).toBe(201);
-    expect(txMock.merchant.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ status: 'ACTIVE', registrationToken: null }),
-    });
-    await expect(response.json()).resolves.toEqual({ slug: 'store-1', verificationRequired: false, referralAccepted: false });
   });
 });

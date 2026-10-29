@@ -39,6 +39,10 @@ export async function POST(request: Request) {
   if (!isValidInternationalPhone(phone)) {
     return NextResponse.json({ error: "أدخل رقم هاتف دولياً صحيحاً مع مفتاح الدولة" }, { status: 400 });
   }
+  const channels = accountVerificationChannels();
+  if (!channels.email) {
+    return NextResponse.json({ error: 'تأكيد البريد غير متاح مؤقتاً. تواصل مع دعم وصلة.' }, { status: 503 });
+  }
   const exists = await prisma.user.findFirst({
     where: { OR: [{ email }, { phone }] },
     select: { id: true },
@@ -83,13 +87,10 @@ export async function POST(request: Request) {
     });
     return { partner: created, user };
   });
-  const channels = accountVerificationChannels();
   let otpSent = false;
   let warning: string | undefined;
-  if (channels.email) {
-    try { await sendAccountCode(registration.user.id, 'EMAIL', 'partner'); otpSent = true; }
-    catch (error) { warning = error instanceof Error ? error.message : 'تعذر إرسال رمز البريد'; }
-  } else warning = 'تأكيد البريد غير مهيأ حالياً؛ يمكنك تأكيد واتساب من بوابة الشريك.';
+  try { await sendAccountCode(registration.user.id, 'EMAIL', 'partner'); otpSent = true; }
+  catch (error) { warning = error instanceof Error ? error.message : 'تعذر إرسال رمز البريد'; }
   return NextResponse.json(
     {
       partner: { id: registration.partner.id, slug: registration.partner.slug },

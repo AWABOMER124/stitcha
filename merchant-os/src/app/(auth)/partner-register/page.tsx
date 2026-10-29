@@ -31,7 +31,7 @@ export default function DeliveryPartnerRegisterPage() {
     setUserId(data.userId);
     setEmail(String(form.get('email') ?? ''));
     setStep('verify');
-    if (!data.otpSent) setError(data.warning ?? 'تم إنشاء الحساب، لكن تعذر إرسال رمز البريد. يمكنك إعادة المحاولة أو تأكيد واتساب بعد تسجيل الدخول.');
+    if (!data.otpSent) setError(data.warning ?? 'تم إنشاء الحساب، لكن تعذر إرسال رمز البريد. يمكنك إعادة المحاولة.');
   }
   async function verify(event: React.FormEvent) {
     event.preventDefault(); setLoading(true); setError('');
@@ -49,7 +49,7 @@ export default function DeliveryPartnerRegisterPage() {
     catch { setError('تعذر الاتصال. حاول مرة أخرى.'); }
     finally { setLoading(false); }
   }
-  if (step === 'verify') return <div className="space-y-6" dir="rtl"><div><p className="text-sm font-bold text-[var(--primary)]">شركاء وصلة</p><h1 className="mt-2 text-3xl font-black">تأكيد البريد الإلكتروني</h1><p className="mt-2 text-sm text-[var(--muted-foreground)]">أرسلنا رمزاً من 6 أرقام إلى <b dir="ltr">{email}</b></p></div><form onSubmit={verify} className="space-y-4 rounded-2xl border bg-[var(--card)] p-6 shadow-sm">{error&&<p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}<input required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} className="w-full rounded-xl border p-4 text-center text-2xl font-black tracking-[.4em]"/><button disabled={loading||code.length!==6} className="w-full rounded-xl bg-[var(--primary)] px-5 py-3 font-bold text-white disabled:opacity-50">{loading?'جارٍ التأكيد…':'تأكيد الحساب'}</button><button type="button" onClick={resend} disabled={loading} className="w-full text-sm font-bold text-[var(--primary)] disabled:opacity-50">إعادة إرسال الرمز</button><Link href="/login" className="block text-center text-sm underline">تأكيد واتساب أو تسجيل الدخول لاحقاً</Link></form></div>;
+  if (step === 'verify') return <div className="space-y-6" dir="rtl"><div><p className="text-sm font-bold text-[var(--primary)]">شركاء وصلة</p><h1 className="mt-2 text-3xl font-black">تأكيد البريد الإلكتروني</h1><p className="mt-2 text-sm text-[var(--muted-foreground)]">أرسلنا رمزاً من 6 أرقام إلى <b dir="ltr">{email}</b></p></div><form onSubmit={verify} className="space-y-4 rounded-2xl border bg-[var(--card)] p-6 shadow-sm">{error&&<p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}<input required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} className="w-full rounded-xl border p-4 text-center text-2xl font-black tracking-[.4em]"/><button disabled={loading||code.length!==6} className="w-full rounded-xl bg-[var(--primary)] px-5 py-3 font-bold text-white disabled:opacity-50">{loading?'جارٍ التأكيد…':'تأكيد الحساب'}</button><button type="button" onClick={resend} disabled={loading} className="w-full text-sm font-bold text-[var(--primary)] disabled:opacity-50">إعادة إرسال الرمز</button><Link href="/login" className="block text-center text-sm underline">العودة لتسجيل الدخول</Link></form></div>;
   return (
     <div className="space-y-6" dir="rtl">
       <div>
@@ -73,9 +73,9 @@ export default function DeliveryPartnerRegisterPage() {
         <Field name="ownerName" label="اسم المسؤول" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field name="email" label="البريد الإلكتروني" type="email" />
-          <label className="block text-sm font-semibold">رقم الهاتف / واتساب
+          <label className="block text-sm font-semibold">رقم الهاتف
             <div className="mt-2"><InternationalPhoneInput countryCode={countryCode} phone={phone} onCountryCodeChange={setCountryCode} onPhoneChange={setPhone} required disabled={loading} /></div>
-            <p className="mt-2 text-xs font-normal text-[var(--muted-foreground)]">اختر مفتاح الدولة ثم اكتب الرقم. يتاح «مفتاح دولة آخر» لأي دولة.</p>
+            <p className="mt-2 text-xs font-normal text-[var(--muted-foreground)]">اختر مفتاح الدولة ثم اكتب الرقم. سيُستخدم للتواصل، وسيُتاح توثيقه عبر واتساب لاحقاً.</p>
           </label>
         </div>
         <Field

@@ -7,9 +7,15 @@ export type AccountVerificationChannel = 'EMAIL' | 'WHATSAPP';
 
 export class AccountVerificationError extends Error {}
 
+export function whatsappAccountVerificationEnabled() {
+  return process.env.WHATSAPP_ACCOUNT_VERIFICATION_ENABLED === 'true';
+}
+
 export function accountVerificationChannels() {
-  let whatsapp = true;
-  try { assertWhatsAppOtpConfigured(); } catch { whatsapp = false; }
+  let whatsapp = whatsappAccountVerificationEnabled();
+  if (whatsapp) {
+    try { assertWhatsAppOtpConfigured(); } catch { whatsapp = false; }
+  }
   return { email: !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM), whatsapp };
 }
 
@@ -76,6 +82,10 @@ export async function sendAccountCode(
 }
 
 export async function verifyAccountCode(userId: string, channel: AccountVerificationChannel, code: string) {
+  const available = accountVerificationChannels();
+  if (!(channel === 'EMAIL' ? available.email : available.whatsapp)) {
+    throw new AccountVerificationError('قناة التحقق هذه متوقفة حالياً');
+  }
   if (!/^\d{6}$/.test(code)) throw new AccountVerificationError('أدخل رمزاً من ستة أرقام');
   const result = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;

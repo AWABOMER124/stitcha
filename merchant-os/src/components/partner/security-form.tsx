@@ -9,13 +9,10 @@ export function PartnerSecurityForm({ email, phone, channels }: { email: string;
   return <div className="grid gap-6 lg:grid-cols-2">
     <form action={verify} className="space-y-4 rounded-2xl border bg-[var(--card)] p-6">
       <h2 className="text-lg font-bold">تأكيد الحساب</h2>
-      <p className="text-sm leading-7">الدخول بالبريد أو الهاتف وكلمة المرور. أكّد ملكية وسيلة اتصال واحدة لتفعيل خطوات الشراكة؛ هذا ليس دخولاً بدون كلمة مرور.</p>
+      <p className="text-sm leading-7">أكّد بريدك الإلكتروني لتفعيل خطوات الشراكة. رقم الهاتف محفوظ للتواصل وسيُتاح تأكيده لاحقاً بعد تفعيل رقم وصلة في Meta.</p>
       <p className="text-sm break-all" dir="ltr">{email} · {phone ?? '—'}</p>
-      <label className="block text-sm font-semibold">قناة التحقق<select name="channel" className={input} defaultValue={channels.email ? 'EMAIL' : 'WHATSAPP'}>
-        <option value="EMAIL" disabled={!channels.email}>البريد الإلكتروني{!channels.email ? ' — غير مهيأ' : ''}</option>
-        <option value="WHATSAPP" disabled={!channels.whatsapp || !phone}>واتساب{!channels.whatsapp ? ' — غير مهيأ' : ''}</option>
-      </select></label>
-      <button name="intent" value="send" disabled={sending || (!channels.email && !channels.whatsapp)} className="rounded-xl border px-4 py-3 disabled:opacity-50">إرسال / إعادة إرسال رمز</button>
+      <input type="hidden" name="channel" value="EMAIL" />
+      <button name="intent" value="send" disabled={sending || !channels.email} className="rounded-xl border px-4 py-3 disabled:opacity-50">إرسال / إعادة إرسال رمز البريد</button>
       <label className="block text-sm font-semibold">رمز التحقق<input name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} className={input} /></label>
       <button name="intent" value="verify" disabled={sending} className="rounded-xl bg-[var(--primary)] px-5 py-3 text-white disabled:opacity-50">{sending ? 'جارٍ المعالجة…' : 'تأكيد الحساب'}</button>
       <p role="status" className={verification.error ? 'text-red-700' : 'text-emerald-700'}>{verification.error ?? verification.message}</p>

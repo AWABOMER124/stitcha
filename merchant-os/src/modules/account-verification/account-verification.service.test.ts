@@ -5,6 +5,7 @@ const original = {
   PHONE_OTP_SECRET: process.env.PHONE_OTP_SECRET,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   EMAIL_FROM: process.env.EMAIL_FROM,
+  WHATSAPP_ACCOUNT_VERIFICATION_ENABLED: process.env.WHATSAPP_ACCOUNT_VERIFICATION_ENABLED,
 };
 
 afterEach(() => {
@@ -25,11 +26,12 @@ describe('account verification security', () => {
   });
 
   it('only exposes email verification when both provider settings exist', () => {
+    process.env.WHATSAPP_ACCOUNT_VERIFICATION_ENABLED = 'false';
     delete process.env.RESEND_API_KEY;
     delete process.env.EMAIL_FROM;
-    expect(accountVerificationChannels().email).toBe(false);
+    expect(accountVerificationChannels()).toEqual({ email: false, whatsapp: false });
     process.env.RESEND_API_KEY = 're_test';
     process.env.EMAIL_FROM = 'WASLA <no-reply@example.com>';
-    expect(accountVerificationChannels().email).toBe(true);
+    expect(accountVerificationChannels()).toEqual({ email: true, whatsapp: false });
   });
 });

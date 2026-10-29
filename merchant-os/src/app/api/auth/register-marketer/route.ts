@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: 'راجع بيانات التسجيل.' }, { status: 400 });
   const phone = normalizeInternationalPhone(parsed.data.phone, parsed.data.countryCode);
-  if (!isValidInternationalPhone(phone)) return NextResponse.json({ error: 'أدخل رقم واتساب دولياً صحيحاً مع مفتاح الدولة.' }, { status: 400 });
+  if (!isValidInternationalPhone(phone)) return NextResponse.json({ error: 'أدخل رقم هاتف دولياً صحيحاً مع مفتاح الدولة.' }, { status: 400 });
   const email = parsed.data.email.toLowerCase();
   if (!accountVerificationChannels().email) {
     return NextResponse.json({ error: 'تأكيد البريد غير متاح مؤقتاً. تواصل مع دعم وصلة.' }, { status: 503 });
