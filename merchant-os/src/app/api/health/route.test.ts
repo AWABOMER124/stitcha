@@ -8,6 +8,11 @@ const previousRelease = process.env.APP_RELEASE;
 const previousBucket = process.env.S3_BUCKET;
 const previousPersistent = process.env.PUBLIC_UPLOADS_PERSISTENT;
 const previousS3Secret = process.env.S3_SECRET_KEY;
+const previousResend = process.env.RESEND_API_KEY;
+const previousEmailFrom = process.env.EMAIL_FROM;
+const previousAiCoreBaseUrl = process.env.AI_CORE_BASE_URL;
+const previousAiCoreSecret = process.env.AI_CORE_SECRET_WASLA;
+const previousImageEnhancement = process.env.AI_IMAGE_ENHANCEMENT_ENABLED;
 
 afterEach(() => {
   prismaMock.$queryRaw.mockReset();
@@ -19,19 +24,59 @@ afterEach(() => {
   else process.env.PUBLIC_UPLOADS_PERSISTENT = previousPersistent;
   if (previousS3Secret === undefined) delete process.env.S3_SECRET_KEY;
   else process.env.S3_SECRET_KEY = previousS3Secret;
+  if (previousResend === undefined) delete process.env.RESEND_API_KEY;
+  else process.env.RESEND_API_KEY = previousResend;
+  if (previousEmailFrom === undefined) delete process.env.EMAIL_FROM;
+  else process.env.EMAIL_FROM = previousEmailFrom;
+  if (previousAiCoreBaseUrl === undefined) delete process.env.AI_CORE_BASE_URL;
+  else process.env.AI_CORE_BASE_URL = previousAiCoreBaseUrl;
+  if (previousAiCoreSecret === undefined) delete process.env.AI_CORE_SECRET_WASLA;
+  else process.env.AI_CORE_SECRET_WASLA = previousAiCoreSecret;
+  if (previousImageEnhancement === undefined) delete process.env.AI_IMAGE_ENHANCEMENT_ENABLED;
+  else process.env.AI_IMAGE_ENHANCEMENT_ENABLED = previousImageEnhancement;
 });
 
 describe('GET /api/health', () => {
   it('returns database readiness and the deployed release identifier', async () => {
     process.env.APP_RELEASE = '9013ebf';
     process.env.PUBLIC_UPLOADS_PERSISTENT = 'true';
+    process.env.RESEND_API_KEY = 're_test';
+    process.env.EMAIL_FROM = 'WASLA <no-reply@example.com>';
+    process.env.AI_CORE_BASE_URL = 'https://ai.example.test';
+    process.env.AI_CORE_SECRET_WASLA = 'test-secret';
     prismaMock.$queryRaw.mockResolvedValue([{ '?column?': 1 }]);
 
     const response = await GET();
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: 'ok', release: '9013ebf', storage: { provider: 'local', durabilityDeclared: true } });
+    expect(await response.json()).toMatchObject({
+      status: 'ok',
+      readiness: 'ready',
+      release: '9013ebf',
+      storage: { provider: 'local', durabilityDeclared: true },
+      checks: { database: true, releaseIdentified: true, durableStorage: true, emailDelivery: true, aiCore: true },
+      capabilities: { aiCore: true },
+    });
     expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('reports degraded readiness without exposing missing configuration values', async () => {
+    process.env.APP_RELEASE = 'unknown';
+    process.env.PUBLIC_UPLOADS_PERSISTENT = 'false';
+    delete process.env.RESEND_API_KEY;
+    delete process.env.EMAIL_FROM;
+    prismaMock.$queryRaw.mockResolvedValue([{ '?column?': 1 }]);
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      status: 'ok',
+      readiness: 'degraded',
+      checks: { database: true, releaseIdentified: false, durableStorage: false, emailDelivery: false },
+    });
+    expect(JSON.stringify(body)).not.toContain('RESEND_API_KEY');
   });
 
   it('reports S3 public storage as durable without exposing credentials', async () => {

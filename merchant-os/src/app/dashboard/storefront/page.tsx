@@ -24,6 +24,7 @@ export default async function StorefrontPage() {
 
   const settings = merchant?.storefrontSettings;
   const storeUrl = merchant ? `/store/${merchant.slug}` : '#';
+  const storefrontAccessible = merchant?.isActive === true && merchant.status === 'ACTIVE';
 
   const links = [
     { href: '/dashboard/storefront/customize', icon: '🎨', title: t.linkCustomizeTitle, desc: t.linkCustomizeDesc },
@@ -40,9 +41,9 @@ export default async function StorefrontPage() {
           <h1 className="text-2xl font-bold text-[var(--foreground)]">{t.title}</h1>
           <p className="text-[var(--muted-foreground)] text-sm mt-1">{t.subtitle}</p>
         </div>
-        <a href={storeUrl} target="_blank" rel="noopener" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
-          {t.viewStore}
-        </a>
+        {storefrontAccessible
+          ? <a href={storeUrl} target="_blank" rel="noopener" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity">{t.viewStore}</a>
+          : <span className="rounded-xl bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800">{locale === 'ar' ? 'يتاح الرابط بعد تفعيل المتجر' : 'Available after store activation'}</span>}
       </div>
 
       {/* Status Cards */}
@@ -66,7 +67,9 @@ export default async function StorefrontPage() {
         <p className="text-sm text-[var(--muted-foreground)] mb-2">{t.storeUrlLabel}</p>
         <div className="flex items-center gap-3 bg-[var(--background)] rounded-xl px-4 py-2.5 border border-[var(--border)]">
           <span className="text-sm text-[var(--foreground)] flex-1 font-mono break-all">{publicOrigin}{storeUrl}</span>
-          <a href={storeUrl} target="_blank" rel="noopener" className="text-[var(--primary)] text-sm font-medium whitespace-nowrap hover:underline">{t.openLink}</a>
+          {storefrontAccessible
+            ? <a href={storeUrl} target="_blank" rel="noopener" className="text-[var(--primary)] text-sm font-medium whitespace-nowrap hover:underline">{t.openLink}</a>
+            : <span className="text-xs font-bold text-amber-700">{locale === 'ar' ? 'غير متاح بعد' : 'Not available yet'}</span>}
         </div>
       </div>
 
