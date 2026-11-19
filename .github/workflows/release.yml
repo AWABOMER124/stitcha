@@ -3,7 +3,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  packages: write
 concurrency:
   group: release-build
   cancel-in-progress: false
@@ -17,40 +16,28 @@ jobs:
     environment: production-build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Select the repository-owned registry and require the existing build key
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Build the protected production image without publishing plaintext
         env:
           ACTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
         run: |
           test -n "$ACTION_KEY"
-          echo "RELEASE_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-production" >> "$GITHUB_ENV"
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+          docker buildx build --load --platform linux/amd64 \
+            --file Dockerfile --tag "wasla-platform:git-$GITHUB_SHA" \
+            --build-arg "APP_RELEASE=git-$GITHUB_SHA" \
+            --build-arg NEXT_PUBLIC_APP_URL=https://wassla-sd.shop \
+            --secret id=next_server_actions_key,env=ACTION_KEY .
+      - name: Encrypt delivery to the production server public key
+        run: bash ops/releases/export_encrypted_image.sh "wasla-platform:git-$GITHUB_SHA" "git-$GITHUB_SHA" "$RUNNER_TEMP/wasla-release"
+      - name: Upload only encrypted image and non-secret provenance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - name: Verify private visibility using only a harmless initialization probe
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 ops/releases/ensure_private_registry.py
-      - name: Build once and publish only to the verified private registry
-        id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: ${{ env.RELEASE_IMAGE }}:release-${{ github.sha }}
-          build-args: |
-            APP_RELEASE=git-${{ github.sha }}
-            NEXT_PUBLIC_APP_URL=https://wassla-sd.shop
-          secrets: |
-            next_server_actions_key=${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
-      - name: Record the immutable image to be staged and promoted
-        env:
-          IMAGE: ${{ env.RELEASE_IMAGE }}
-          DIGEST: ${{ steps.build.outputs.digest }}
+          name: wasla-production-image
+          path: ${{ runner.temp }}/wasla-release/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+      - name: Record delivery identity
         run: |
-          printf '%s@%s\n' "$IMAGE" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
-          printf '%s\n' 'No production deployment is performed by this workflow.' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/wasla-release/release.json" >> "$GITHUB_STEP_SUMMARY"
+          printf '\n%s\n' 'Image is encrypted to the production server; no automatic production deployment.' >> "$GITHUB_STEP_SUMMARY"
