@@ -24,13 +24,13 @@ describe('pricing country preference', () => {
     expect(mocks.account).not.toHaveBeenCalled();
   });
   it('does not let a Saudi visitor switch to Sudan prices', async () => {
-    const response = await POST(request({ market: 'SD' }, { 'x-real-ip': '51.39.229.125' }));
+    const response = await POST(request({ market: 'SD' }, { 'x-real-ip': '2.59.52.0' }));
     expect(await response.json()).toEqual({ market: 'SA', source: 'location' });
   });
   it('preserves the registered merchant market', async () => {
     mocks.auth.mockResolvedValue({ user: { merchantId: 'merchant-test' } });
     mocks.account.mockResolvedValue('SD');
-    const response = await POST(request({ market: 'SA' }, { 'x-real-ip': '51.39.229.125' }));
+    const response = await POST(request({ market: 'SA' }, { 'x-real-ip': '2.59.52.0' }));
     expect(await response.json()).toEqual({ market: 'SD', source: 'account' });
   });
   it('can clear an unknown-location preference', async () => {

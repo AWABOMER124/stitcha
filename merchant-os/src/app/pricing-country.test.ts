@@ -21,7 +21,7 @@ it('does not load any catalog before country selection, including an old market 
 });
 
 it('loads only Saudi prices for a Saudi guest despite a Sudan URL and preference', async () => {
-  mocks.headers.mockResolvedValue(new Headers({ 'x-real-ip': '51.39.229.125' }));
+  mocks.headers.mockResolvedValue(new Headers({ 'x-real-ip': '2.59.52.0' }));
   mocks.cookies.mockResolvedValue({ get: (key: string) => key === 'wasla_pricing_market' ? { value: 'SD' } : undefined });
   await HomePage({ searchParams: Promise.resolve({ market: 'SD' }) });
   expect(mocks.plans).toHaveBeenCalledExactlyOnceWith('SA');
@@ -30,7 +30,7 @@ it('loads only Saudi prices for a Saudi guest despite a Sudan URL and preference
 it('loads only the signed-in merchant catalog while travelling', async () => {
   mocks.auth.mockResolvedValue({ user: { merchantId: 'merchant-test', role: 'MERCHANT_OWNER' } });
   mocks.account.mockResolvedValue('SD');
-  mocks.headers.mockResolvedValue(new Headers({ 'x-real-ip': '51.39.229.125' }));
+  mocks.headers.mockResolvedValue(new Headers({ 'x-real-ip': '2.59.52.0' }));
   await HomePage({ searchParams: Promise.resolve({ market: 'SA' }) });
   expect(mocks.plans).toHaveBeenCalledExactlyOnceWith('SD');
 });
