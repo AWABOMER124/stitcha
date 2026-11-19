@@ -69,7 +69,7 @@ export class StripeGateway implements PaymentGateway {
     body.set('line_items[0][price_data][currency]', input.currency.toLowerCase());
     body.set('line_items[0][price_data][unit_amount]', String(toMinorUnits(input.amount, input.currency)));
     body.set('line_items[0][price_data][product_data][name]', input.itemName);
-    if (input.mode === 'subscription') body.set('line_items[0][price_data][recurring][interval]', 'month');
+    if (input.mode === 'subscription') body.set('line_items[0][price_data][recurring][interval]', input.recurringInterval ?? 'month');
     if (input.customerEmail) body.set('customer_email', input.customerEmail);
     body.set('metadata[internal_reference]', input.internalReference);
     for (const [key, value] of Object.entries(input.metadata ?? {})) {

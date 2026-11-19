@@ -7,6 +7,8 @@ import { LocaleProvider } from '@/lib/i18n/context';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { WaslaMark } from '@/components/brand/wasla-logo';
 import { PublicFooter, PublicHeader } from '@/components/marketing/public-chrome';
+import { getMerchantSubscriptionMarket } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
+import { resolveMarket } from '@/modules/merchant-subscriptions/market-pricing';
 import { listPublicPlans } from '@/modules/merchant-subscriptions';
 
 export const metadata: Metadata = {
@@ -77,12 +79,27 @@ const content = {
 
 const icons = [Palette, PackageCheck, CreditCard, Truck, Bot, FileSpreadsheet, ShieldCheck, Globe2];
 
-export default async function HomePage() {
-  const [session, cookieStore, plans] = await Promise.all([auth(), cookies(), listPublicPlans().catch(() => [])]);
+function saPlanFeatures(plan: import('@/modules/merchant-subscriptions').MerchantEntitlements, locale: Locale): string[] {
+  const ar = locale === 'ar';
+  return [
+    ar ? `${plan.maxActiveProducts} منتج` : `${plan.maxActiveProducts} products`,
+    ar ? `${plan.maxStaffUsers} حسابات فريق و${plan.maxBranches} فروع` : `${plan.maxStaffUsers} staff seats, ${plan.maxBranches} branches`,
+    ar ? 'إدارة الطلبات والعملاء والفواتير' : 'Orders, customers and invoices',
+    ...(plan.aiStoreGenerationsMonthly > 0 ? [ar ? `${plan.aiStoreGenerationsMonthly} توليد متجر و${plan.aiImageEnhancementsMonthly} تحسين صورة شهرياً` : `${plan.aiStoreGenerationsMonthly} store generations, ${plan.aiImageEnhancementsMonthly} image enhancements / month`] : []),
+    ...(plan.whatsappAiAgent ? [ar ? `${plan.whatsappAiConversationsMonthly} رد واتساب ذكي شهرياً` : `${plan.whatsappAiConversationsMonthly} AI WhatsApp replies / month`] : []),
+    ...(plan.customDomain ? [ar ? 'دومين خاص وإزالة علامة وصلة' : 'Custom domain and branding removal'] : []),
+    ...(plan.dataExport ? [ar ? 'تصدير البيانات' : 'Data exports'] : []),
+  ];
+}
+
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ market?: string }> }) {
+  const [session, cookieStore, query] = await Promise.all([auth(), cookies(), searchParams]);
+  const market = session?.user?.merchantId ? await getMerchantSubscriptionMarket(session.user.merchantId) : resolveMarket(query.market);
+  const plans = await listPublicPlans(market);
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = content[locale];
-  const accountHref = !session?.user ? '/register' : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role === 'MARKETER' ? '/marketer' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
-  const upgradeHref = session?.user?.merchantId ? '/dashboard/subscription' : '/register';
+  const accountHref = !session?.user ? `/register?market=${market}` : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role === 'MARKETER' ? '/marketer' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
+  const upgradeHref = session?.user?.merchantId ? '/dashboard/subscription' : `/register?market=${market}`;
   const freePlan = plans.find((plan) => plan.code === 'FREE');
   const growthPlan = plans.find((plan) => plan.code === 'GROWTH');
   const proPlan = plans.find((plan) => plan.code === 'PRO');
@@ -91,7 +108,7 @@ export default async function HomePage() {
   const proPrice = proPlan ? formatPlanPrice(proPlan.monthlyPrice, proPlan.currency, locale) : t.proPrice;
 
   return <LocaleProvider initialLocale={locale}><div className="min-h-screen overflow-hidden bg-white text-[#07111f] dark:bg-[#07111f] dark:text-white">
-    <PublicHeader locale={locale} accountHref={accountHref} signedIn={Boolean(session?.user)} />
+    <PublicHeader locale={locale} homeHref={`/?market=${market}`} accountHref={accountHref} signedIn={Boolean(session?.user)} />
 
     <main>
       <section className="border-b border-slate-200 bg-[#f7faf9] dark:border-white/10 dark:bg-[#091522]">
@@ -109,11 +126,11 @@ export default async function HomePage() {
 
       <section className="px-5 pb-20 lg:px-8 lg:pb-28 dark:bg-[#091522]"><div className="mx-auto grid max-w-7xl overflow-hidden rounded-[2rem] bg-[#087d82] text-white lg:grid-cols-2"><div className="p-9 lg:p-16"><Bot className="h-9 w-9"/><p className="mt-6 text-sm font-bold text-emerald-100">{t.aiKicker}</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">{t.aiTitle}</h2><p className="mt-5 leading-8 text-emerald-50/90">{t.aiLead}</p></div><div className="grid content-center gap-4 bg-[#06666a] p-9 lg:p-16">{[t.cards[4][0],t.cards[2][0],t.cards[3][0]].map(x=><div key={x} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4"><Check className="h-5 w-5"/><span className="font-bold">{x}</span></div>)}</div></div></section>
 
-      <section id="pricing" className="bg-slate-50 py-20 lg:py-28 dark:bg-[#07111f]"><div className="mx-auto max-w-7xl px-5 lg:px-8"><h2 className="text-center text-3xl font-black sm:text-4xl">{t.pricing}</h2><p className="mx-auto mt-4 max-w-2xl text-center leading-7 text-slate-500">{t.priceLead}</p><div className="mt-12 grid items-stretch gap-5 md:grid-cols-3"><Plan title={t.free} price={freePrice} items={t.freeItems} unavailable={t.freeUnavailable} href={accountHref} cta={t.freeCta}/><Plan title={t.growth} price={growthPrice} items={t.growthItems} href={upgradeHref} cta={t.growthCta} badge={t.popular} featured/><Plan title={t.pro} price={proPrice} items={t.proItems} href={upgradeHref} cta={t.proCta}/></div><p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-6 text-slate-500">{t.currencyNote}</p></div></section>
+      <section id="pricing" className="bg-slate-50 py-20 lg:py-28 dark:bg-[#07111f]"><div className="mx-auto max-w-7xl px-5 lg:px-8"><h2 className="text-center text-3xl font-black sm:text-4xl">{t.pricing}</h2><p className="mx-auto mt-4 max-w-2xl text-center leading-7 text-slate-500">{t.priceLead}</p>{!session?.user?.merchantId && <div className="mt-6 flex justify-center gap-3" aria-label={locale === 'ar' ? 'السوق' : 'Market'}><Link href="/?market=SD#pricing" aria-current={market === 'SD' ? 'page' : undefined} className={`rounded-xl border px-5 py-3 ${market === 'SD' ? 'bg-[#087d82] text-white' : ''}`}>{locale === 'ar' ? 'السودان' : 'Sudan'}</Link><Link href="/?market=SA#pricing" aria-current={market === 'SA' ? 'page' : undefined} className={`rounded-xl border px-5 py-3 ${market === 'SA' ? 'bg-[#087d82] text-white' : ''}`}>{locale === 'ar' ? 'السعودية' : 'Saudi Arabia'}</Link></div>}{market === 'SA' ? <div className="mt-12 grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-4">{plans.map(plan => <Plan key={plan.code} title={plan.code === 'FREE' ? t.free : (locale === 'ar' ? plan.name : plan.code.replace('SA_', ''))} price={formatPlanPrice(plan.monthlyPrice, plan.currency, locale)} items={[...(plan.yearlyPrice != null ? [locale === 'ar' ? (plan.yearlyPrice + ' ريال / سنوياً') : ('SAR ' + plan.yearlyPrice + ' / year')] : []), ...saPlanFeatures(plan.entitlements, locale)]} href={upgradeHref} cta={plan.monthlyPrice === 0 ? t.freeCta : (locale === 'ar' ? 'اختر الباقة' : 'Choose plan')} featured={plan.code === 'SA_PRO'} />)}</div> : <div className="mt-12 grid items-stretch gap-5 md:grid-cols-3"><Plan title={t.free} price={freePrice} items={t.freeItems} unavailable={t.freeUnavailable} href={accountHref} cta={t.freeCta}/><Plan title={t.growth} price={growthPrice} items={t.growthItems} href={upgradeHref} cta={t.growthCta} badge={t.popular} featured/><Plan title={t.pro} price={proPrice} items={t.proItems} href={upgradeHref} cta={t.proCta}/></div>}<p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-6 text-slate-500">{market === 'SA' ? (locale === 'ar' ? 'الاشتراك بالريال السعودي. الشحن والتحصيل عند الاستلام يُحسبان بشكل منفصل.' : 'Subscriptions in SAR. Shipping and COD collection are charged separately.') : t.currencyNote}</p></div></section>
 
       <section className="px-5 py-20"><div className="mx-auto max-w-5xl rounded-[2rem] bg-[#07111f] px-6 py-14 text-center text-white shadow-2xl"><ShoppingBag className="mx-auto h-10 w-10 text-[#13C4A3]"/><h2 className="mt-6 text-3xl font-black sm:text-4xl">{t.final}</h2><p className="mt-4 text-slate-400">{t.finalLead}</p><Link href={accountHref} className="mt-8 inline-flex rounded-2xl bg-[#13C4A3] px-7 py-4 font-bold">{session?.user?t.dashboard:t.start}</Link></div></section>
     </main>
-    <PublicFooter locale={locale} />
+    <PublicFooter locale={locale} registrationHref={`/register?market=${market}`} />
   </div></LocaleProvider>;
 }
 

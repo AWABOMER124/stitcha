@@ -4,6 +4,7 @@ import { BusinessRuleError, ConflictError, NotFoundError } from '@/lib/errors';
 import * as platformNotifications from '@/modules/platform-notifications/services/platform-notifications.service';
 import { FREE_ENTITLEMENTS, FREE_PLAN_CODE, parseEntitlements, type MerchantEntitlements } from './entitlements';
 import { logger } from '@/lib/logger';
+import { planBelongsToMarket, planRequestQuote, resolveMarket, type SubscriptionMarket, type PlanInterval } from './market-pricing';
 
 export interface MerchantPlanSnapshot {
   code: string;
@@ -58,12 +59,18 @@ export async function requireMerchantEntitlement(
   return plan;
 }
 
-export async function listPublicPlans() {
+export async function getMerchantSubscriptionMarket(merchantId: string): Promise<SubscriptionMarket> {
+  const merchant = await prisma.merchant.findUnique({ where: { id: merchantId }, select: { subscriptionMarket: true } });
+  if (!merchant) throw new NotFoundError('Merchant');
+  return resolveMarket(merchant.subscriptionMarket);
+}
+
+export async function listPublicPlans(market: SubscriptionMarket = 'SD') {
   const plans = await prisma.merchantPlan.findMany({
-    where: { isActive: true, isPublic: true },
+    where: market === 'SA' ? { isActive: true, OR: [{ code: 'FREE', isPublic: true }, { code: { startsWith: 'SA_' }, isMarketPublic: true }] } : { isActive: true, isPublic: true },
     orderBy: [{ sortOrder: 'asc' }, { monthlyPrice: 'asc' }],
   });
-  return plans.map((plan) => ({
+  return plans.filter(plan => planBelongsToMarket(plan.code, market)).map((plan) => ({
     code: plan.code,
     name: plan.name,
     description: plan.description,
@@ -85,6 +92,9 @@ export async function getPendingPlanChangeRequest(merchantId: string) {
     status: request.status,
     targetPlan: request.targetPlan,
     createdAt: request.createdAt,
+    billingInterval: request.billingInterval,
+    quotedAmount: request.quotedAmount == null ? null : Number(request.quotedAmount),
+    quotedCurrency: request.quotedCurrency,
   };
 }
 
@@ -92,12 +102,13 @@ export async function requestPlanChange(
   merchantId: string,
   targetPlanCode: string,
   note?: string,
+  billingInterval: PlanInterval = 'MONTHLY',
 ) {
   const [merchant, targetPlan, current] = await Promise.all([
-    prisma.merchant.findUnique({ where: { id: merchantId }, select: { name: true } }),
+    prisma.merchant.findUnique({ where: { id: merchantId }, select: { name: true, subscriptionMarket: true } }),
     prisma.merchantPlan.findFirst({
-      where: { code: targetPlanCode, isActive: true, isPublic: true },
-      select: { id: true, code: true, name: true },
+      where: { code: targetPlanCode, isActive: true, ...(targetPlanCode.startsWith('SA_') ? { isMarketPublic: true } : { isPublic: true }) },
+      select: { id: true, code: true, name: true, monthlyPrice: true, yearlyPrice: true, currency: true },
     }),
     prisma.merchantSubscription.findUnique({
       where: { merchantId },
@@ -106,11 +117,15 @@ export async function requestPlanChange(
   ]);
   if (!merchant) throw new NotFoundError('Merchant');
   if (!targetPlan) throw new NotFoundError('MerchantPlan');
+  if (!planBelongsToMarket(targetPlan.code, resolveMarket(merchant.subscriptionMarket))) {
+    throw new BusinessRuleError('اختر باقة من سوق نشاط متجرك');
+  }
+  const quote = planRequestQuote({ targetPlan, billingInterval });
   if (current?.plan.code === targetPlan.code && current.status === 'ACTIVE') {
     throw new ConflictError('This plan is already active');
   }
 
-  const requestKey = `pending:${merchantId}:${targetPlan.id}`;
+  const requestKey = billingInterval === 'MONTHLY' ? `pending:${merchantId}:${targetPlan.id}` : `pending:${merchantId}:${targetPlan.id}:YEARLY`;
   const existing = await prisma.merchantPlanChangeRequest.findUnique({
     where: { requestKey },
     include: { targetPlan: { select: { code: true, name: true } } },
@@ -120,7 +135,7 @@ export async function requestPlanChange(
   let request;
   try {
     request = await prisma.merchantPlanChangeRequest.create({
-      data: { merchantId, targetPlanId: targetPlan.id, requestKey, note },
+      data: { merchantId, targetPlanId: targetPlan.id, requestKey, note, billingInterval, quotedAmount: quote.amount, quotedCurrency: quote.currency },
       include: { targetPlan: { select: { code: true, name: true } } },
     });
   } catch (error) {

@@ -4,20 +4,21 @@ import { LanguageToggle } from '@/lib/i18n/language-toggle';
 import type { Locale } from '@/lib/i18n/translations';
 import { WaslaLogo } from '@/components/brand/wasla-logo';
 
-export function PublicHeader({ locale, accountHref, signedIn = false }: {
+export function PublicHeader({ locale, accountHref, signedIn = false, homeHref = '/' }: {
   locale: Locale;
   accountHref: string;
   signedIn?: boolean;
+  homeHref?: string;
 }) {
   const ar = locale === 'ar';
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-sm dark:border-white/10 dark:bg-[#07111f]/95">
       <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-5 lg:px-8">
-        <Link href="/" aria-label="وصلة"><WaslaLogo /></Link>
+        <Link href={homeHref} aria-label="وصلة"><WaslaLogo /></Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 md:flex dark:text-slate-300">
-          <Link href="/#features" className="hover:text-[#087d82]">{ar ? 'المميزات' : 'Features'}</Link>
-          <Link href="/#how" className="hover:text-[#087d82]">{ar ? 'كيف تبدأ' : 'How it works'}</Link>
-          <Link href="/#pricing" className="hover:text-[#087d82]">{ar ? 'الباقات' : 'Plans'}</Link>
+          <Link href={`${homeHref}#features`} className="hover:text-[#087d82]">{ar ? 'المميزات' : 'Features'}</Link>
+          <Link href={`${homeHref}#how`} className="hover:text-[#087d82]">{ar ? 'كيف تبدأ' : 'How it works'}</Link>
+          <Link href={`${homeHref}#pricing`} className="hover:text-[#087d82]">{ar ? 'الباقات' : 'Plans'}</Link>
           <Link href="/blog" className="hover:text-[#087d82]">{ar ? 'المدونة' : 'Blog'}</Link>
           <Link href="/marketers" className="hover:text-[#087d82]">{ar ? 'سوّق واربح' : 'Affiliates'}</Link>
           <Link href="/partners" className="hover:text-[#087d82]">{ar ? 'كن شريكنا' : 'Partners'}</Link>
@@ -34,7 +35,7 @@ export function PublicHeader({ locale, accountHref, signedIn = false }: {
     </header>
   );
 }
-export function PublicFooter({ locale }: { locale: Locale }) {
+export function PublicFooter({ locale, registrationHref = '/register' }: { locale: Locale; registrationHref?: string }) {
   const ar = locale === 'ar';
   return (
     <footer className="border-t border-slate-200 bg-white py-10 dark:border-white/10 dark:bg-[#07111f]">
@@ -47,7 +48,7 @@ export function PublicFooter({ locale }: { locale: Locale }) {
           <Link href="/blog">{ar ? 'المدونة' : 'Blog'}</Link>
           <Link href="/privacy">{ar ? 'الخصوصية' : 'Privacy'}</Link>
           <Link href="/terms">{ar ? 'الشروط والأحكام' : 'Terms'}</Link>
-          <Link href="/register">{ar ? 'إنشاء متجر' : 'Create a store'}</Link>
+          <Link href={registrationHref}>{ar ? 'إنشاء متجر' : 'Create a store'}</Link>
           <Link href="/partners">{ar ? 'كن شريكنا' : 'Become a partner'}</Link>
           <Link href="/marketers">{ar ? 'سوّق واربح' : 'Affiliates'}</Link>
         </div>

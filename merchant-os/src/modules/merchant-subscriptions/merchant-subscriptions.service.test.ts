@@ -105,7 +105,7 @@ describe('merchant SaaS entitlements', () => {
 
   it('creates one idempotent Pro upgrade request and notifies platform operations', async () => {
     prismaMock.merchant.findUnique.mockResolvedValue({ name: 'Store' });
-    prismaMock.merchantPlan.findFirst.mockResolvedValue({ id: 'pro_id', code: 'PRO', name: 'Pro' });
+    prismaMock.merchantPlan.findFirst.mockResolvedValue({ id: 'pro_id', code: 'PRO', name: 'Pro', monthlyPrice: 10, currency: 'USD' });
     prismaMock.merchantSubscription.findUnique.mockResolvedValue({ status: 'ACTIVE', plan: { code: 'FREE' } });
     prismaMock.merchantPlanChangeRequest.findUnique.mockResolvedValue(null);
     prismaMock.merchantPlanChangeRequest.create.mockResolvedValue({
@@ -121,7 +121,7 @@ describe('merchant SaaS entitlements', () => {
 
   it('returns an existing pending request without duplicating or notifying', async () => {
     prismaMock.merchant.findUnique.mockResolvedValue({ name: 'Store' });
-    prismaMock.merchantPlan.findFirst.mockResolvedValue({ id: 'pro_id', code: 'PRO', name: 'Pro' });
+    prismaMock.merchantPlan.findFirst.mockResolvedValue({ id: 'pro_id', code: 'PRO', name: 'Pro', monthlyPrice: 10, currency: 'USD' });
     prismaMock.merchantSubscription.findUnique.mockResolvedValue({ status: 'ACTIVE', plan: { code: 'FREE' } });
     prismaMock.merchantPlanChangeRequest.findUnique.mockResolvedValue({ id: 'request_1', status: 'PENDING' });
 

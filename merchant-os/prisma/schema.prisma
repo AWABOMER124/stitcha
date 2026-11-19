@@ -1121,6 +1121,7 @@ model Merchant {
   storeType    StoreType      @default(ONLINE_STORE)
   status       MerchantStatus @default(PENDING)
 
+  subscriptionMarket String @default("SD")
   currency String @default("SDG")
   timezone String @default("Africa/Khartoum")
 
@@ -1892,6 +1893,7 @@ model MerchantPlan {
   currency     String   @default("USD")
   entitlements Json
   isPublic     Boolean  @default(true)
+  isMarketPublic Boolean @default(false)
   isActive     Boolean  @default(true)
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
@@ -1988,6 +1990,9 @@ model MerchantPlanChangeRequest {
   requestKey   String?                         @unique
   status       MerchantPlanChangeRequestStatus @default(PENDING)
   note         String?
+  billingInterval SubscriptionBillingInterval @default(MONTHLY)
+  quotedAmount Decimal? @db.Decimal(10, 2)
+  quotedCurrency String?
   createdAt    DateTime                        @default(now())
   updatedAt    DateTime                        @updatedAt
   resolvedAt   DateTime?

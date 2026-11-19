@@ -55,6 +55,17 @@ describe('admin merchant-plan management', () => {
     }));
   });
 
+  it('publishes Saudi plans without exposing them to a previous application version', async () => {
+    prismaMock.merchantPlan.findUniqueOrThrow.mockResolvedValue({ code: 'SA_PRO', entitlements: {} });
+    await updateAdminMerchantPlan({
+      id: 'merchant_plan_sa_pro', name: 'Saudi Pro', description: '', monthlyPrice: 99, yearlyPrice: 990,
+      currency: 'SAR', sortOrder: 2, isPublic: true, isActive: true,
+      limits: Object.fromEntries(PLAN_LIMIT_FIELDS.map(key => [key, 0])),
+      flags: Object.fromEntries(PLAN_BOOLEAN_FIELDS.map(key => [key, false])),
+    });
+    expect(prismaMock.merchantPlan.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ isPublic: false, isMarketPublic: true }) }));
+  });
+
   it('rejects negative prices and invalid currencies', async () => {
     const limits = Object.fromEntries(PLAN_LIMIT_FIELDS.map((key) => [key, 0]));
     const flags = Object.fromEntries(PLAN_BOOLEAN_FIELDS.map((key) => [key, false]));

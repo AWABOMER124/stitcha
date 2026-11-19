@@ -40,7 +40,7 @@ export async function listAdminMerchantPlans() {
     yearlyPrice: plan.yearlyPrice === null ? null : Number(plan.yearlyPrice),
     currency: plan.currency,
     sortOrder: plan.sortOrder,
-    isPublic: plan.isPublic,
+    isPublic: plan.code.startsWith('SA_') ? plan.isMarketPublic : plan.isPublic,
     isActive: plan.isActive,
     entitlements: parseEntitlements(plan.entitlements),
   }));
@@ -48,7 +48,7 @@ export async function listAdminMerchantPlans() {
 
 export async function updateAdminMerchantPlan(input: AdminPlanUpdate) {
   const parsed = updatePlanSchema.parse(input);
-  const current = await prisma.merchantPlan.findUniqueOrThrow({ where: { id: parsed.id }, select: { entitlements: true } });
+  const current = await prisma.merchantPlan.findUniqueOrThrow({ where: { id: parsed.id }, select: { entitlements: true, code: true } });
   const existing = typeof current.entitlements === 'object' && current.entitlements !== null && !Array.isArray(current.entitlements)
     ? current.entitlements as Prisma.JsonObject
     : {};
@@ -65,7 +65,8 @@ export async function updateAdminMerchantPlan(input: AdminPlanUpdate) {
       yearlyPrice: parsed.yearlyPrice,
       currency: parsed.currency,
       sortOrder: parsed.sortOrder,
-      isPublic: parsed.isPublic,
+      isPublic: current.code?.startsWith('SA_') ? false : parsed.isPublic,
+      ...(current.code?.startsWith('SA_') ? { isMarketPublic: parsed.isPublic } : {}),
       isActive: parsed.isActive,
       entitlements,
     },

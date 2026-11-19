@@ -1,3 +1,4 @@
+import { getMerchantSubscriptionMarket } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { auth } from '@/lib/auth/config';
@@ -35,9 +36,10 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
   const locale = (await cookies()).get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'ar';
+  const market = await getMerchantSubscriptionMarket(session.user.merchantId);
   const [current, plans, pending, paymentAccounts, payments, aiUsage, paymentQuote] = await Promise.all([
     getMerchantPlanSnapshot(session.user.merchantId),
-    listPublicPlans(),
+    listPublicPlans(market),
     getPendingPlanChangeRequest(session.user.merchantId),
     listActivePaymentAccounts(),
     listMerchantPayments(session.user.merchantId),
@@ -75,6 +77,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             {ar
               ? `طلب الترقية إلى ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} قيد المراجعة.`
               : `Your ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} upgrade request is under review.`}
+            {pending.quotedAmount != null && <span className="mt-2 block">{pending.quotedAmount.toLocaleString()} {pending.quotedCurrency} / {pending.billingInterval === 'YEARLY' ? (ar ? 'سنة' : 'year') : (ar ? 'شهر' : 'month')}</span>}
           </p>
         )}
       </section>
@@ -119,7 +122,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                 {plan.monthlyPrice === 0 ? (ar ? 'مجانية' : 'Free') : `${plan.monthlyPrice.toLocaleString()} ${plan.currency}`}
                 {plan.monthlyPrice > 0 && <span className="text-sm font-medium text-[var(--muted-foreground)]">/{ar ? 'شهر' : 'month'}</span>}
               </p>
-              <ul className="mb-6 space-y-3">
+              {plan.yearlyPrice != null && <p className="mb-4 text-sm">{plan.yearlyPrice.toLocaleString()} {plan.currency} / {ar ? 'سنة' : 'year'}</p>}<ul className="mb-6 space-y-3">
                 {FEATURES.map(([key, arLabel, enLabel]) => (
                   <li key={key} className="flex items-center justify-between gap-3 text-sm">
                     <span>{ar ? arLabel : enLabel}</span>
@@ -127,20 +130,20 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                   </li>
                 ))}
               </ul>
-              {plan.code !== 'FREE' && !selected && !pending && <UpgradeButton locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} />}
+              {plan.code !== 'FREE' && !selected && !pending && <UpgradeButton locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} yearlyPrice={plan.code.startsWith('SA_') ? plan.yearlyPrice : null} />}
             </section>
           );
         })}
       </div>
 
-      {pending && !payments.some(payment => payment.status === 'PENDING' || payment.status === 'VERIFIED') && <section className="grid gap-5 lg:grid-cols-2"><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'الدفع الفوري عبر Stripe' : 'Instant Stripe payment'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'ادفع بالبطاقة وتُفعّل الباقة آلياً بعد تأكيد Stripe.' : 'Pay by card and activate automatically after Stripe confirmation.'}</p>{stripe.enabled && stripe.configured ? <StripeCheckoutButton locale={locale}/> : <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">{ar ? 'Stripe غير مفعّل حالياً. استخدم التحويل اليدوي.' : 'Stripe is not enabled yet. Use manual transfer.'}</p>}</article><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} quote={paymentQuote} locale={locale}/></article></section>}
+      {pending && !payments.some(payment => payment.status === 'PENDING' || payment.status === 'VERIFIED') && <section className="grid gap-5 lg:grid-cols-2"><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'الدفع الفوري عبر Stripe' : 'Instant Stripe payment'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'ادفع بالبطاقة وتُفعّل الباقة آلياً بعد تأكيد Stripe.' : 'Pay by card and activate automatically after Stripe confirmation.'}</p>{stripe.enabled && stripe.configured ? <StripeCheckoutButton locale={locale}/> : <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">{ar ? 'Stripe غير مفعّل حالياً. استخدم التحويل اليدوي.' : 'Stripe is not enabled yet. Use manual transfer.'}</p>}</article>{paymentQuote && <article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} quote={paymentQuote} locale={locale}/></article>}</section>}
 
       {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount?.label ?? 'Stripe'} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
 
       <p className="text-xs leading-6 text-[var(--muted-foreground)]">
         {ar
-          ? 'الأسعار مرجعية بعملة الباقة. سيعرض فريق وصلة مبلغ الجنيه السوداني المثبّت قبل أي تحصيل، ولن تتغير باقتك بمجرد إرسال الطلب.'
-          : 'Plan prices use their configured reference currency. WASLA confirms a locked local-currency amount before collection; submitting a request does not change your plan.'}
+          ? market === 'SA' ? 'الأسعار بالريال السعودي حسب سوق نشاط متجرك. الشحن والتحصيل منفصلان عن الاشتراك.' : 'الأسعار مرجعية بعملة الباقة. سيعرض فريق وصلة مبلغ الجنيه السوداني المثبّت قبل أي تحصيل، ولن تتغير باقتك بمجرد إرسال الطلب.'
+          : market === 'SA' ? 'Prices are in SAR for your business market. Shipping and COD fees are separate.' : 'Plan prices use their configured reference currency. WASLA confirms a locked local-currency amount before collection; submitting a request does not change your plan.'}
       </p>
     </div>
   );
@@ -153,6 +156,7 @@ function formatFeature(value: number | boolean, ar: boolean): string {
 }
 
 function displayPlanName(code: string, fallback: string, ar: boolean): string {
+  code = code.replace(/^SA_/, '');
   if (code === 'FREE') return ar ? 'مجاني' : 'Free';
   if (code === 'GROWTH') return ar ? 'نمو' : 'Growth';
   if (code === 'PRO') return ar ? 'احترافي' : 'Pro';

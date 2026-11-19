@@ -10,7 +10,8 @@ import { requestPlanChange } from './merchant-subscriptions.service';
 const requestSchema = z.object({
   // The public catalog may offer several paid tiers.  FREE is deliberately
   // excluded: downgrades are an explicit support operation, not a checkout.
-  targetPlanCode: z.enum(['GROWTH', 'PRO', 'BUSINESS']),
+  targetPlanCode: z.enum(['GROWTH', 'PRO', 'BUSINESS', 'SA_GROWTH', 'SA_PRO', 'SA_BUSINESS']),
+  billingInterval: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
   note: z.string().trim().max(500).optional(),
 });
 
@@ -18,7 +19,7 @@ export async function requestPlanChangeAction(input: unknown): Promise<ActionRes
   try {
     const { merchantId } = await getCurrentMerchant();
     const parsed = requestSchema.parse(input);
-    const request = await requestPlanChange(merchantId, parsed.targetPlanCode, parsed.note);
+    const request = await requestPlanChange(merchantId, parsed.targetPlanCode, parsed.note, parsed.billingInterval);
     revalidatePath('/dashboard/subscription');
     return { success: true, data: { status: request.status } };
   } catch (error) {

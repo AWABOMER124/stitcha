@@ -34,6 +34,22 @@ describe('POST /api/auth/register', () => {
     txMock.user.create.mockResolvedValue({ id: 'user_1' });
   });
 
+  it('uses the selected business market independently of the owner phone country', async () => {
+    const response = await POST(new Request('http://localhost/api/auth/register', {
+      method: 'POST', body: JSON.stringify({ merchantName: 'Saudi Store', ownerName: 'Owner', email: 'sa-owner@example.com', phone: '+249111222334', password: 'password123', subscriptionMarket: 'SA' }),
+    }));
+    expect(response.status).toBe(201);
+    expect(txMock.merchant.create).toHaveBeenCalledWith({ data: expect.objectContaining({ subscriptionMarket: 'SA', currency: 'SAR', timezone: 'Asia/Riyadh' }) });
+  });
+
+  it('rejects an unsupported market before creating an account', async () => {
+    const response = await POST(new Request('http://localhost/api/auth/register', {
+      method: 'POST', body: JSON.stringify({ merchantName: 'Store', ownerName: 'Owner', email: 'owner@example.com', phone: '+249111222334', password: 'password123', subscriptionMarket: 'OTHER' }),
+    }));
+    expect(response.status).toBe(400);
+    expect(txMock.merchant.create).not.toHaveBeenCalled();
+  });
+
   it('creates a pending free-plan merchant and starts email verification', async () => {
     const response = await POST(new Request('http://localhost/api/auth/register', {
       method: 'POST',
