@@ -23,7 +23,7 @@ const groups = [
 
 export function PartnerSidebar({ name, status }: { name: string; status: string }) {
   const path = usePathname();
-  return <aside className="hidden w-72 shrink-0 flex-col border-e border-white/10 bg-[#07111f] text-white lg:flex">
+  return <aside className="print:hidden hidden w-72 shrink-0 flex-col border-e border-white/10 bg-[#07111f] text-white lg:flex">
     <div className="flex min-h-20 items-center gap-3 border-b border-white/10 px-6">
       <span className="grid size-10 place-items-center rounded-xl bg-white"><WaslaMark /></span>
       <div className="min-w-0"><p className="text-sm font-black">بوابة شركاء وصلة</p><p className="mt-1 truncate text-xs text-slate-400">{name}</p></div>

@@ -5,6 +5,7 @@ import * as notificationsService from './services/notifications.service';
 import { createNotificationSchema, markReadSchema } from './schemas/notifications.schemas';
 import type { ActionResult, PaginatedResult } from '@/lib/types';
 import type { NotificationLog } from '@prisma/client';
+import { mergedMerchantNotifications, mergedMerchantUnreadCount, markMergedMerchantRead } from '@/modules/communications/merchant-inbox';
 
 // ============================================================================
 // Notifications Module — Server Actions
@@ -17,10 +18,7 @@ export async function getNotificationsAction(
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'notifications:read');
-    const result = await notificationsService.getNotifications(
-      auth.merchantId,
-      filters as { isRead?: boolean; type?: string; page?: number; limit?: number } | undefined
-    );
+    const result = await mergedMerchantNotifications(auth.merchantId, auth.userId, filters);
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to get notifications' };
@@ -46,7 +44,7 @@ export async function markAsReadAction(formData: unknown): Promise<ActionResult<
     const auth = await getAuthContext();
     requirePermission(auth, 'notifications:read');
     const parsed = markReadSchema.parse(formData);
-    const result = await notificationsService.markAsRead(auth.merchantId, parsed.ids);
+    const result = await markMergedMerchantRead(auth.merchantId, auth.userId, parsed.ids);
     return { success: true, data: { count: result.count } };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to mark notifications as read' };
@@ -58,7 +56,7 @@ export async function getUnreadCountAction(): Promise<ActionResult<number>> {
   try {
     const auth = await getAuthContext();
     requirePermission(auth, 'notifications:read');
-    const count = await notificationsService.getUnreadCount(auth.merchantId);
+    const count = await mergedMerchantUnreadCount(auth.merchantId, auth.userId);
     return { success: true, data: count };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to get unread count' };

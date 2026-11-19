@@ -5,6 +5,7 @@ import type { PrivateEvidence } from '@/services/storage/private-evidence-input'
 import { isPlatformRole } from '@/lib/platform-permissions';
 import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
 import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referrals/marketer-referrals.service';
+import { planRequestQuote } from '@/modules/merchant-subscriptions/market-pricing';
 
 export type PlatformPaymentAccountInput = {
   channel: 'BANKAK' | 'MYCASHY' | 'OTHER';
@@ -93,12 +94,14 @@ export async function updatePlatformPaymentAccount(id: string, input: PlatformPa
 
 export async function getManualPaymentQuote(merchantId: string) {
   const [request, settings] = await Promise.all([
-    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { code: true, name: true, monthlyPrice: true, currency: true } }, }, orderBy: { createdAt: 'desc' } }),
+    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { code: true, name: true, monthlyPrice: true, yearlyPrice: true, currency: true } }, }, orderBy: { createdAt: 'desc' } }),
     getPlatformBillingSettings(),
   ]);
   if (!request) return null;
-  const quote = quotePlanInSdg(request.targetPlan, settings.usdToSdgRate);
-  return { planCode: request.targetPlan.code, planName: request.targetPlan.name, planCurrency: request.targetPlan.currency, planMonthlyPrice: Number(request.targetPlan.monthlyPrice), usdToSdgRate: settings.usdToSdgRate, amount: quote.amount, currency: 'SDG' };
+  if ((request.quotedCurrency ?? request.targetPlan.currency) === 'SAR' || request.billingInterval === 'YEARLY') return null;
+  const locked = planRequestQuote(request);
+  const quote = quotePlanInSdg({ monthlyPrice: locked.amount, currency: locked.currency }, settings.usdToSdgRate);
+  return { planCode: request.targetPlan.code, planName: request.targetPlan.name, planCurrency: locked.currency, planMonthlyPrice: locked.amount, usdToSdgRate: settings.usdToSdgRate, amount: quote.amount, currency: 'SDG' };
 }
 
 export async function listMerchantPayments(merchantId: string) {
@@ -113,7 +116,7 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
 }, evidence: PrivateEvidence) {
   const [account, changeRequest, currentPayment, settings, stripeSubscription] = await Promise.all([
     prisma.platformPaymentAccount.findFirst({ where: { id: input.paymentAccountId, isActive: true } }),
-    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { monthlyPrice: true, currency: true } } }, orderBy: { createdAt: 'desc' } }),
+    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { monthlyPrice: true, yearlyPrice: true, currency: true } } }, orderBy: { createdAt: 'desc' } }),
     prisma.merchantSubscriptionPayment.findFirst({ where: { merchantId, status: { in: ['PENDING', 'VERIFIED'] } } }),
     getPlatformBillingSettings(),
     prisma.merchantSubscription.findFirst({ where: { merchantId, billingProvider: 'stripe', externalSubscriptionId: { not: null }, status: { not: 'CANCELLED' } }, select: { id: true } }),
@@ -122,7 +125,9 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
   if (!changeRequest) throw new ValidationError('Request a Pro upgrade before submitting payment');
   if (currentPayment) throw new ConflictError('A subscription payment is already under review or verified');
   if (stripeSubscription) throw new ConflictError('Cancel the active Stripe subscription before paying by transfer');
-  const quote = quotePlanInSdg(changeRequest.targetPlan, settings.usdToSdgRate);
+  if (changeRequest.billingInterval === 'YEARLY') throw new ValidationError('Annual subscriptions use online checkout');
+  const locked = planRequestQuote(changeRequest);
+  const quote = quotePlanInSdg({ monthlyPrice: locked.amount, currency: locked.currency }, settings.usdToSdgRate);
 
   const transactionRef = input.transactionRef.trim().toUpperCase();
   if (transactionRef.length < 4 || transactionRef.length > 100) throw new ValidationError('Transaction reference is invalid');

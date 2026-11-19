@@ -5,6 +5,7 @@ import { applyShipmentState } from '@/modules/delivery-partners/services/shipmen
 import { LiveRefresh } from '@/components/shared/live-refresh';
 import { redirect } from 'next/navigation';
 import { BusinessRuleError } from '@/lib/errors';
+import Link from 'next/link';
 
 const labels: Record<string, string> = { REQUESTED: 'بانتظار الإسناد', ASSIGNED: 'تم الإسناد', PICKED_UP: 'تم الاستلام', IN_TRANSIT: 'في الطريق', DELIVERED: 'تم التسليم', FAILED: 'تعذر التسليم', CANCELLED: 'ملغاة' };
 
@@ -53,6 +54,7 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Pr
           customerName: true,
           customerPhone: true,
           customerAddress: true,
+          delivery: { select: { state: true, city: true, area: true, notes: true } },
           total: true,
         },
       },
@@ -88,6 +90,9 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Pr
                   {s.order.customerName} · {s.order.customerPhone} ·{" "}
                   {s.order.customerAddress}
                 </p>
+                <p className="mt-2 text-xs text-[var(--muted-foreground)]">الولاية: {s.order.delivery?.state || 'غير مسجلة'} · المدينة: {s.order.delivery?.city || 'غير مسجلة'} · الحي: {s.order.delivery?.area || 'غير مسجل'}</p>
+                {s.order.delivery?.notes && <p className="mt-1 whitespace-pre-wrap text-xs">وصف العنوان: {s.order.delivery.notes}</p>}
+                <Link href={`/partner/shipments/${s.id}`} className="mt-3 inline-block text-sm font-bold text-[var(--primary)]">تفاصيل البوليصة ←</Link>
               </div>
               <span className="rounded-full bg-[var(--muted)] px-3 py-1 text-xs font-bold">
                 {labels[s.status] ?? s.status}

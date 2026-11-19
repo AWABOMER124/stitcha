@@ -42,3 +42,19 @@ merchant-os/public/uploads/
 # Build cache / crash dumps (not source)
 android/.kotlin/
 android/hs_err_pid*.log
+
+# Private release state and generated Python files
+__pycache__/
+*.pyc
+*.release-state.json*
+merchant-os/storage/private/
+.env.*
+!.env.example
+!**/.env.example
+!**/.env.production.example
+*.pem
+*.key
+*.dump
+
+# Internal customer/operations records are not published to the public origin
+docs/operations/

@@ -1,68 +1,25 @@
 'use client';
-
-import { useReducer } from 'react';
-import {
-  SUDAN_STATES, EMPTY_SUDAN_SELECTION, changeSudanSelection, getSudanCities, getSudanDistricts,
-  type SudanSelection,
-} from '@/lib/geography/sudan';
-
+import { useState } from 'react';
+import { SUDAN_STATES, getSudanDistricts } from '@/lib/geography/sudan';
+import { stateForCity } from '@/lib/geography/regional-coverage';
 const fieldClass = 'mt-2 w-full rounded-xl border border-[var(--input)] bg-[var(--card)] px-3 py-3 disabled:opacity-60';
-
-export function SudanCoverageFields() {
-  const [selection, select] = useReducer(
-    (current: SudanSelection, action: { field: keyof SudanSelection; value: string }) =>
-      changeSudanSelection(current, action.field, action.value), EMPTY_SUDAN_SELECTION,
-  );
-  const cities = getSudanCities(selection.stateId);
-  const districts = getSudanDistricts(selection.cityId);
-  const district = districts.find(item => item.id === selection.districtId);
-  const scopeKey = `${selection.stateId}:${selection.cityId}:${selection.districtId}`;
-  return (
-    <fieldset className="grid gap-3 rounded-xl border border-[var(--border)] p-3 sm:col-span-2 sm:grid-cols-2">
-      <legend className="px-2 text-sm font-bold">الموقع داخل السودان</legend>
-      <input type="hidden" name="locationMode" value="directory" />
-      <label className="text-sm font-semibold">
-        الولاية
-        <select name="stateId" required value={selection.stateId} className={fieldClass}
-          onChange={event => select({ field: 'stateId', value: event.target.value })}>
-          <option value="">اختر الولاية</option>
-          {SUDAN_STATES.map(state => <option key={state.id} value={state.id}>{state.name}</option>)}
-        </select>
-      </label>
-      <label className="text-sm font-semibold">
-        المدينة
-        <select name="cityId" required disabled={!selection.stateId} value={selection.cityId} className={fieldClass}
-          onChange={event => select({ field: 'cityId', value: event.target.value })}>
-          <option value="">اختر المدينة</option>
-          {cities.map(city => <option key={city.id} value={city.id}>{city.name}</option>)}
-          <option value="custom">مدينة أخرى في الولاية — إدخال يدوي</option>
-        </select>
-      </label>
-      {selection.cityId === 'custom' ? (
-        <label className="text-sm font-semibold">
-          اسم المدينة غير المدرجة
-          <input key={selection.stateId} name="city" required minLength={2} maxLength={120} className={fieldClass} />
-        </label>
-      ) : (
-        <label className="text-sm font-semibold">
-          الحي / المنطقة
-          <select name="districtId" value={selection.districtId} disabled={!selection.cityId || !districts.length}
-            className={fieldClass} onChange={event => select({ field: 'districtId', value: event.target.value })}>
-            <option value="">{districts.length ? 'منطقة مخصصة / حي غير مدرج' : 'أدخل اسم المنطقة يدوياً'}</option>
-            {districts.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-        </label>
-      )}
-      <label className="text-sm font-semibold">
-        {district ? 'اسم المنطقة المختارة' : 'اسم نطاق الخدمة / الحي غير المدرج'}
-        <input key={scopeKey} name="name" defaultValue={district?.name ?? ''} readOnly={!!district}
-          required minLength={2} maxLength={120} className={fieldClass} />
-      </label>
-      <p role="status" className="text-xs leading-6 text-[var(--muted-foreground)] sm:col-span-2">
-        دليل أولي للمدن والأحياء، وليس قائمة شاملة أو تأكيداً لتوفر التوصيل.
-        يجب تحديد مركز المنطقة ونصف قطر التغطية الفعلي أدناه، ثم إضافة التسعير.
-        {selection.cityId && !districts.length && ' لا توجد أحياء مدرجة لهذه المدينة بعد؛ يمكنك إدخال المنطقة يدوياً.'}
-      </p>
-    </fieldset>
-  );
+type InitialAddress = { state?: string | null; city?: string | null; district?: string | null; allCities?: boolean; allDistricts?: boolean };
+export function SudanCoverageFields({ initial = {} }: { initial?: InitialAddress }) {
+  const originalState = SUDAN_STATES.find(item => item.name === (initial.state ?? stateForCity(initial.city)));
+  const originalCity = originalState?.cities.find(item => item.name === initial.city);
+  const [stateId, setStateId] = useState(originalState?.id ?? '');
+  const [cityId, setCityId] = useState(initial.allCities ? 'all' : originalCity?.id ?? (initial.city ? 'custom' : ''));
+  const [districtId, setDistrictId] = useState(initial.allDistricts ? 'all' : originalCity && initial.district
+    ? getSudanDistricts(originalCity.id).find(item => item.name === initial.district)?.id ?? 'custom' : initial.district ? 'custom' : 'all');
+  const state = SUDAN_STATES.find(item => item.id === stateId), districts = getSudanDistricts(cityId);
+  return <fieldset className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+    <legend className="sr-only">نطاق تسعيرة التوصيل</legend>
+    <label className="text-sm font-semibold">الولاية<select name="stateId" required value={stateId} className={fieldClass} onChange={event => { setStateId(event.target.value); setCityId(''); setDistrictId('all'); }}><option value="">اختر الولاية</option>{SUDAN_STATES.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+    <label className="text-sm font-semibold">المدينة<select name="cityId" required disabled={!stateId} value={cityId} className={fieldClass} onChange={event => { setCityId(event.target.value); setDistrictId('all'); }}><option value="">اختر المدينة أو كل المدن</option><option value="all">كل المدن في الولاية</option>{state?.cities.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="custom">مدينة أخرى — إدخال يدوي</option></select></label>
+    {cityId === 'custom' && <label className="text-sm font-semibold">اسم المدينة<input key={stateId} name="city" required minLength={2} maxLength={120} defaultValue={stateId === originalState?.id ? initial.city ?? '' : ''} className={fieldClass} /></label>}
+    {cityId === 'all' ? <><input type="hidden" name="districtId" value="all" /><p className="rounded-xl bg-teal-50 p-3 text-sm text-teal-900 sm:col-span-2">يشمل السعر كل المدن وكل الأحياء داخل الولاية المختارة.</p></> : <>
+      <label className="text-sm font-semibold sm:col-span-2">الحي<select name="districtId" required disabled={!cityId} value={districtId} className={fieldClass} onChange={event => setDistrictId(event.target.value)}><option value="all">كل الأحياء في المدينة</option>{districts.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="custom">حي آخر — إدخال يدوي</option></select></label>
+      {districtId === 'custom' && <label className="text-sm font-semibold sm:col-span-2">اسم الحي<input key={`${stateId}:${cityId}`} name="district" required minLength={2} maxLength={120} defaultValue={stateId === originalState?.id && (cityId === originalCity?.id || cityId === 'custom') ? initial.district ?? '' : ''} className={fieldClass} /></label>}
+    </>}
+  </fieldset>;
 }

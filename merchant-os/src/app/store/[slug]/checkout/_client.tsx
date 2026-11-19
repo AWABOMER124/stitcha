@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/context';
+import { DeliveryAddressFields } from '@/components/orders/delivery-address-fields';
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
 type PaymentAccount = { id: string; channel: string; label: string; accountName: string; accountNumber: string; instructions: string | null };
@@ -97,10 +98,12 @@ export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEna
     if (paymentMethod === 'MANUAL_TRANSFER' && (!paymentAccountId || transactionRef.trim().length < 4 || !proof)) { setError(ar ? 'اختر حساب التحويل، أدخل رقم العملية، وارفع الإشعار.' : 'Select an account, enter the transaction reference, and upload the receipt.'); return; }
     setLoading(true);
     setError('');
+    const addressForm = new FormData(e.currentTarget as HTMLFormElement);
     const form = new FormData();
     form.set('customerName', name); form.set('customerPhone', phone); form.set('deliveryMethod', method);
     if (method === 'MERCHANT_DELIVERY') {
       form.set('customerAddress', address);
+      for (const field of ['customerState', 'customerCity', 'customerDistrict', 'customerAddressDescription', 'deliveryAddressVersion']) form.set(field, String(addressForm.get(field) ?? ''));
       if (deliveryLocation) {
         form.set('deliveryLat', String(deliveryLocation.lat));
         form.set('deliveryLng', String(deliveryLocation.lng));
@@ -191,8 +194,9 @@ export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEna
             )}
           </div>
           {method === 'MERCHANT_DELIVERY' && (
-            <div className="space-y-2">
-              <input value={address} onChange={e => setAddress(e.target.value)} required placeholder={t.addressPlaceholder} className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--sp)]" />
+            <div className="space-y-3">
+              <DeliveryAddressFields locale={locale} onLocationChange={() => setDeliveryLocation(null)} />
+              <label className="block text-sm font-bold">{ar ? "العنوان التفصيلي (الشارع والمبنى)" : "Detailed address (street and building)"}<input maxLength={500} value={address} onChange={e => { setAddress(e.target.value); setDeliveryLocation(null); }} required placeholder={t.addressPlaceholder} className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--sp)]" /></label>
               <button type="button" onClick={captureLocation} disabled={locating} className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700 disabled:opacity-50">
                 {locating ? (ar ? 'جارٍ تحديد الموقع…' : 'Getting location…') : deliveryLocation ? (ar ? '✓ تم حفظ موقع التوصيل' : '✓ Delivery location saved') : (ar ? '📍 تحديد موقعي للتوصيل الدقيق' : '📍 Use my precise delivery location')}
               </button>

@@ -2,6 +2,7 @@ export type CheckoutMode = 'payment' | 'subscription';
 
 export interface CheckoutSessionInput {
   mode: CheckoutMode;
+  recurringInterval?: 'month' | 'year';
   internalReference: string;
   idempotencyKey: string;
   itemName: string;

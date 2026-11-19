@@ -2,6 +2,7 @@
 
 import { useLocale } from '@/lib/i18n/context';
 import { Button } from '@/components/ui/button';
+import { isDeploymentError } from '@/lib/deployment-guard';
 
 /**
  * Error boundary component
@@ -14,6 +15,7 @@ export default function ErrorBoundary({
   reset: () => void;
 }) {
   const { dict } = useLocale();
+  if (isDeploymentError(error)) return <section dir="rtl" role="alert" className="mx-auto max-w-xl space-y-4 rounded-2xl border bg-amber-50 p-6 text-amber-950"><h2 className="text-lg font-bold">توجد نسخة أحدث من الموقع</h2><p>حدّث الصفحة ثم راجع البيانات قبل تنفيذ الإجراء مرة أخرى. لم نعد إرسال الطلب تلقائيًا.</p><Button onClick={() => window.location.reload()}>تحديث الصفحة</Button></section>;
   return (
     <div className="flex h-64 items-center justify-center">
       <div className="text-center">

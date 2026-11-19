@@ -383,8 +383,101 @@ model User {
   phoneVerifications   PhoneVerification[]
   partnerChallenges    PartnerVerificationChallenge[]
   marketerAccount      MarketerAccount?
+  communicationPreferences CommunicationPreference?
+  communicationDeliveries CommunicationDelivery[]
 
   @@map("users")
+}
+
+model CommunicationTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  audience    String
+  purpose     String   @default("SERVICE")
+  segment     String   @default("ALL")
+  title       String
+  body        String
+  actionPath  String?
+  channels    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rules       CommunicationRule[]
+  @@map("communication_templates")
+}
+
+model CommunicationCampaign {
+  id          String   @id @default(cuid())
+  name        String
+  audience    String
+  purpose     String   @default("SERVICE")
+  filters     Json
+  channels    Json
+  title       String
+  body        String
+  actionPath  String?
+  status      String   @default("DRAFT")
+  scheduledAt DateTime?
+  createdById String
+  ruleId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deliveries  CommunicationDelivery[]
+  @@index([status, scheduledAt])
+  @@map("communication_campaigns")
+}
+
+model CommunicationDelivery {
+  id            String   @id @default(cuid())
+  campaignId    String
+  userId        String
+  entityId      String
+  channel       String
+  recipient     String
+  title         String
+  body          String
+  actionPath    String?
+  status        String   @default("QUEUED")
+  dedupeKey     String?  @unique
+  lastError     String?
+  retryCount    Int      @default(0)
+  acceptedAt    DateTime?
+  readAt        DateTime?
+  startedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  campaign      CommunicationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([campaignId, userId, channel])
+  @@index([userId, channel, status, createdAt])
+  @@index([campaignId, status])
+  @@map("communication_deliveries")
+}
+
+model CommunicationRule {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  name           String
+  templateId     String
+  filters        Json
+  channels       Json
+  isActive       Boolean  @default(false)
+  lastEvaluatedAt DateTime?
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  template       CommunicationTemplate @relation(fields: [templateId], references: [id])
+  @@map("communication_rules")
+}
+
+model CommunicationPreference {
+  userId         String   @id
+  marketing      Boolean  @default(true)
+  email          Boolean  @default(true)
+  whatsapp       Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("communication_preferences")
 }
 
 model PartnerVerificationChallenge {
@@ -666,6 +759,10 @@ model DeliveryPartnerUser {
 }
 
 model MerchantDeliveryPartner {
+  providerSyncStatus String @default("NOT_REQUIRED")
+  providerSyncVersion Int @default(0)
+  providerSyncError String?
+  providerSyncedAt DateTime?
   id         String   @id @default(cuid())
   merchantId String
   partnerId  String
@@ -715,6 +812,11 @@ model DeliveryPartnerServiceArea {
   code                String
   name                String
   city                String?
+  state               String?
+  district            String?
+  description         String?
+  allCities           Boolean  @default(false)
+  allDistricts        Boolean  @default(false)
   centerLat           Float?
   centerLng           Float?
   radiusKm            Float?
@@ -796,7 +898,7 @@ model DeliveryQuote {
   partnerId     String
   pricingRuleId String?
   status        DeliveryQuoteStatus @default(OFFERED)
-  distanceKm    Float
+  distanceKm    Float?
   fee           Decimal             @db.Decimal(10, 2)
   currency      String              @default("SDG")
   etaMinutesMin Int?
@@ -816,6 +918,7 @@ model DeliveryQuote {
 }
 
 model PlatformShipment {
+  codReceipts CodReceipt[]
   id                String                 @id @default(cuid())
   orderId           String                 @unique
   quoteId           String?                @unique
@@ -842,11 +945,40 @@ model PlatformShipment {
   proof         PlatformProofOfDelivery?
   codCollection CodCollection?
   partnerApiEvents DeliveryPartnerApiEvent[]
+  returnShipment PlatformReturnShipment?
 
   @@index([partnerId, status])
   @@index([installationId, status])
   @@index([courierId, status])
   @@map("platform_shipments")
+}
+
+model PlatformReturnShipment {
+  id String @id @default(cuid())
+  originalShipmentId String @unique
+  trackingCode String @unique
+  providerReference String?
+  status PlatformShipmentStatus @default(REQUESTED)
+  reason String
+  pickup Json
+  destination Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  originalShipment PlatformShipment @relation(fields: [originalShipmentId], references: [id], onDelete: Restrict)
+  events PlatformReturnEvent[]
+  @@map("platform_return_shipments")
+}
+
+model PlatformReturnEvent {
+  id String @id @default(cuid())
+  returnId String
+  eventId String
+  status PlatformShipmentStatus
+  note String?
+  createdAt DateTime @default(now())
+  shipment PlatformReturnShipment @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  @@unique([returnId, eventId])
+  @@map("platform_return_events")
 }
 
 model DeliveryPartnerApiEvent {
@@ -902,6 +1034,8 @@ model PlatformProofOfDelivery {
 }
 
 model CodCollection {
+  merchantConfirmedAt DateTime?
+  merchantConfirmedBy String?
   id              String              @id @default(cuid())
   shipmentId      String              @unique
   status          CodCollectionStatus @default(PENDING)
@@ -987,6 +1121,7 @@ model Merchant {
   storeType    StoreType      @default(ONLINE_STORE)
   status       MerchantStatus @default(PENDING)
 
+  subscriptionMarket String @default("SD")
   currency String @default("SDG")
   timezone String @default("Africa/Khartoum")
 
@@ -1758,6 +1893,7 @@ model MerchantPlan {
   currency     String   @default("USD")
   entitlements Json
   isPublic     Boolean  @default(true)
+  isMarketPublic Boolean @default(false)
   isActive     Boolean  @default(true)
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
@@ -1854,6 +1990,9 @@ model MerchantPlanChangeRequest {
   requestKey   String?                         @unique
   status       MerchantPlanChangeRequestStatus @default(PENDING)
   note         String?
+  billingInterval SubscriptionBillingInterval @default(MONTHLY)
+  quotedAmount Decimal? @db.Decimal(10, 2)
+  quotedCurrency String?
   createdAt    DateTime                        @default(now())
   updatedAt    DateTime                        @updatedAt
   resolvedAt   DateTime?
@@ -2624,6 +2763,7 @@ model Delivery {
   address String?
   area    String?
   city    String?
+  state   String?
   lat     Float?
   lng     Float?
 
@@ -3079,6 +3219,8 @@ model DeliveryZone {
   distributorId String
   name          String
   description   String?
+  city          String?
+  district      String?
   baseFee       Decimal  @db.Decimal(10, 2)
   perKmFee      Decimal  @default(0) @db.Decimal(10, 2)
   maxDistanceKm Float?
@@ -3540,4 +3682,18 @@ model AiUsageOperation {
   @@index([status, expiresAt])
   @@index([merchantId, createdAt])
   @@map("ai_usage_operations")
+}
+
+model CodReceipt {
+ id String @id @default(cuid())
+ shipmentId String
+ kind String
+ amount Decimal @db.Decimal(10,2)
+ currency String
+ actorId String
+ reference String
+ createdAt DateTime @default(now())
+ shipment PlatformShipment @relation(fields:[shipmentId],references:[id],onDelete:Restrict)
+ @@unique([shipmentId,kind],map:"cod_receipts_shipment_kind_key")
+ @@map("cod_receipts")
 }

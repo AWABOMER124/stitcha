@@ -11,13 +11,15 @@ import { InternationalPhoneInput } from '@/components/ui/international-phone-inp
 /**
  * Merchant registration page for WASLA Commerce OS
  */
-export default function RegisterPage({ searchParams }: { searchParams: Promise<{ ref?: string | string[] }> }) {
+export default function RegisterPage({ searchParams }: { searchParams: Promise<{ ref?: string | string[]; market?: string }> }) {
   const { dict, locale } = useLocale();
   const router = useRouter();
-  const rawReferral = use(searchParams).ref;
+  const query = use(searchParams);
+  const rawReferral = query.ref;
   const referralCode = (Array.isArray(rawReferral) ? rawReferral[0] : rawReferral)?.trim().toUpperCase() ?? '';
   const [formData, setFormData] = useState({
     merchantName: "",
+    subscriptionMarket: query.market === 'SA' ? 'SA' : 'SD',
     ownerName: "",
     email: "",
     countryCode: "+249",
@@ -174,6 +176,12 @@ export default function RegisterPage({ searchParams }: { searchParams: Promise<{
       {/* Registration Form */}
       <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xl shadow-slate-900/5 sm:p-7">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block text-sm font-semibold">{locale === 'ar' ? 'بلد نشاط المتجر' : 'Store business market'}
+            <select className="mt-2 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3" value={formData.subscriptionMarket} onChange={e => updateField('subscriptionMarket', e.target.value)}>
+              <option value="SD">{locale === 'ar' ? 'السودان' : 'Sudan'}</option>
+              <option value="SA">{locale === 'ar' ? 'السعودية' : 'Saudi Arabia'}</option>
+            </select>
+          </label>
           {error && (
             <div className="rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 p-3 text-sm text-red-700 dark:text-red-400">
               {error}

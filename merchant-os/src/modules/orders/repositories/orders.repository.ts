@@ -103,6 +103,10 @@ export async function create(
     customerName?: string;
     customerPhone?: string;
     customerAddress?: string;
+    customerState?: string;
+    customerCity?: string;
+    customerDistrict?: string;
+    customerAddressDescription?: string;
     deliveryLat?: number;
     deliveryLng?: number;
     items: {
@@ -210,6 +214,10 @@ export async function create(
           create: {
             type: data.deliveryMethod as DeliveryMethod,
             address: data.customerAddress,
+            state: data.customerState,
+            city: data.customerCity,
+            area: data.customerDistrict,
+            notes: data.customerAddressDescription,
             lat: data.deliveryLat,
             lng: data.deliveryLng,
             fee: data.deliveryFee,

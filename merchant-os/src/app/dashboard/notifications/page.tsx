@@ -8,15 +8,15 @@ export const dynamic = 'force-dynamic';
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; notification?:string }>;
 }) {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
 
-  const { tab } = await searchParams;
+  const { tab,notification } = await searchParams;
   const isUnread = tab === 'unread';
 
-  const result = await getNotificationsAction({ isRead: isUnread ? false : undefined, limit: 50 });
+  const result = await getNotificationsAction({ isRead: isUnread ? false : undefined, limit: 50, ...(notification ? {id:notification} : {}) });
   const notifications = result.success ? result.data.data : [];
   const pagination = result.success ? result.data.pagination : { page: 1, limit: 50, total: 0, totalPages: 1 };
 
@@ -24,6 +24,7 @@ export default async function NotificationsPage({
     <NotificationsClient
       initialNotifications={notifications as unknown as Notification[]}
       initialPagination={pagination}
+      loadError={result.success?undefined:result.error}
       activeTab={isUnread ? 'unread' : 'all'}
     />
   );

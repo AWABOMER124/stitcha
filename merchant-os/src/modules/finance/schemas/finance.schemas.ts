@@ -26,7 +26,11 @@ export const createSettlementSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+const optionalLocation = z.string().trim().min(2).max(120).regex(/^[^\u0000-\u001f\u007f]+$/).nullable().optional();
+
 export const createDeliveryZoneSchema = z.object({
+  city: optionalLocation,
+  district: optionalLocation,
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
   baseFee: z.coerce.number().min(0),
@@ -38,6 +42,9 @@ export const createDeliveryZoneSchema = z.object({
 });
 
 export const updateDeliveryZoneSchema = createDeliveryZoneSchema.partial().extend({
+  perKmFee: z.coerce.number().min(0).optional(),
+  currency: z.string().optional(),
+  sortOrder: z.coerce.number().int().optional(),
   isActive: z.boolean().optional(),
 });
 

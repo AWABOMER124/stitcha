@@ -1,5 +1,7 @@
 'use server';
 
+import { createReturnShipment, returnRequestSchema } from './services/return-shipment.service';
+import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/db/prisma';
 import { getAuthContext, requirePermission } from '@/lib/permissions';
 import { BusinessRuleError } from '@/lib/errors';
@@ -37,4 +39,14 @@ export async function acceptMerchantDeliveryQuoteAction(orderId: string, quoteId
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Failed to accept delivery quote' };
   }
+}
+
+export async function createMerchantReturnAction(orderId: string, input: unknown): Promise<ActionResult<unknown>> {
+  try {
+    requireDeliveryEnabled();
+    const context = await getAuthContext(); requirePermission(context, 'orders:update');
+    const result = await createReturnShipment(context.merchantId, orderId, returnRequestSchema.parse(input));
+    revalidatePath('/dashboard/orders/' + orderId);
+    return { success: true, data: serializePrismaObject(result) };
+  } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'تعذر إنشاء الرجيع' }; }
 }

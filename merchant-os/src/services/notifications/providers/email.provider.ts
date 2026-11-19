@@ -11,8 +11,10 @@ export class EmailProvider implements NotificationProvider {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       signal: AbortSignal.timeout(15_000),
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [payload.recipient], subject: payload.title, text: payload.body }),
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json',
+        ...(typeof payload.metadata?.idempotencyKey === 'string' ? { 'Idempotency-Key': payload.metadata.idempotencyKey } : {}) },
+      body: JSON.stringify({ from, to: [payload.recipient], subject: payload.title, text: payload.body,
+        ...(typeof payload.metadata?.unsubscribeUrl === 'string' ? { headers: { 'List-Unsubscribe': `<${payload.metadata.unsubscribeUrl}>` } } : {}) }),
     });
 
     if (!response.ok) {

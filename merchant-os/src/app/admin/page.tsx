@@ -78,7 +78,7 @@ export default async function AdminDashboardPage() {
       "إجمالي الطلبات",
       stats?.totalOrders ?? 0,
       `${stats?.deliveredOrders ?? 0} تم تسليمه`,
-      "/admin/merchants",
+      "/admin/orders",
     ],
     [
       "💎",

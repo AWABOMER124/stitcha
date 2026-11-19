@@ -11,6 +11,11 @@ const rule = {
 };
 
 describe("calculateDeliveryPrice", () => {
+  it('uses a fixed area price without a route distance and never invents per-kilometre charges', () => {
+    expect(calculateDeliveryPrice({ ...rule, perKmFee: 0, maxDistanceKm: null }, null)).toEqual({ amount: 700, currency: 'SDG', distanceKm: null });
+    expect(calculateDeliveryPrice({ ...rule, maxDistanceKm: null }, null)).toBeNull();
+    expect(calculateDeliveryPrice({ ...rule, perKmFee: 0 }, null)).toBeNull();
+  });
   it("applies the minimum, distance price, and maximum cap", () => {
     expect(calculateDeliveryPrice(rule, 0)?.amount).toBe(700);
     expect(calculateDeliveryPrice(rule, 5)?.amount).toBe(1100);

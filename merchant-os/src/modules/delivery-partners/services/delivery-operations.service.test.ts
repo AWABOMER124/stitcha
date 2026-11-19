@@ -47,6 +47,19 @@ beforeEach(() => {
 });
 
 describe("quotePlatformDelivery", () => {
+  it('quotes a matching district at its fixed fee when pickup and dropoff coordinates are absent', async () => {
+    prismaMock.order.findUnique.mockResolvedValue({ merchantId: 'merchant_1', deliveryMethod: 'MERCHANT_DELIVERY', status: 'NEW', platformShipment: null,
+      branch: { lat: null, lng: null }, delivery: { city: 'الخرطوم', area: 'الكلاكلة القبة', address: 'محطة 9', lat: null, lng: null } });
+    const fixed = { id: 'fixed', partnerId: 'partner_1', baseFee: 500, perKmFee: 0, minimumFee: 0, maxDistanceKm: null, currency: 'SDG',
+      partner: { id: 'partner_1', providerConfig: { integrationMode: 'APP_V1' } },
+      serviceArea: { isActive: true, partnerId: 'partner_1', city: 'الخرطوم', district: 'الكلاكلة القبة' } };
+    prismaMock.deliveryPartnerPricingRule.findMany.mockResolvedValue([fixed, { ...fixed, id: 'distance', perKmFee: 50 },
+      { ...fixed, id: 'wrong-district', serviceArea: { ...fixed.serviceArea, district: 'حي آخر' } }]);
+    prismaMock.deliveryQuote.create.mockImplementation(async ({ data }: { data: unknown }) => data);
+    const result = await quotePlatformDelivery('order_1');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ pricingRuleId: 'fixed', fee: 500, distanceKm: null });
+  });
   it("rejects pickup and completed orders before quoting", async () => {
     prismaMock.order.findUnique.mockResolvedValue({
       deliveryMethod: "PICKUP",
@@ -78,7 +91,7 @@ describe("quotePlatformDelivery", () => {
       status: "NEW",
       platformShipment: null,
       branch: { lat: 15.5, lng: 32.5 },
-      delivery: { lat: 15.51, lng: 32.51 },
+      delivery: { city: "بورتسودان", area: "ديم عرب", address: "عنوان اختبار", lat: 15.51, lng: 32.51 },
     });
     prismaMock.deliveryPartnerPricingRule.findMany.mockResolvedValue([
       {
@@ -146,6 +159,33 @@ describe("quotePlatformDelivery", () => {
 });
 
 describe("acceptDeliveryQuote", () => {
+  function addressQuote() {
+    return { id: 'quote_1', orderId: 'order_1', status: 'OFFERED', expiresAt: new Date(Date.now() + 60000), fee: 25, currency: 'SDG',
+      partnerId: 'partner_1', partner: { supportsCod: true }, distanceKm: null,
+      pricingRule: { isActive: true, partnerId: 'partner_1', baseFee: 25, perKmFee: 0, minimumFee: 0, currency: 'SDG',
+        serviceArea: { isActive: true, partnerId: 'partner_1', city: 'الخرطوم', district: 'الكلاكلة القبة' } },
+      order: { merchantId: 'merchant_1', status: 'READY', deliveryMethod: 'MERCHANT_DELIVERY', branch: { lat: null, lng: null },
+        delivery: { city: 'الخرطوم', area: 'الكلاكلة القبة', address: 'محطة 9', lat: null, lng: null },
+        subtotal: 100, discount: 10, tax: 5, total: 95, paymentMethod: 'CASH', payment: { id: 'payment_1' }, platformShipment: null } };
+  }
+  it('accepts a fixed district quote with no coordinates', async () => {
+    txMock.deliveryQuote.findFirst.mockResolvedValue(addressQuote());
+    await acceptDeliveryQuote('order_1', 'quote_1');
+    expect(txMock.platformShipment.create).toHaveBeenCalledOnce();
+    expect(txMock.codCollection.create).toHaveBeenCalledWith({ data: { shipmentId: 'shipment_1', expectedAmount: 120, currency: 'SDG' } });
+  });
+  it('rechecks district coverage before accepting a quote without coordinates', async () => {
+    const quote = addressQuote(); quote.order.delivery.area = 'حي آخر';
+    txMock.deliveryQuote.findFirst.mockResolvedValue(quote);
+    await expect(acceptDeliveryQuote('order_1', 'quote_1')).rejects.toThrow('coverage changed');
+    expect(txMock.platformShipment.create).not.toHaveBeenCalled();
+  });
+  it('rejects a changed price before accepting the old quote', async () => {
+    const quote = addressQuote(); quote.pricingRule.baseFee = 50;
+    txMock.deliveryQuote.findFirst.mockResolvedValue(quote);
+    await expect(acceptDeliveryQuote('order_1', 'quote_1')).rejects.toThrow('price or coverage changed');
+    expect(txMock.order.update).not.toHaveBeenCalled();
+  });
   it("updates order and payment totals and creates COD custody for the exact final total", async () => {
     txMock.deliveryQuote.findFirst.mockResolvedValue({
       id: "quote_1",
@@ -157,10 +197,10 @@ describe("acceptDeliveryQuote", () => {
       partnerId: "partner_1",
       partner: { supportsCod: true },
       distanceKm: 0,
-      pricingRule: { isActive: true, partnerId: 'partner_1', serviceArea: { isActive: true, partnerId: 'partner_1', centerLat: 15.5, centerLng: 32.5, radiusKm: 20 } },
+      pricingRule: { baseFee: 25, perKmFee: 0, minimumFee: 0, currency: "SDG", isActive: true, partnerId: 'partner_1', serviceArea: { isActive: true, partnerId: 'partner_1', centerLat: 15.5, centerLng: 32.5, radiusKm: 20 } },
       order: {
         merchantId: 'merchant_1', status: 'READY', deliveryMethod: 'MERCHANT_DELIVERY',
-        branch: { lat: 15.5, lng: 32.5 }, delivery: { lat: 15.5, lng: 32.5 },
+        branch: { lat: 15.5, lng: 32.5 }, delivery: { city: "بورتسودان", area: "ديم عرب", address: "عنوان اختبار", lat: 15.5, lng: 32.5 },
         subtotal: 100,
         discount: 10,
         tax: 5,

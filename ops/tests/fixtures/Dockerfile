@@ -1,0 +1,6 @@
+FROM node:24-alpine
+WORKDIR /fixture
+COPY server.js .
+ARG APP_RELEASE
+ENV APP_RELEASE=$APP_RELEASE APP_PROCESS_MODE=web JOB_RUNNER_ENABLED=false
+CMD ["node","server.js"]

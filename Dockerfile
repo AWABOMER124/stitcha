@@ -25,7 +25,9 @@ ARG APP_RELEASE="unknown"
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV APP_RELEASE=$APP_RELEASE
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build && node scripts/assert-partner-build.mjs
+RUN --mount=type=secret,id=next_server_actions_key \
+    if [ -s /run/secrets/next_server_actions_key ]; then export NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$(cat /run/secrets/next_server_actions_key)"; fi; \
+    npm run build && node scripts/assert-partner-build.mjs
 
 # Keep the production image free of build/lint-only packages. Prisma and
 # dotenv are runtime dependencies because the entrypoint applies migrations.

@@ -3,14 +3,15 @@
 import { useState, useTransition } from 'react';
 import { requestPlanChangeAction } from '@/modules/merchant-subscriptions/actions';
 
-export function UpgradeButton({ locale, planCode, planName }: { locale: 'ar' | 'en'; planCode: string; planName: string }) {
+export function UpgradeButton({ locale, planCode, planName, yearlyPrice }: { locale: 'ar' | 'en'; planCode: string; planName: string; yearlyPrice?: number | null }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [billingInterval, setBillingInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
 
   function requestUpgrade() {
     setMessage(null);
     startTransition(async () => {
-      const result = await requestPlanChangeAction({ targetPlanCode: planCode });
+      const result = await requestPlanChangeAction({ targetPlanCode: planCode, billingInterval });
       setMessage(result.success
         ? (locale === 'ar' ? 'تم إرسال طلب الترقية. سيتواصل معك فريق وصلة.' : 'Upgrade request sent. The WASLA team will contact you.')
         : result.error);
@@ -19,6 +20,10 @@ export function UpgradeButton({ locale, planCode, planName }: { locale: 'ar' | '
 
   return (
     <div>
+      {yearlyPrice != null && <select aria-label={locale === 'ar' ? 'مدة الاشتراك' : 'Billing interval'} value={billingInterval} disabled={isPending} onChange={e => setBillingInterval(e.target.value as 'MONTHLY' | 'YEARLY')} className="mb-3 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] p-3">
+        <option value="MONTHLY">{locale === 'ar' ? 'شهري' : 'Monthly'}</option>
+        <option value="YEARLY">{locale === 'ar' ? 'سنوي' : 'Yearly'}</option>
+      </select>}
       <button
         type="button"
         onClick={requestUpgrade}

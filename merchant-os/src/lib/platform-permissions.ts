@@ -12,6 +12,7 @@ export const PLATFORM_PERMISSIONS = {
   USERS_MANAGE: 'platform:users:manage',
   SETTINGS_MANAGE: 'platform:settings:manage',
   NOTIFICATIONS_READ: 'platform:notifications:read',
+  COMMUNICATIONS_MANAGE: 'platform:communications:manage',
 } as const;
 
 export type PlatformPermission = typeof PLATFORM_PERMISSIONS[keyof typeof PLATFORM_PERMISSIONS];

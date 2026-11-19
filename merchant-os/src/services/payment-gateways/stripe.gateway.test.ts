@@ -15,6 +15,16 @@ const input = {
 };
 
 describe('Stripe fail-closed gateway', () => {
+  it('sends Saudi annual billing in SAR with a yearly recurring period', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 'cs_annual', url: 'https://checkout.stripe.com/test' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const gateway = new StripeGateway({ enabled: true, secretKey: 'sk_test', webhookSecret: 'whsec_test' });
+    await gateway.createCheckoutSession({ ...input, amount: 490, currency: 'SAR', recurringInterval: 'year' });
+    const body = fetchMock.mock.calls[0][1].body as URLSearchParams;
+    expect(body.get('line_items[0][price_data][recurring][interval]')).toBe('year');
+    expect(body.get('line_items[0][price_data][unit_amount]')).toBe('49000');
+    expect(body.get('line_items[0][price_data][currency]')).toBe('sar');
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it('does not call Stripe while the release flag is disabled', async () => {

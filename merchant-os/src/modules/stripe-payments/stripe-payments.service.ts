@@ -7,6 +7,7 @@ import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referr
 import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referrals/marketer-referrals.service';
 import { getPlatformBillingSettings } from '@/modules/subscription-payments/subscription-payments.service';
 import { recordOnlinePaymentEntry, recordRefundEntry } from '@/modules/online-settlements/online-settlements.service';
+import { planRequestQuote } from '@/modules/merchant-subscriptions/market-pricing';
 
 const PROVIDER = 'stripe';
 
@@ -110,7 +111,8 @@ export async function createSubscriptionStripeCheckout(input: {
   if (current?.billingProvider === PROVIDER && current.externalSubscriptionId && current.status !== 'CANCELLED') {
     throw new ConflictError('An active Stripe subscription already exists; cancel or change it before starting another subscription');
   }
-  const amount = Number(request.targetPlan.monthlyPrice);
+  const quote = planRequestQuote(request);
+  const amount = quote.amount;
   if (!Number.isFinite(amount) || amount <= 0) throw new ValidationError('The selected plan does not require payment');
   const pendingManual = await prisma.merchantSubscriptionPayment.findFirst({
     where: { merchantId: input.merchantId, provider: 'manual', status: 'PENDING' },
@@ -119,11 +121,12 @@ export async function createSubscriptionStripeCheckout(input: {
   if (pendingManual) throw new ConflictError('A bank transfer is already under review');
   return createStripeGatewayFromEnv().createCheckoutSession({
     mode: 'subscription',
+    recurringInterval: quote.billingInterval === 'YEARLY' ? 'year' : 'month',
     internalReference: request.id,
     idempotencyKey: `wasla-subscription-${request.id}`,
     itemName: `WASLA ${request.targetPlan.name}`,
     amount,
-    currency: request.targetPlan.currency,
+    currency: quote.currency,
     customerEmail: input.customerEmail ?? undefined,
     successUrl: `${input.origin}/dashboard/subscription?stripe=success`,
     cancelUrl: `${input.origin}/dashboard/subscription?stripe=cancelled`,
@@ -233,6 +236,11 @@ async function processCompletedCheckout(object: Record<string, unknown>, gateway
     });
     if (!request) throw new NotFoundError('Plan change request');
     if (request.status === 'COMPLETED') return;
+    const quote = planRequestQuote(request);
+    if (object.amount_total !== toMinorUnits(quote.amount, quote.currency) ||
+        typeof object.currency !== 'string' || object.currency.toUpperCase() !== quote.currency.toUpperCase()) {
+      throw new ValidationError('Subscription payment does not match the locked quote');
+    }
     const now = new Date();
     const payment = await tx.merchantSubscriptionPayment.upsert({
       where: { externalCheckoutId: sessionId },
@@ -241,8 +249,8 @@ async function processCompletedCheckout(object: Record<string, unknown>, gateway
         merchantId,
         targetPlanId: request.targetPlanId,
         planChangeRequestId: request.id,
-        amount: request.targetPlan.monthlyPrice,
-        currency: request.targetPlan.currency,
+        amount: quote.amount,
+        currency: quote.currency,
         transactionRef: sessionId,
         provider: PROVIDER,
         externalCheckoutId: sessionId,
@@ -256,15 +264,15 @@ async function processCompletedCheckout(object: Record<string, unknown>, gateway
       update: {
         planId: request.targetPlanId,
         status: mapStripeSubscriptionStatus(snapshot.status),
-        billingInterval: 'MONTHLY',
+        billingInterval: quote.billingInterval,
         billingProvider: PROVIDER,
         startsAt: snapshot.currentPeriodStart ?? now,
         currentPeriodStartsAt: snapshot.currentPeriodStart ?? now,
         currentPeriodEndsAt: snapshot.currentPeriodEnd,
         externalCustomerId: customerId,
         externalSubscriptionId: subscriptionId,
-        priceOverride: request.targetPlan.monthlyPrice,
-        currencyOverride: request.targetPlan.currency,
+        priceOverride: quote.amount,
+        currencyOverride: quote.currency,
         cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd,
         cancelledAt: null,
         trialStartedAt: null,
@@ -276,15 +284,15 @@ async function processCompletedCheckout(object: Record<string, unknown>, gateway
         merchantId,
         planId: request.targetPlanId,
         status: mapStripeSubscriptionStatus(snapshot.status),
-        billingInterval: 'MONTHLY',
+        billingInterval: quote.billingInterval,
         billingProvider: PROVIDER,
         startsAt: snapshot.currentPeriodStart ?? now,
         currentPeriodStartsAt: snapshot.currentPeriodStart ?? now,
         currentPeriodEndsAt: snapshot.currentPeriodEnd,
         externalCustomerId: customerId,
         externalSubscriptionId: subscriptionId,
-        priceOverride: request.targetPlan.monthlyPrice,
-        currencyOverride: request.targetPlan.currency,
+        priceOverride: quote.amount,
+        currencyOverride: quote.currency,
       },
     });
     await tx.merchantPlanChangeRequest.update({ where: { id: request.id }, data: { status: 'COMPLETED', resolvedAt: now } });

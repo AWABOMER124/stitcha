@@ -17,6 +17,7 @@ import {
 } from "@/modules/delivery-partners/actions";
 import { createInvoiceAction } from "@/modules/invoices/actions";
 import { editOrderAction } from "@/modules/orders/actions";
+import { DeliveryAddressFields } from "@/components/orders/delivery-address-fields";
 
 type DeliveryQuoteOption = {
   id: string;
@@ -107,6 +108,7 @@ export function OrderDetailClient({
     [],
   );
   const [editing, setEditing] = useState(false);
+  const [addressEditVersion, setAddressEditVersion] = useState(0);
   const router = useRouter();
 
   const status = order.status as OrderStatus;
@@ -264,7 +266,7 @@ export function OrderDetailClient({
           {!isTerminal && (
             <button
               disabled={isPending}
-              onClick={() => setEditing(true)}
+              onClick={() => { setAddressEditVersion(0); setError(null); setEditing(true); }}
               className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-bold"
             >
               {locale === "ar" ? "تعديل الطلب" : "Edit order"}
@@ -320,7 +322,7 @@ export function OrderDetailClient({
           />
           <form
             onSubmit={saveOrder}
-            className="relative w-full max-w-xl space-y-4 rounded-3xl bg-[var(--card)] p-6 shadow-2xl"
+            className="relative max-h-[90dvh] w-full max-w-xl overflow-y-auto space-y-4 rounded-3xl bg-[var(--card)] p-6 shadow-2xl"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -339,6 +341,7 @@ export function OrderDetailClient({
                 ✕
               </button>
             </div>
+            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <div className="grid gap-3 sm:grid-cols-2">
               <EditField
                 name="customerName"
@@ -355,7 +358,14 @@ export function OrderDetailClient({
               name="customerAddress"
               label={locale === "ar" ? "عنوان التوصيل" : "Delivery address"}
               value={order.customerAddress ?? ""}
+              onChange={() => setAddressEditVersion(version => version + 1)}
             />
+            <DeliveryAddressFields locale={locale} initialState={order.delivery?.state ?? ''} initialCity={order.delivery?.city ?? ''} initialDistrict={order.delivery?.area ?? ''} initialDescription={order.delivery?.notes ?? ''} required={order.deliveryMethod !== 'PICKUP' && !order.platformShipment} onLocationChange={() => setAddressEditVersion(version => version + 1)} />
+            <div className="grid gap-3 sm:grid-cols-2" key={String(addressEditVersion)}>
+              <EditField name="deliveryLat" type="number" label={locale === 'ar' ? 'خط عرض التوصيل (اختياري)' : 'Delivery latitude'} value={addressEditVersion > 0 ? '' : String(order.delivery?.lat ?? '')} />
+              <EditField name="deliveryLng" type="number" label={locale === 'ar' ? 'خط طول التوصيل (اختياري)' : 'Delivery longitude'} value={addressEditVersion > 0 ? '' : String(order.delivery?.lng ?? '')} />
+            </div>
+            <p className="text-xs text-[var(--muted-foreground)]">{locale === 'ar' ? 'عند تغيير المدينة أو الحي أو العنوان، حدّث الإحداثيات أو اتركها فارغة لإعادة تحديد الموقع قبل طلب عروض الشحن.' : 'When the address changes, update the coordinates or leave them blank until the delivery location is verified again.'}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <EditField
                 name="deliveryFee"
@@ -505,6 +515,8 @@ export function OrderDetailClient({
                   📍 {order.customerAddress}
                 </p>
               )}
+              <p className="text-xs text-[var(--muted-foreground)]">{locale === 'ar' ? 'الولاية' : 'State'}: {order.delivery?.state || '—'} · {locale === 'ar' ? 'المدينة' : 'City'}: {order.delivery?.city || '—'} · {locale === 'ar' ? 'الحي' : 'District'}: {order.delivery?.area || '—'}</p>
+              {order.delivery?.notes && <p className="whitespace-pre-wrap text-xs text-[var(--muted-foreground)]">{locale === 'ar' ? 'وصف العنوان' : 'Address description'}: {order.delivery.notes}</p>}
             </div>
           </div>
 
@@ -665,11 +677,11 @@ export function OrderDetailClient({
                     ? "الخدمة جاهزة تقنياً لكنها متوقفة لحين اعتماد شركات التوصيل والأسعار في الإنتاج."
                     : "Technically ready, but disabled until production partners and pricing are approved."}
                 </p>
-              ) : order.delivery?.lat == null || order.delivery.lng == null ? (
+              ) : !order.delivery?.city?.trim() || !order.delivery?.area?.trim() || !(order.delivery?.address || order.customerAddress)?.trim() ? (
                 <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                   {locale === "ar"
-                    ? "لا يمكن طلب عرض دون موقع تسليم دقيق. اطلب من العميل مشاركة الموقع."
-                    : "A precise drop-off location is required. Ask the customer to share it."}
+                    ? "أكمل المدينة والحي والعنوان التفصيلي لطلب عرض توصيل. الموقع على الخريطة اختياري."
+                    : "Complete the city, district and delivery address. Map location is optional."}
                 </p>
               ) : order.paymentMethod !== "CASH" ? (
                 <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
@@ -763,11 +775,13 @@ function EditField({
   label,
   value,
   type = "text",
+  onChange,
 }: {
   name: string;
   label: string;
   value: string;
   type?: string;
+  onChange?: () => void;
 }) {
   return (
     <label className="block text-sm font-bold">
@@ -775,7 +789,8 @@ function EditField({
       <input
         name={name}
         type={type}
-        step={type === "number" ? "0.01" : undefined}
+        step={type === "number" ? (name === 'deliveryLat' || name === 'deliveryLng' ? '0.000001' : '0.01') : undefined}
+        onChange={onChange}
         required={["customerName", "customerPhone", "deliveryFee"].includes(
           name,
         )}

@@ -1,256 +1,73 @@
-import { revalidatePath } from "next/cache";
-import prisma from "@/lib/db/prisma";
-import { requireDeliveryPartner } from "@/lib/auth/delivery-partner";
+import Link from 'next/link';
+import { isQiadIntegration } from '@/modules/delivery-partners/services/partner-protocol';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { z } from 'zod';
+import prisma from '@/lib/db/prisma';
+import { requireDeliveryPartner } from '@/lib/auth/delivery-partner';
+import { BusinessRuleError } from '@/lib/errors';
 import { SudanCoverageFields } from '@/components/delivery-partners/sudan-coverage-fields';
-import { resolveCoverageLocation } from '@/lib/geography/sudan';
+import { saveRegionalPrice } from '@/modules/delivery-partners/services/regional-pricing.service';
 
-const optionalNumber = z.preprocess(value => value === '' || value == null ? null : Number(value), z.number().finite().nonnegative().nullable());
-const areaSchema = z.object({
-  name: z.string().trim().min(2).max(120), code: z.string().trim().min(2).max(40),
-  centerLat: z.coerce.number().min(-90).max(90), centerLng: z.coerce.number().min(-180).max(180),
-  radiusKm: z.coerce.number().positive().max(500), etaMin: optionalNumber, etaMax: optionalNumber,
-}).refine(v => v.etaMin == null || v.etaMax == null || v.etaMax >= v.etaMin);
-const priceSchema = z.object({
-  baseFee: z.coerce.number().finite().nonnegative(), perKmFee: optionalNumber,
-  minimumFee: optionalNumber, maximumFee: optionalNumber, maxDistanceKm: optionalNumber,
-}).refine(v => v.maximumFee == null || v.maximumFee >= (v.minimumFee ?? 0));
-function invalid(): never { redirect('/partner/coverage?error=validation'); }
-
-async function addArea(formData: FormData) {
-  "use server";
+async function savePrice(formData: FormData) {
+  'use server';
   const { partnerId } = await requireDeliveryPartner();
   const input = Object.fromEntries(formData);
-  const location = resolveCoverageLocation(input);
-  if (!location) redirect('/partner/coverage?error=location');
-  const parsed = areaSchema.safeParse({ ...input, name: location.name });
-  if (!parsed.success || !formData.get('centerLat') || !formData.get('centerLng')) invalid();
-  const name = parsed.data.name;
-  const code = String(formData.get("code") ?? "")
-    .trim()
-    .toUpperCase();
-  if (await prisma.deliveryPartnerServiceArea.findUnique({ where: { partnerId_code: { partnerId, code } } })) invalid();
-  await prisma.deliveryPartnerServiceArea.create({
-    data: {
-      partnerId,
-      name,
-      code,
-      city: location.city,
-      centerLat: parsed.data.centerLat, centerLng: parsed.data.centerLng, radiusKm: parsed.data.radiusKm,
-      estimatedMinutesMin: parsed.data.etaMin == null ? null : Math.round(parsed.data.etaMin),
-      estimatedMinutesMax: parsed.data.etaMax == null ? null : Math.round(parsed.data.etaMax),
-      isActive: true,
-    },
-  });
-  revalidatePath("/partner/coverage");
+  try {
+    await saveRegionalPrice(partnerId, input, typeof input.priceId === 'string' && input.priceId ? input.priceId : undefined);
+  } catch (error) {
+    if (error instanceof BusinessRuleError) redirect(`/partner/coverage?error=${encodeURIComponent(error.message)}`);
+    throw error;
+  }
+  revalidatePath('/partner/coverage');
+  redirect('/partner/coverage?saved=price');
 }
-async function addPrice(formData: FormData) {
-  "use server";
+async function disablePrice(formData: FormData) {
+  'use server';
   const { partnerId } = await requireDeliveryPartner();
-  const parsed = priceSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success || !formData.get('baseFee')) invalid();
-  const baseFee = parsed.data.baseFee;
-  const serviceAreaId = String(formData.get("serviceAreaId") ?? "") || null;
-  if (!serviceAreaId || !await prisma.deliveryPartnerServiceArea.findFirst({ where: { id: serviceAreaId, partnerId, isActive: true, centerLat: { not: null }, centerLng: { not: null }, radiusKm: { gt: 0 } } })) invalid();
-  await prisma.deliveryPartnerPricingRule.create({
-    data: {
-      partnerId,
-      serviceAreaId,
-      baseFee,
-      perKmFee: parsed.data.perKmFee ?? 0,
-      minimumFee: parsed.data.minimumFee ?? 0,
-      maximumFee: parsed.data.maximumFee,
-      maxDistanceKm: parsed.data.maxDistanceKm,
-      currency: "SDG",
-      isActive: true,
-    },
-  });
-  revalidatePath("/partner/coverage");
+  await prisma.deliveryPartnerPricingRule.updateMany({ where: { id: String(formData.get('id')), partnerId }, data: { isActive: false } });
+  revalidatePath('/partner/coverage');
+  redirect('/partner/coverage?saved=disabled');
 }
-async function removeRecord(formData: FormData) {
-  "use server";
+export default async function CoveragePage({ searchParams }: { searchParams: Promise<{ error?: string; saved?: string; edit?: string }> }) {
+  const { error, saved, edit } = await searchParams;
+  const errorMessage = error === 'validation' || error === 'location' ? 'اختر الولاية والمدينة أو كل المدن، ثم الحي أو كل الأحياء وأدخل السعر.' : error === 'duplicate' ? 'توجد تسعيرة لهذا النطاق بالفعل؛ عدّل التسعيرة الحالية.' : error;
   const { partnerId } = await requireDeliveryPartner();
-  const id = String(formData.get("id"));
-  const type = String(formData.get("type"));
-  if (type === "price")
-    await prisma.deliveryPartnerPricingRule.updateMany({
-      where: { id, partnerId },
-      data: { isActive: false },
-    });
-  if (type === "area")
-    await prisma.deliveryPartnerServiceArea.updateMany({
-      where: { id, partnerId },
-      data: { isActive: false },
-    });
-  revalidatePath("/partner/coverage");
-}
-
-export default async function CoveragePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
-  const { partnerId } = await requireDeliveryPartner();
-  const [areas, prices] = await Promise.all([
-    prisma.deliveryPartnerServiceArea.findMany({
-      where: { partnerId, isActive: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.deliveryPartnerPricingRule.findMany({
-      where: { partnerId, isActive: true },
-      include: { serviceArea: true },
-      orderBy: { createdAt: "desc" },
-    }),
+  const [prices, partner] = await Promise.all([
+    prisma.deliveryPartnerPricingRule.findMany({ where: { partnerId, isActive: true }, include: { serviceArea: true }, orderBy: { createdAt: 'desc' } }),
+    prisma.deliveryPartner.findUniqueOrThrow({ where: { id: partnerId }, select: { supportsCod: true, providerConfig: { select: { outboundWebhookUrl: true } } } }),
   ]);
-  return (
-    <div className="space-y-7" dir="rtl">
-      {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error === 'location'
-        ? 'تعذر حفظ الموقع: اختر ولاية ومدينة متوافقتين وحيّاً تابعاً للمدينة، أو أدخل اسم المنطقة غير المدرجة (2–120 حرفاً).'
-        : 'راجع البيانات: حدود المنطقة مطلوبة، الأسعار غير سالبة، والحد الأعلى لا يقل عن الأدنى. اختر منطقة تابعة لشركتك وكوداً غير مكرر.'}</p>}
-      <header>
-        <h1 className="text-2xl font-black">التغطية والأسعار</h1>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-          حدد المدن والمناطق وزمن التوصيل ثم أضف قاعدة تسعير واحدة على الأقل.
-        </p>
-      </header>
-      <div className="grid gap-5 xl:grid-cols-2">
-        <Box title="إضافة منطقة خدمة">
-          <form action={addArea} className="grid gap-3 sm:grid-cols-2">
-            <SudanCoverageFields />
-            <Input name="code" label="الكود" />
-            <Input name="centerLat" label="خط عرض مركز المنطقة" type="number" />
-            <Input name="centerLng" label="خط طول مركز المنطقة" type="number" />
-            <Input name="radiusKm" label="نصف قطر التغطية (كم)" type="number" />
-            <div className="grid grid-cols-2 gap-2">
-              <Input name="etaMin" label="الزمن من" type="number" />
-              <Input name="etaMax" label="إلى (دقيقة)" type="number" />
-            </div>
-            <button className="rounded-xl bg-[var(--primary)] px-4 py-3 font-bold text-white sm:col-span-2">
-              إضافة المنطقة
-            </button>
-          </form>
-        </Box>
-        <Box title="إضافة تسعير">
-          <form action={addPrice} className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm font-semibold">
-              المنطقة
-              <select
-                name="serviceAreaId"
-                className="mt-2 w-full rounded-xl border border-[var(--input)] bg-transparent px-3 py-3"
-              >
-                <option value="">اختر منطقة تغطية</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Input name="baseFee" label="الرسم الأساسي" type="number" />
-            <Input name="perKmFee" label="لكل كيلومتر" type="number" />
-            <Input name="minimumFee" label="الحد الأدنى" type="number" />
-            <Input name="maximumFee" label="الحد الأعلى" type="number" />
-            <Input name="maxDistanceKm" label="أقصى مسافة كم" type="number" />
-            <button className="rounded-xl bg-[var(--primary)] px-4 py-3 font-bold text-white sm:col-span-2">
-              إضافة التسعير
-            </button>
-          </form>
-        </Box>
-      </div>
-      <Box title="المناطق الحالية">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {areas.map((a) => (
-            <Row
-              key={a.id}
-              title={a.name}
-              note={`${a.city ?? "—"} · ${a.estimatedMinutesMin ?? "—"}–${a.estimatedMinutesMax ?? "—"} دقيقة`}
-              id={a.id}
-              type="area"
-            />
-          ))}
-          {!areas.length && <Empty />}
-        </div>
-      </Box>
-      <Box title="قواعد التسعير">
-        <div className="space-y-3">
-          {prices.map((p) => (
-            <Row
-              key={p.id}
-              title={`${p.serviceArea?.name ?? "كل المناطق"} · ${Number(p.baseFee).toLocaleString()} SDG`}
-              note={`+ ${Number(p.perKmFee).toLocaleString()} / كم · أقصى مسافة ${p.maxDistanceKm ?? "غير محدد"}`}
-              id={p.id}
-              type="price"
-            />
-          ))}
-          {!prices.length && <Empty />}
-        </div>
-      </Box>
-    </div>
-  );
-}
-function Box({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
-      <h2 className="mb-4 font-black">{title}</h2>
-      {children}
-    </section>
-  );
-}
-function Input({
-  name,
-  label,
-  type = "text",
-}: {
-  name: string;
-  label: string;
-  type?: string;
-}) {
-  return (
-    <label className="text-sm font-semibold">
-      {label}
-      <input
-        name={name}
-        type={type}
-        step={type === "number" ? (name === 'centerLat' || name === 'centerLng' ? '0.000001' : '0.01') : undefined}
-        required={["name", "code", "baseFee", "centerLat", "centerLng", "radiusKm"].includes(name)}
-        className="mt-2 w-full rounded-xl border border-[var(--input)] bg-transparent px-3 py-3"
-      />
-    </label>
-  );
-}
-function Row({
-  title,
-  note,
-  id,
-  type,
-}: {
-  title: string;
-  note: string;
-  id: string;
-  type: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-4">
-      <div>
-        <p className="font-bold">{title}</p>
-        <p className="mt-1 text-xs text-[var(--muted-foreground)]">{note}</p>
-      </div>
-      <form action={removeRecord}>
-        <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="type" value={type} />
-        <button className="text-xs font-bold text-red-600">تعطيل</button>
+  const editing = prices.find(price => price.id === edit);
+  const inputClass = 'mt-2 w-full rounded-xl border border-[var(--input)] bg-[var(--card)] px-3 py-3';
+  return <div className="space-y-6" dir="rtl">
+    <header><h1 className="text-2xl font-black">التغطية والأسعار</h1><p className="mt-2 text-sm leading-7 text-[var(--muted-foreground)]">اختر الولاية والمدينة والحي، ثم أدخل سعر التوصيل الثابت. يمكنك تطبيق السعر على كل المدن أو كل الأحياء، دون إحداثيات أو حساب مسافة.</p></header>
+    {isQiadIntegration(partner.providerConfig?.outboundWebhookUrl) && <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-7 text-blue-950">التغطية التشغيلية الحالية لقياد: الخرطوم وأم درمان وبحري، بكل أحيائها. تطبق الأسعار داخل هذه المدن فقط، ولن تظهر عروض لمدينة خارجها حتى لو أُضيفت تسعيرة أوسع.</p>}
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-[var(--card)] p-4"><p className="text-sm font-bold">الدفع عند الاستلام: <span className={partner.supportsCod ? 'text-emerald-700' : 'text-amber-700'}>{partner.supportsCod ? 'مفعّل' : 'غير مفعّل'}</span></p><Link href="/partner/settings#delivery-services" className="text-sm font-bold text-[var(--primary)]">إدارة الدفع عند الاستلام ←</Link></section>
+    {saved && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{saved === 'disabled' ? 'تم تعطيل التسعيرة.' : 'تم حفظ تسعيرة التوصيل.'}</p>}
+    {(error || (edit && !editing)) && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{edit && !editing ? 'التسعيرة غير موجودة أو غير متاحة للتعديل.' : errorMessage?.slice(0, 300)}</p>}
+    <section className="max-w-3xl rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 sm:p-6">
+      <h2 className="mb-5 text-lg font-black">{editing ? 'تعديل تسعيرة التوصيل' : 'إضافة تسعيرة توصيل'}</h2>
+      <form key={editing?.id ?? saved ?? 'new'} action={savePrice} className="grid gap-5 sm:grid-cols-2">
+        <input type="hidden" name="priceId" value={editing?.id ?? ''} />
+        <SudanCoverageFields initial={editing?.serviceArea ?? undefined} />
+        <label className="text-sm font-bold sm:col-span-2">سعر التوصيل (جنيه سوداني)<input name="baseFee" type="number" inputMode="decimal" required min="0" max="99999999.99" step="0.01" defaultValue={editing ? Number(editing.baseFee) : ''} placeholder="مثال: 3000" className={inputClass} /><span className="mt-2 block text-xs font-normal text-[var(--muted-foreground)]">سعر ثابت لكل طلب داخل النطاق المختار.</span></label>
+        <details className="rounded-xl border p-4 sm:col-span-2"><summary className="cursor-pointer text-sm font-semibold">زمن التوصيل وملاحظات المنطقة (اختياري)</summary><div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="text-sm font-semibold">زمن التوصيل من (دقيقة)<input name="etaMin" type="number" min="0" max="10080" step="1" defaultValue={editing?.serviceArea?.estimatedMinutesMin ?? ''} className={inputClass} /></label>
+          <label className="text-sm font-semibold">إلى (دقيقة)<input name="etaMax" type="number" min="0" max="10080" step="1" defaultValue={editing?.serviceArea?.estimatedMinutesMax ?? ''} className={inputClass} /></label>
+          <label className="text-sm font-semibold sm:col-span-2">ملاحظات المنطقة<textarea name="description" rows={2} maxLength={1000} defaultValue={editing?.serviceArea?.description ?? ''} className={inputClass} /></label>
+        </div></details>
+        <p className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600 sm:col-span-2">التسعيرة الخاصة بالحي لها الأولوية، ثم تسعيرة المدينة، ثم تسعيرة كل المدن في الولاية. لا يشمل «كل المدن» ولايات أخرى.</p>
+        {editing && (Number(editing.perKmFee) !== 0 || editing.maxDistanceKm != null || editing.currency !== 'SDG' || Number(editing.minimumFee) !== 0 || editing.maximumFee != null) && <p className="text-sm text-amber-800 sm:col-span-2">حفظ التعديل يستبدل التسعيرة السابقة بسعر ثابت بالجنيه السوداني للنطاق الذي تختاره.</p>}
+        <button className="rounded-xl bg-[var(--primary)] px-5 py-3 font-bold text-white sm:col-span-2">{editing ? 'حفظ التعديل' : 'إضافة التسعيرة'}</button>
+        {editing && <Link href="/partner/coverage" className="text-sm font-bold text-[var(--primary)]">إلغاء التعديل</Link>}
       </form>
-    </div>
-  );
-}
-function Empty() {
-  return (
-    <p className="p-5 text-center text-sm text-[var(--muted-foreground)]">
-      لا توجد بيانات بعد.
-    </p>
-  );
+    </section>
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"><h2 className="mb-4 font-black">التسعيرات الحالية</h2>
+      {!prices.length && <p className="p-5 text-center text-sm text-[var(--muted-foreground)]">لا توجد تسعيرات بعد. أضف أول تسعيرة من النموذج أعلاه.</p>}
+      <div className="grid gap-3 xl:grid-cols-2">{prices.map(price => <article key={price.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-bold">{price.serviceArea?.state ?? 'ولاية غير مسجلة'} · {price.serviceArea?.allCities ? 'كل المدن' : price.serviceArea?.city ?? price.serviceArea?.name ?? 'نطاق سابق'}</p><p className="mt-2 text-sm text-[var(--muted-foreground)]">{price.serviceArea?.allDistricts ? 'كل الأحياء' : price.serviceArea?.district ?? 'حي غير مسجل'}</p></div><p className="text-lg font-black text-[var(--primary)]">{Number(price.baseFee).toLocaleString('ar')} <span className="text-xs">{price.currency}</span></p></div>
+        {(Number(price.perKmFee) !== 0 || price.maxDistanceKm != null || Number(price.minimumFee) !== 0 || price.maximumFee != null) && <p className="mt-3 text-xs text-amber-800">تسعيرة سابقة بشروط إضافية؛ يمكنك تعديلها إلى السعر الثابت الجديد.</p>}
+        {price.serviceArea?.description && <p className="mt-3 whitespace-pre-wrap text-xs text-[var(--muted-foreground)]">{price.serviceArea.description}</p>}
+        <div className="mt-4 flex gap-5"><Link href={`/partner/coverage?edit=${price.id}`} className="text-sm font-bold text-[var(--primary)]">تعديل</Link><form action={disablePrice}><input type="hidden" name="id" value={price.id} /><button className="text-sm font-bold text-red-600">تعطيل</button></form></div>
+      </article>)}</div>
+    </section>
+  </div>;
 }

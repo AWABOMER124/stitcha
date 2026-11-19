@@ -5,6 +5,9 @@ import { runScheduledJobs } from '@/services/jobs/job-runner';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  if (process.env.JOB_RUNNER_ENABLED !== 'true') {
+    return NextResponse.json({ error: 'Job runner disabled on this instance' }, { status: 503 });
+  }
   const secret = process.env.JOB_RUNNER_SECRET;
   if (!secret || secret.length < 32) {
     return NextResponse.json(
