@@ -1,0 +1,41 @@
+# Prepare immutable slots first. No public ports and no automatic deployment.
+services:
+  blue:
+    image: ${BLUE_IMAGE:?use an immutable tested image digest or local ID}
+    env_file: ["${WASLA_RUNTIME_ENV:?private runtime env file required}"]
+    environment:
+      APP_RELEASE: ${BLUE_RELEASE:?release required}
+      APP_PROCESS_MODE: web
+      JOB_RUNNER_ENABLED: "false"
+    restart: unless-stopped
+    labels: {traefik.enable: "false"}
+    volumes: [public_uploads:/app/public/uploads, private_storage:/app/storage/private]
+    networks: [database, ingress]
+  green:
+    image: ${GREEN_IMAGE:?use an immutable tested image digest or local ID}
+    env_file: ["${WASLA_RUNTIME_ENV:?private runtime env file required}"]
+    environment:
+      APP_RELEASE: ${GREEN_RELEASE:?release required}
+      APP_PROCESS_MODE: web
+      JOB_RUNNER_ENABLED: "false"
+    restart: unless-stopped
+    labels: {traefik.enable: "false"}
+    volumes: [public_uploads:/app/public/uploads, private_storage:/app/storage/private]
+    networks: [database, ingress]
+  jobs:
+    image: ${WORKER_IMAGE:?use a compatible immutable worker image}
+    env_file: ["${WASLA_RUNTIME_ENV:?private runtime env file required}"]
+    environment:
+      APP_RELEASE: ${WORKER_RELEASE:?release required}
+      APP_PROCESS_MODE: web
+      JOB_RUNNER_ENABLED: "true"
+    restart: unless-stopped
+    labels: {traefik.enable: "false"}
+    volumes: [public_uploads:/app/public/uploads, private_storage:/app/storage/private]
+    networks: [database]
+networks:
+  database: {external: true, name: "${WASLA_DATABASE_NETWORK:?existing database network}"}
+  ingress: {external: true, name: "${WASLA_INGRESS_NETWORK:?existing gateway network}"}
+volumes:
+  public_uploads: {external: true, name: "${WASLA_UPLOADS_VOLUME:?existing uploads volume}"}
+  private_storage: {external: true, name: "${WASLA_PRIVATE_VOLUME:?existing private volume}"}

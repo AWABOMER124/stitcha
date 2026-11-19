@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   pull_request:
   push:
     branches:
@@ -20,15 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
-          POSTGRES_DB: stitcha_ci
+          POSTGRES_DB: wasla_comms_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d stitcha_ci"
+          --health-cmd "pg_isready -U postgres -d wasla_comms_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -36,15 +37,15 @@ jobs:
       run:
         working-directory: merchant-os
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stitcha_ci
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wasla_comms_test
       AUTH_SECRET: ci-only-secret-with-at-least-32-characters
       AUTH_TRUST_HOST: "true"
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: npm
@@ -57,6 +58,13 @@ jobs:
         run: npx prisma generate
       - name: Apply database migrations
         run: npx prisma migrate deploy
+      - name: Verify isolated release controls
+        working-directory: .
+        run: |
+          sh ops/tests/entrypoint.test.sh
+          python3 -m unittest discover -s ops/tests -p "test_*.py"
+      - name: Generate Next route types
+        run: npx next typegen
       - name: Lint
         run: npm run lint
       - name: Test
@@ -71,9 +79,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: 3.41.5
           channel: stable
@@ -97,7 +105,7 @@ jobs:
     needs: merchant-os
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_DB: stitcha_container_ci
           POSTGRES_USER: postgres
@@ -111,12 +119,18 @@ jobs:
           --health-retries 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build Dokploy image from repository root
         run: >-
           docker build
           --build-arg NEXT_PUBLIC_APP_URL=http://localhost:3000
-          --tag wasla-merchant-os:ci .
+          --build-arg APP_RELEASE=ci --tag wasla-merchant-os:ci .
+      - name: Apply migrations as a separate one-shot process
+        run: >-
+          docker run --rm --network host
+          --env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/stitcha_container_ci
+          --env APP_PROCESS_MODE=migrate
+          wasla-merchant-os:ci
       - name: Start production container
         run: >-
           docker run --detach --name wasla-container-ci --network host
@@ -126,6 +140,12 @@ jobs:
           --env NEXTAUTH_URL=http://localhost:3000
           --env NEXT_PUBLIC_APP_URL=http://localhost:3000
           --env SECRETS_ENCRYPTION_KEY=ci-only-encryption-secret-value
+          --env APP_RELEASE=ci
+          --env APP_PROCESS_MODE=web
+          --env JOB_RUNNER_ENABLED=false
+          --env PUBLIC_UPLOADS_PERSISTENT=true
+          --env RESEND_API_KEY=ci-disabled-provider
+          --env EMAIL_FROM=test@example.invalid
           wasla-merchant-os:ci
       - name: Verify migrations and health endpoint
         run: |
@@ -141,9 +161,32 @@ jobs:
           done
           docker logs wasla-container-ci
           exit 1
+      - name: Verify candidate startup isolation and private worker using the real image
+        run: |
+          docker network create --internal wasla-release-db-ci
+          docker run -d --name wasla-safe-release-db-ci --network wasla-release-db-ci --network-alias safe-db -e POSTGRES_USER=test -e POSTGRES_PASSWORD=ci-isolated-only -e POSTGRES_DB=wasla_comms_test postgres:18-alpine
+          docker run -d --name wasla-safe-release-dev-ci --network wasla-release-db-ci -e DATABASE_URL=postgresql://test:ci-isolated-only@safe-db:5432/wasla_comms_test node:24-alpine sleep infinity
+          for attempt in $(seq 1 30); do
+            if docker exec wasla-safe-release-db-ci pg_isready -U test -d wasla_comms_test; then break; fi
+            sleep 1
+          done
+          python3 ops/tests/candidate_journey.py --image wasla-merchant-os:ci --network wasla-release-db-ci --test-dev wasla-safe-release-dev-ci --test-db wasla-safe-release-db-ci --output /tmp/wasla-candidate-result.json
+      - name: Remove private candidate infrastructure
+        if: always()
+        run: |
+          docker rm -f wasla-safe-release-dev-ci wasla-safe-release-db-ci || true
+          docker network rm wasla-release-db-ci || true
       - name: Show container logs on failure
         if: failure()
         run: docker logs wasla-container-ci
       - name: Stop production container
         if: always()
         run: docker rm --force wasla-container-ci
+
+      - name: Exercise real gateway cutover and rollback on a private network
+        run: |
+          docker network create --internal wasla-release-traffic-ci
+          python3 ops/tests/traffic_journey.py --network wasla-release-traffic-ci --output /tmp/wasla-traffic-result
+      - name: Remove private traffic network
+        if: always()
+        run: docker network rm wasla-release-traffic-ci || true

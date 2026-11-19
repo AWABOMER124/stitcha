@@ -15,11 +15,16 @@ describe('POST /api/internal/jobs/run', () => {
       retried: 0,
       failed: 0,
     });
+    process.env.JOB_RUNNER_ENABLED='true';
     delete process.env.JOB_RUNNER_SECRET;
   });
 
-  afterEach(() => delete process.env.JOB_RUNNER_SECRET);
+  afterEach(() => {delete process.env.JOB_RUNNER_SECRET;delete process.env.JOB_RUNNER_ENABLED;});
 
+  it('does not execute any job on a candidate even when the secret is valid',async()=>{
+    process.env.JOB_RUNNER_ENABLED='false';process.env.JOB_RUNNER_SECRET=secret;
+    const r=await POST(new Request('http://localhost/api/internal/jobs/run',{method:'POST',headers:{authorization:'Bearer '+secret}}));expect(r.status).toBe(503);expect(runScheduledJobs).not.toHaveBeenCalled();
+  });
   it('fails closed when the runner secret is not configured', async () => {
     const response = await POST(new Request('http://localhost/api/internal/jobs/run', { method: 'POST' }));
     expect(response.status).toBe(503);

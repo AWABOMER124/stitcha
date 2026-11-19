@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+const schemaMock=vi.hoisted(()=>vi.fn().mockResolvedValue(true));
+vi.mock('@/lib/releases/schema-readiness',()=>({isReleaseSchemaReady:schemaMock}));
+
 const prismaMock = { $queryRaw: vi.fn() };
 vi.mock('@/lib/db/prisma', () => ({ default: prismaMock }));
 
@@ -16,6 +19,7 @@ const previousImageEnhancement = process.env.AI_IMAGE_ENHANCEMENT_ENABLED;
 
 afterEach(() => {
   prismaMock.$queryRaw.mockReset();
+  schemaMock.mockReset().mockResolvedValue(true);
   if (previousRelease === undefined) delete process.env.APP_RELEASE;
   else process.env.APP_RELEASE = previousRelease;
   if (previousBucket === undefined) delete process.env.S3_BUCKET;
@@ -70,7 +74,7 @@ describe('GET /api/health', () => {
     const response = await GET();
     const body = await response.json();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(body).toMatchObject({
       status: 'ok',
       readiness: 'degraded',
@@ -90,6 +94,10 @@ describe('GET /api/health', () => {
     expect(JSON.stringify(await GET().then(result => result.json()))).not.toContain('must-not-leak');
   });
 
+  it('rejects traffic while the candidate schema is not ready',async()=>{
+    process.env.APP_RELEASE='candidate';process.env.PUBLIC_UPLOADS_PERSISTENT='true';process.env.RESEND_API_KEY='test';process.env.EMAIL_FROM='test@example.invalid';prismaMock.$queryRaw.mockResolvedValue([]);schemaMock.mockResolvedValue(false);
+    const r=await GET();expect(r.status).toBe(503);expect(await r.json()).toMatchObject({readiness:'degraded',checks:{migrationsApplied:false}});
+  });
   it('returns 503 without leaking the database error', async () => {
     prismaMock.$queryRaw.mockRejectedValue(new Error('postgres password leaked here'));
 

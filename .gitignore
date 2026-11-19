@@ -43,7 +43,10 @@ merchant-os/public/uploads/
 android/.kotlin/
 android/hs_err_pid*.log
 
-# Production data and private operator state
+# Private release state and generated Python files
+__pycache__/
+*.pyc
+*.release-state.json*
 merchant-os/storage/private/
 .env.*
 !.env.example
@@ -52,3 +55,6 @@ merchant-os/storage/private/
 *.pem
 *.key
 *.dump
+
+# Internal customer/operations records are not published to the public origin
+docs/operations/

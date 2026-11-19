@@ -1,0 +1,27 @@
+{
+  "state_file": "/var/lib/wasla-releases/state.json",
+  "routing_file": "/etc/dokploy/traefik/dynamic/wasla-safe-release.yml",
+  "hosts": [
+    "wassla-sd.shop",
+    "wasslak.perfect-team.cloud"
+  ],
+  "public_health_url": "https://wassla-sd.shop/api/health",
+  "entrypoint": "websecure",
+  "tls": true,
+  "slots": {
+    "blue": {
+      "container": "REPLACE_blue_1",
+      "image_id": "sha256:REPLACE_WITH_EXACT_TESTED_IMAGE_ID",
+      "release": "REPLACE_WITH_BUILT_RELEASE",
+      "url": "http://REPLACE_blue_1:3000",
+      "schema_compatibility": "REVIEW_REQUIRED"
+    },
+    "green": {
+      "container": "REPLACE_green_1",
+      "image_id": "sha256:REPLACE_WITH_EXACT_TESTED_IMAGE_ID",
+      "release": "REPLACE_WITH_BUILT_RELEASE",
+      "url": "http://REPLACE_green_1:3000",
+      "schema_compatibility": "REVIEW_REQUIRED"
+    }
+  }
+}
