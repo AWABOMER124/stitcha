@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { cookies } from 'next/headers';
-import { ArrowLeft, BadgeCheck, Bot, Check, CreditCard, FileSpreadsheet, Globe2, Megaphone, MessageCircle, PackageCheck, Palette, ShieldCheck, ShoppingBag, Sparkles, Store, Truck, Users, X } from 'lucide-react';
+import { cookies, headers } from 'next/headers';
+import { ArrowLeft, BadgeCheck, Bot, Check, CreditCard, FileSpreadsheet, Globe2, Megaphone, MessageCircle, PackageCheck, Palette, ShieldCheck, ShoppingBag, Sparkles, Store, Truck, Users } from 'lucide-react';
 import { auth } from '@/lib/auth/config';
 import { LocaleProvider } from '@/lib/i18n/context';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { WaslaMark } from '@/components/brand/wasla-logo';
 import { PublicFooter, PublicHeader } from '@/components/marketing/public-chrome';
 import { getMerchantSubscriptionMarket } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
-import { resolveMarket } from '@/modules/merchant-subscriptions/market-pricing';
+import { detectedPricingMarket, PRICING_MARKET_COOKIE, selectPricingMarket, validPricingMarket } from '@/lib/pricing/visitor-market';
+import { MarketPricing } from '@/components/marketing/market-pricing';
 import { listPublicPlans } from '@/modules/merchant-subscriptions';
 
 export const metadata: Metadata = {
@@ -38,12 +39,6 @@ const content = {
     affiliateKicker: 'دخل مبني على نتيجة حقيقية', affiliateTitle: 'سوّق لوصلة أو لمنتجات المتاجر', affiliateLead: 'برنامجان واضحان للمسوّقين: استقطب تجاراً واشترك في نمو وصلة، أو اختر متجراً وسوّق منتجاته مقابل عمولة يحددها التاجر.',
     acquireTitle: 'استقطاب التجار', acquireText: 'لا توجد عمولة على التسجيل المجاني؛ يبدأ الاستحقاق عند دفع التاجر لأول اشتراك مدفوع حسب سياسة البرنامج.',
     productsTitle: 'تسويق المنتجات', productsText: 'رابط خاص، إسناد للطلبات، عمولة بعد التسليم وفترة تعليق، وتوثيق هوية قبل السداد.', marketerCta: 'سجّل كمسوّق',
-    free: 'الأساسية', freePrice: 'مجاناً دائماً', growth: 'النمو Growth', growthPrice: '5 دولار / شهرياً', pro: 'الاحترافية Pro', proPrice: '10 دولار / شهرياً', priceLead: 'ابدأ مجاناً مع 20 منتجاً ومسودة متجر ذكية واحدة، ثم اختر أدوات النمو التي تناسب نشاطك.',
-    freeItems: ['متجر إلكتروني ورابط جاهز','حتى 20 منتجاً و10 تصنيفات','مسودة متجر ذكية واحدة مدى الحياة','الطلبات والعملاء والفواتير','فرع واحد وحساب فريق واحد','التحويلات وإدارة التوصيل الأساسية'],
-    freeUnavailable: ['بدون AI متجدد أو وكيل واتساب','بدون تصدير Excel أو دومين خاص'],
-    growthItems: ['حتى 300 منتجاً و50 تصنيفاً','3 حسابات فريق','5 عمليات توليد متجر شهرياً','100 تعديل ذكي و20 تحسين صورة','تصدير Excel','أدوات نمو وتقارير عملية'],
-    proItems: ['كل ميزات Growth','حتى 2,000 منتج و10 حسابات فريق','حتى 3 فروع','20 توليداً و500 تعديل ذكي شهرياً','100 تحسين صورة و2,000 رد واتساب','تحليلات متقدمة ودومين خاص','إزالة علامة وصلة','API وأتمتة العملاء'],
-    popular: 'الأفضل للنمو', freeCta: 'ابدأ مجاناً', growthCta: 'اختر Growth', proCta: 'طوّر إلى Pro', currencyNote: 'الأسعار مرجعية وقابلة للإدارة؛ يظهر مبلغ السداد المحلي المثبّت قبل التحصيل.',
     final: 'جاهز توصل تجارتك بالسوق؟', finalLead: 'ابدأ الآن مجاناً. لا تحتاج خبرة تقنية ولا بطاقة بنكية.',
   },
   en: {
@@ -67,48 +62,25 @@ const content = {
     affiliateKicker: 'Income tied to verified results', affiliateTitle: 'Promote Wasla or store products', affiliateLead: 'Two clear paths: bring merchants into Wasla, or choose a store and promote its products under that merchant’s commission policy.',
     acquireTitle: 'Merchant acquisition', acquireText: 'Free signup earns nothing; eligibility starts after the merchant pays for their first paid plan under the program terms.',
     productsTitle: 'Product affiliate', productsText: 'A tracked link, order attribution, commission after delivery and hold, and identity verification before payout.', marketerCta: 'Apply as a marketer',
-    free: 'Basic', freePrice: 'Free forever', growth: 'Growth', growthPrice: '$5 / month', pro: 'Professional Pro', proPrice: '$10 / month', priceLead: 'Start free with 20 products and one lifetime AI store draft, then add the growth tools your business needs.',
-    freeItems: ['Online store with a shareable link','Up to 20 products and 10 categories','One lifetime AI store draft','Orders, customers and invoices','One branch and one staff seat','Transfers and basic delivery management'],
-    freeUnavailable: ['No recurring AI or WhatsApp agent','No Excel export or custom domain'],
-    growthItems: ['Up to 300 products and 50 categories','3 staff seats','5 store generations each month','100 AI edits and 20 image enhancements','Excel exports','Practical growth reports'],
-    proItems: ['Everything in Growth','Up to 2,000 products and 10 staff seats','Up to 3 branches','20 generations and 500 AI edits monthly','100 image enhancements and 2,000 WhatsApp replies','Advanced analytics and custom domain','Wasla branding removal','API access and CRM automation'],
-    popular: 'Best for growth', freeCta: 'Start free', growthCta: 'Choose Growth', proCta: 'Upgrade to Pro', currencyNote: 'Reference prices are admin-configurable; a locked local-currency amount is shown before collection.',
     final: 'Ready to connect your business to the market?', finalLead: 'Start free today. No technical experience or bank card required.',
   },
 } as const;
 
 const icons = [Palette, PackageCheck, CreditCard, Truck, Bot, FileSpreadsheet, ShieldCheck, Globe2];
 
-function saPlanFeatures(plan: import('@/modules/merchant-subscriptions').MerchantEntitlements, locale: Locale): string[] {
-  const ar = locale === 'ar';
-  return [
-    ar ? `${plan.maxActiveProducts} منتج` : `${plan.maxActiveProducts} products`,
-    ar ? `${plan.maxStaffUsers} حسابات فريق و${plan.maxBranches} فروع` : `${plan.maxStaffUsers} staff seats, ${plan.maxBranches} branches`,
-    ar ? 'إدارة الطلبات والعملاء والفواتير' : 'Orders, customers and invoices',
-    ...(plan.aiStoreGenerationsMonthly > 0 ? [ar ? `${plan.aiStoreGenerationsMonthly} توليد متجر و${plan.aiImageEnhancementsMonthly} تحسين صورة شهرياً` : `${plan.aiStoreGenerationsMonthly} store generations, ${plan.aiImageEnhancementsMonthly} image enhancements / month`] : []),
-    ...(plan.whatsappAiAgent ? [ar ? `${plan.whatsappAiConversationsMonthly} رد واتساب ذكي شهرياً` : `${plan.whatsappAiConversationsMonthly} AI WhatsApp replies / month`] : []),
-    ...(plan.customDomain ? [ar ? 'دومين خاص وإزالة علامة وصلة' : 'Custom domain and branding removal'] : []),
-    ...(plan.dataExport ? [ar ? 'تصدير البيانات' : 'Data exports'] : []),
-  ];
-}
-
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ market?: string }> }) {
-  const [session, cookieStore, query] = await Promise.all([auth(), cookies(), searchParams]);
-  const market = session?.user?.merchantId ? await getMerchantSubscriptionMarket(session.user.merchantId) : resolveMarket(query.market);
-  const plans = await listPublicPlans(market);
+  const [session, cookieStore, requestHeaders, query] = await Promise.all([auth(), cookies(), headers(), searchParams]);
+  const accountMarket = session?.user?.merchantId ? await getMerchantSubscriptionMarket(session.user.merchantId) : null;
+  const selection = selectPricingMarket(accountMarket, detectedPricingMarket(requestHeaders), cookieStore.get(PRICING_MARKET_COOKIE)?.value);
+  const market = selection.market;
+  const plans = market ? await listPublicPlans(market) : [];
+  const registrationHref = market ? `/register?market=${market}` : "/register";
   const locale = (cookieStore.get(LOCALE_COOKIE)?.value as Locale | undefined) ?? DEFAULT_LOCALE;
   const t = content[locale];
-  const accountHref = !session?.user ? `/register?market=${market}` : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role === 'MARKETER' ? '/marketer' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
-  const upgradeHref = session?.user?.merchantId ? '/dashboard/subscription' : `/register?market=${market}`;
-  const freePlan = plans.find((plan) => plan.code === 'FREE');
-  const growthPlan = plans.find((plan) => plan.code === 'GROWTH');
-  const proPlan = plans.find((plan) => plan.code === 'PRO');
-  const freePrice = freePlan ? formatPlanPrice(freePlan.monthlyPrice, freePlan.currency, locale) : t.freePrice;
-  const growthPrice = growthPlan ? formatPlanPrice(growthPlan.monthlyPrice, growthPlan.currency, locale) : t.growthPrice;
-  const proPrice = proPlan ? formatPlanPrice(proPlan.monthlyPrice, proPlan.currency, locale) : t.proPrice;
-
+  const accountHref = !session?.user ? registrationHref : session.user.role.startsWith('PLATFORM_') ? '/admin' : session.user.role === 'MARKETER' ? '/marketer' : session.user.role.startsWith('DELIVERY_PARTNER_') ? '/partner' : session.user.role.startsWith('DISTRIBUTOR_') ? '/' : '/dashboard';
+  const upgradeHref = session?.user?.merchantId ? '/dashboard/subscription' : registrationHref;
   return <LocaleProvider initialLocale={locale}><div className="min-h-screen overflow-hidden bg-white text-[#07111f] dark:bg-[#07111f] dark:text-white">
-    <PublicHeader locale={locale} homeHref={`/?market=${market}`} accountHref={accountHref} signedIn={Boolean(session?.user)} />
+    <PublicHeader locale={locale} homeHref="/" accountHref={accountHref} signedIn={Boolean(session?.user)} />
 
     <main>
       <section className="border-b border-slate-200 bg-[#f7faf9] dark:border-white/10 dark:bg-[#091522]">
@@ -126,20 +98,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
       <section className="px-5 pb-20 lg:px-8 lg:pb-28 dark:bg-[#091522]"><div className="mx-auto grid max-w-7xl overflow-hidden rounded-[2rem] bg-[#087d82] text-white lg:grid-cols-2"><div className="p-9 lg:p-16"><Bot className="h-9 w-9"/><p className="mt-6 text-sm font-bold text-emerald-100">{t.aiKicker}</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">{t.aiTitle}</h2><p className="mt-5 leading-8 text-emerald-50/90">{t.aiLead}</p></div><div className="grid content-center gap-4 bg-[#06666a] p-9 lg:p-16">{[t.cards[4][0],t.cards[2][0],t.cards[3][0]].map(x=><div key={x} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 p-4"><Check className="h-5 w-5"/><span className="font-bold">{x}</span></div>)}</div></div></section>
 
-      <section id="pricing" className="bg-slate-50 py-20 lg:py-28 dark:bg-[#07111f]"><div className="mx-auto max-w-7xl px-5 lg:px-8"><h2 className="text-center text-3xl font-black sm:text-4xl">{t.pricing}</h2><p className="mx-auto mt-4 max-w-2xl text-center leading-7 text-slate-500">{t.priceLead}</p>{!session?.user?.merchantId && <div className="mt-6 flex justify-center gap-3" aria-label={locale === 'ar' ? 'السوق' : 'Market'}><Link href="/?market=SD#pricing" aria-current={market === 'SD' ? 'page' : undefined} className={`rounded-xl border px-5 py-3 ${market === 'SD' ? 'bg-[#087d82] text-white' : ''}`}>{locale === 'ar' ? 'السودان' : 'Sudan'}</Link><Link href="/?market=SA#pricing" aria-current={market === 'SA' ? 'page' : undefined} className={`rounded-xl border px-5 py-3 ${market === 'SA' ? 'bg-[#087d82] text-white' : ''}`}>{locale === 'ar' ? 'السعودية' : 'Saudi Arabia'}</Link></div>}{market === 'SA' ? <div className="mt-12 grid items-stretch gap-5 md:grid-cols-2 xl:grid-cols-4">{plans.map(plan => <Plan key={plan.code} title={plan.code === 'FREE' ? t.free : (locale === 'ar' ? plan.name : plan.code.replace('SA_', ''))} price={formatPlanPrice(plan.monthlyPrice, plan.currency, locale)} items={[...(plan.yearlyPrice != null ? [locale === 'ar' ? (plan.yearlyPrice + ' ريال / سنوياً') : ('SAR ' + plan.yearlyPrice + ' / year')] : []), ...saPlanFeatures(plan.entitlements, locale)]} href={upgradeHref} cta={plan.monthlyPrice === 0 ? t.freeCta : (locale === 'ar' ? 'اختر الباقة' : 'Choose plan')} featured={plan.code === 'SA_PRO'} />)}</div> : <div className="mt-12 grid items-stretch gap-5 md:grid-cols-3"><Plan title={t.free} price={freePrice} items={t.freeItems} unavailable={t.freeUnavailable} href={accountHref} cta={t.freeCta}/><Plan title={t.growth} price={growthPrice} items={t.growthItems} href={upgradeHref} cta={t.growthCta} badge={t.popular} featured/><Plan title={t.pro} price={proPrice} items={t.proItems} href={upgradeHref} cta={t.proCta}/></div>}<p className="mx-auto mt-6 max-w-2xl text-center text-xs leading-6 text-slate-500">{market === 'SA' ? (locale === 'ar' ? 'الاشتراك بالريال السعودي. الشحن والتحصيل عند الاستلام يُحسبان بشكل منفصل.' : 'Subscriptions in SAR. Shipping and COD collection are charged separately.') : t.currencyNote}</p></div></section>
+      <MarketPricing key={market ?? 'country'} selection={selection} plans={plans} locale={locale} href={upgradeHref} hint={validPricingMarket(query.market)} />
 
       <section className="px-5 py-20"><div className="mx-auto max-w-5xl rounded-[2rem] bg-[#07111f] px-6 py-14 text-center text-white shadow-2xl"><ShoppingBag className="mx-auto h-10 w-10 text-[#13C4A3]"/><h2 className="mt-6 text-3xl font-black sm:text-4xl">{t.final}</h2><p className="mt-4 text-slate-400">{t.finalLead}</p><Link href={accountHref} className="mt-8 inline-flex rounded-2xl bg-[#13C4A3] px-7 py-4 font-bold">{session?.user?t.dashboard:t.start}</Link></div></section>
     </main>
-    <PublicFooter locale={locale} registrationHref={`/register?market=${market}`} />
+    <PublicFooter locale={locale} registrationHref={registrationHref} />
   </div></LocaleProvider>;
 }
 
 function DashboardPreview({locale}:{locale:Locale}) { const ar=locale==='ar'; return <div className="mx-auto w-full max-w-xl rounded-[2rem] border border-slate-300 bg-white p-3 shadow-[0_18px_50px_rgba(7,17,31,0.12)] dark:border-white/15 dark:bg-[#0d1b2a]"><div className="rounded-[1.4rem] border border-slate-100 bg-white p-5 dark:border-white/10 dark:bg-[#102235]"><div className="flex items-center gap-3"><WaslaMark/><div><p className="text-sm font-bold">{ar?'لوحة متجرك':'Your dashboard'}</p><p className="text-xs text-slate-400">wassla-sd.shop/store/your-store</p></div></div><div className="mt-6 grid grid-cols-3 gap-3">{[[ar?'مبيعات اليوم':'Sales today','48,500'],[ar?'طلبات':'Orders','12'],[ar?'منتجات':'Products','84']].map(([a,b])=><div key={a} className="rounded-2xl border border-slate-100 bg-[#f8faf9] p-4 dark:border-white/10 dark:bg-white/5"><p className="text-[10px] text-slate-500">{a}</p><p className="mt-2 text-lg font-black">{b}</p></div>)}</div><div className="mt-4 grid gap-3 sm:grid-cols-[1.4fr_.6fr]"><div className="rounded-2xl border border-slate-100 p-4 dark:border-white/10"><div className="flex justify-between text-xs font-bold"><span>{ar?'طلب جديد #1048':'New order #1048'}</span><span className="text-amber-600">NEW</span></div><div className="mt-5 h-2 rounded-full bg-slate-100"><div className="h-2 w-4/5 rounded-full bg-[#13C4A3]"/></div><div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-[11px] font-bold text-emerald-700"><CreditCard className="h-4 w-4"/>{ar?'تم رفع إشعار التحويل':'Receipt uploaded'}</div></div><div className="flex flex-col justify-between rounded-2xl bg-[#07111f] p-4 text-white"><MessageCircle className="h-7 w-7 text-[#13C4A3]"/><div><p className="text-xs text-slate-400">WhatsApp AI</p><p className="font-bold">24/7</p></div></div></div></div></div> }
-
-function Plan({title,price,items,unavailable=[],href,cta,badge,featured=false}:{title:string;price:string;items:readonly string[];unavailable?:readonly string[];href:string;cta:string;badge?:string;featured?:boolean}) { return <article className={`relative flex h-full flex-col rounded-3xl border p-8 ${featured?'border-[#13C4A3] bg-[#07111f] text-white shadow-xl shadow-emerald-950/10':'border-slate-200 bg-white dark:border-white/10 dark:bg-white/5'}`}>{badge&&<span className="absolute -top-3 end-6 rounded-full bg-[#13C4A3] px-3 py-1 text-xs font-black text-white">{badge}</span>}<p className="font-bold text-[#13C4A3]">{title}</p><p className="mt-3 text-3xl font-black">{price}</p><ul className="mt-7 space-y-3">{items.map(x=><li key={x} className="flex gap-2 text-sm leading-6"><Check className="mt-0.5 h-5 w-5 shrink-0 text-[#13C4A3]"/>{x}</li>)}{unavailable.map(x=><li key={x} className="flex gap-2 text-sm leading-6 text-slate-400"><X className="mt-0.5 h-5 w-5 shrink-0"/>{x}</li>)}</ul><Link href={href} className={`mt-auto flex justify-center rounded-xl px-5 py-3 text-sm font-bold ${featured?'bg-[#13C4A3] text-white hover:bg-[#10ad91]':'bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15'}`}>{cta}</Link></article> }
-
-function formatPlanPrice(amount:number, currency:string, locale:Locale):string {
-  if (amount === 0) return locale === 'ar' ? 'مجاناً دائماً' : 'Free forever';
-  const formatted = new Intl.NumberFormat(locale === 'ar' ? 'ar-SD' : 'en-US', { maximumFractionDigits: 2 }).format(amount);
-  return locale === 'ar' ? `${formatted} ${currency} / شهرياً` : `${currency} ${formatted} / month`;
-}
