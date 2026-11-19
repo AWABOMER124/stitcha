@@ -167,9 +167,10 @@ jobs:
           docker run -d --name wasla-safe-release-db-ci --network wasla-release-db-ci --network-alias safe-db -e POSTGRES_USER=test -e POSTGRES_PASSWORD=ci-isolated-only -e POSTGRES_DB=wasla_comms_test postgres:18-alpine
           docker run -d --name wasla-safe-release-dev-ci --network wasla-release-db-ci -e DATABASE_URL=postgresql://test:ci-isolated-only@safe-db:5432/wasla_comms_test node:24-alpine sleep infinity
           for attempt in $(seq 1 30); do
-            if docker exec wasla-safe-release-db-ci pg_isready -U test -d wasla_comms_test; then break; fi
+            if docker exec wasla-safe-release-db-ci pg_isready -h 127.0.0.1 -U test -d wasla_comms_test; then break; fi
             sleep 1
           done
+          docker exec wasla-safe-release-db-ci pg_isready -h 127.0.0.1 -U test -d wasla_comms_test
           python3 ops/tests/candidate_journey.py --image wasla-merchant-os:ci --network wasla-release-db-ci --test-dev wasla-safe-release-dev-ci --test-db wasla-safe-release-db-ci --output /tmp/wasla-candidate-result.json
       - name: Remove private candidate infrastructure
         if: always()
