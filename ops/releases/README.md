@@ -4,6 +4,8 @@ The web image never performs migrations or startup billing. Run APP_PROCESS_MODE
 
 Candidate deployment and traffic switching are tested in isolated environments before production promotion. Do not replace a release image by rebuilding its tag: record and promote the exact tested image ID/digest. Preserve named upload/storage volumes and auth/encryption secrets across slots. No database restore is part of a normal application rollback.
 
+Browser version hints preserve pages and assets, but subscription collection, Stripe callbacks and registration always use the active compatible API implementation. Do not let an old browser header select legacy annual-billing or market logic. The first legacy transition additionally keeps these capabilities on the new image during a visible legacy rollback. Private job calls retain the previous 120-second HTTP budget within the existing 150-second systemd deadline.
+
 ## Verified acceptance path
 
 Run the unit controls with Python 3 on Linux, then the image-backed candidate journey and real Traefik traffic journey on an INTERNAL Docker network. These tests never use production credentials or published test ports. The candidate journey creates only a uniquely named isolated test database and removes it after the test.

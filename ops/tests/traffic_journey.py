@@ -88,6 +88,8 @@ def main():
             control.promote("green")
             assert request()[1]["release"] == "fixture-green"
             assert request(headers={"x-deployment-id": "fixture-blue"})[1]["release"] == "fixture-blue"
+            for path in ("/api/subscriptions/stripe-checkout", "/api/stripe/webhook", "/api/auth/register"):
+                assert request(path, headers={"x-deployment-id": "fixture-blue"})[1]["release"] == "fixture-green", "Old browser hints selected legacy billing/account logic"
             assert request("/_next/static/example.js?dpl=fixture-blue")[1]["release"] == "fixture-blue"
             assert slow.result()[1]["release"] == "fixture-blue", "In-flight request was interrupted/replayed"
             for i in range(20):
@@ -113,6 +115,7 @@ def main():
                    "inFlightRequestPreserved": True, "oldVersionNavigationAndAssetsPreserved": True,
                    "mutationReplays": 0, "rollbackVerified": True, "unhealthyPromotionRejected": True,
                    "candidateJobsDisabled": True, "productionWrites": False}
+        summary["criticalApisIgnoreOldBrowserVersion"] = True
         (out / "result.json").write_text(json.dumps(summary, indent=2))
         print(json.dumps(summary))
     finally:

@@ -70,6 +70,17 @@ def render_routing(hosts, active, previous=None, entrypoint="websecure", tls=Tru
     http["middlewares"] = {"wasla-release-platform-host": {
         "headers": {"customRequestHeaders": {"X-Forwarded-Host": hosts[0]}}
     }}
+    # Browser version hints must not select an older implementation of money
+    # collection, provider callbacks, or business-market account creation.
+    critical = "wasla-release-critical"
+    http["middlewares"][critical] = {"headers": {"customResponseHeaders": {"X-Wasla-API-Release": active["release"]}}}
+    http["routers"][critical] = {
+        "rule": "(" + rule + ") && (PathPrefix(`/api/subscriptions/`) || PathPrefix(`/api/stripe/`) || Path(`/api/auth/register`))",
+        "entryPoints": [entrypoint], "service": "wasla-release-active", "priority": 10020,
+        "middlewares": ["wasla-release-platform-host", critical],
+    }
+    if tls:
+        http["routers"][critical]["tls"] = {"certResolver": "letsencrypt"}
     return {"http": http}
 
 
