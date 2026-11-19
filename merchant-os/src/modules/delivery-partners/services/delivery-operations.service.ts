@@ -1,3 +1,6 @@
+import { isQiadIntegration, qiadPhone } from './partner-protocol';
+import { providerAddress } from './provider-coverage';
+import { coverageSpecificity } from '@/lib/geography/regional-coverage';
 import { nanoid } from "nanoid";
 import prisma from "@/lib/db/prisma";
 import { BusinessRuleError } from "@/lib/errors";
@@ -5,21 +8,9 @@ import { calculateDeliveryPrice } from "./delivery-pricing.service";
 import { dispatchShipmentToPartner } from "./partner-integration.service";
 import { enqueueJob } from '@/services/jobs/outbox.service';
 import { validatePartnerEndpoint } from './partner-endpoint';
+import { getOrderDeliveryAddress, hasCompleteDeliveryAddress } from '@/lib/addresses/order-address';
 
-function distanceKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-) {
-  const radians = (value: number) => (value * Math.PI) / 180;
-  const dLat = radians(b.lat - a.lat);
-  const dLng = radians(b.lng - a.lng);
-  const value =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(radians(a.lat)) *
-      Math.cos(radians(b.lat)) *
-      Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
-}
+import { routeDistance, coversDelivery, supportsAddressOnly } from "./delivery-coverage";
 
 export async function quotePlatformDelivery(orderId: string) {
   const order = await prisma.order.findUnique({
@@ -44,20 +35,10 @@ export async function quotePlatformDelivery(orderId: string) {
     (await prisma.branch.findFirst({
       where: { merchantId: order.merchantId, isMain: true, isActive: true },
     }));
-  if (
-    origin?.lat == null ||
-    origin.lng == null ||
-    order.delivery?.lat == null ||
-    order.delivery.lng == null
-  ) {
-    throw new BusinessRuleError(
-      "Verified pickup and delivery coordinates are required",
-    );
-  }
-  const tripDistanceKm = distanceKm(
-    { lat: origin.lat, lng: origin.lng },
-    { lat: order.delivery.lat, lng: order.delivery.lng },
-  );
+  if (!origin) throw new BusinessRuleError("Pickup branch is required");
+  const address = getOrderDeliveryAddress(order);
+  if (!hasCompleteDeliveryAddress(address)) throw new BusinessRuleError("أكمل المدينة والحي والعنوان التفصيلي قبل طلب عرض الشحن.");
+  const tripDistanceKm = routeDistance(origin, order.delivery);
 
   const rules = await prisma.deliveryPartnerPricingRule.findMany({
     where: {
@@ -66,47 +47,41 @@ export async function quotePlatformDelivery(orderId: string) {
         status: "ACTIVE",
         isActive: true,
         appStatus: "PUBLISHED",
+        ...(order.paymentMethod === 'CASH' ? { supportsCod: true } : {}),
         providerConfig: { isActive: true },
         merchantConnections: {
-          some: { merchantId: order.merchantId, isActive: true, revokedAt: null },
+          some: { merchantId: order.merchantId, isActive: true, revokedAt: null, providerSyncStatus: { in: ['READY', 'NOT_REQUIRED'] } },
         },
       },
-      OR: [{ maxDistanceKm: null }, { maxDistanceKm: { gte: tripDistanceKm } }],
+      ...(tripDistanceKm == null ? { perKmFee: 0, maxDistanceKm: null }
+        : { OR: [{ maxDistanceKm: null }, { maxDistanceKm: { gte: tripDistanceKm } }] }),
     },
-    include: { partner: true, serviceArea: true },
+    include: { partner: { include: { providerConfig: true, merchantConnections: { where: { merchantId: order.merchantId, isActive: true, revokedAt: null }, select: { providerSyncStatus: true } } } }, serviceArea: true },
     orderBy: [{ priority: "desc" }, { partner: { rating: "desc" } }],
   });
 
   const expiresAt = new Date(Date.now() + 15 * 60_000);
   const candidates = rules
     .flatMap((rule) => {
+      if (isQiadIntegration(rule.partner.providerConfig?.outboundWebhookUrl) && rule.partner.merchantConnections[0]?.providerSyncStatus!=='READY') return [];
       const area = rule.serviceArea;
-      if (!area?.isActive || area.partnerId !== rule.partnerId || area.centerLat == null || area.centerLng == null || area.radiusKm == null || area.radiusKm <= 0) return [];
-      if (
-        area?.centerLat != null &&
-        area.centerLng != null &&
-        area.radiusKm != null
-      ) {
-        const insideArea =
-          distanceKm(
-            { lat: area.centerLat, lng: area.centerLng },
-            { lat: order.delivery!.lat!, lng: order.delivery!.lng! },
-          ) <= area.radiusKm;
-        if (!insideArea) return [];
-      }
+      if (!area?.isActive || area.partnerId !== rule.partnerId) return [];
+      if (tripDistanceKm == null && !supportsAddressOnly(rule.partner.providerConfig)) return [];
+      const scopedAddress = providerAddress(rule.partner.providerConfig,address);
+      if (!scopedAddress || !coversDelivery(area, order.delivery, scopedAddress)) return [];
       const quote = calculateDeliveryPrice(rule, tripDistanceKm);
       return quote ? [{ rule, quote }] : [];
     })
-    .sort((a, b) => a.quote.amount - b.quote.amount);
+    .sort((a, b) => coverageSpecificity(b.rule.serviceArea!) - coverageSpecificity(a.rule.serviceArea!)
+      || b.rule.priority - a.rule.priority || a.quote.amount - b.quote.amount);
 
-  // A partner may have overlapping rules. Return only its cheapest eligible
-  // result so the customer never sees duplicate offers from one company.
+  // Choose the most specific scope per company, then compare company prices.
   const seenPartners = new Set<string>();
   const uniqueCandidates = candidates.filter((candidate) => {
     if (seenPartners.has(candidate.rule.partnerId)) return false;
     seenPartners.add(candidate.rule.partnerId);
     return true;
-  });
+  }).sort((a, b) => a.quote.amount - b.quote.amount);
 
   if (uniqueCandidates.length === 0) return [];
   await prisma.deliveryQuote.updateMany({
@@ -146,6 +121,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
         order: {
           include: {
             payment: true,
+            customer: true,
             delivery: true,
             branch: true,
             platformShipment: { select: { id: true } },
@@ -179,6 +155,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     const connection = await tx.merchantDeliveryPartner.findUnique({ where: { merchantId_partnerId: { merchantId: quote.order.merchantId, partnerId: quote.partnerId } } });
     if (!partner.isActive || partner.status !== 'ACTIVE' || partner.appStatus !== 'PUBLISHED' || !partner.supportsCod || !connection?.isActive || connection.revokedAt) throw new BusinessRuleError('Partner is no longer eligible');
     const config = partner.providerConfig;
+    if (isQiadIntegration(config?.outboundWebhookUrl) && connection?.providerSyncStatus!=='READY') throw new BusinessRuleError('انتظر اكتمال ربط المتجر بشركة الشحن.');
     if (!config?.isActive || !['PARTNER_HTTP_V1', 'TEST_SIMULATOR'].includes(config.providerKey)) throw new BusinessRuleError('Partner integration is inactive');
     if (config.providerKey === 'PARTNER_HTTP_V1') {
       if (config.integrationMode === 'APP_V1') {
@@ -195,9 +172,27 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     const area = rule?.serviceArea;
     const origin = quote.order.branch ?? await tx.branch.findFirst({ where: { merchantId: quote.order.merchantId, isMain: true, isActive: true } });
     const destination = quote.order.delivery;
-    if (!rule?.isActive || rule.partnerId !== partner.id || !area?.isActive || area.partnerId !== partner.id || area.centerLat == null || area.centerLng == null || !area.radiusKm || origin?.lat == null || origin.lng == null || destination?.lat == null || destination.lng == null) throw new BusinessRuleError('Coverage needs verification');
-    const distance = distanceKm({ lat: origin.lat, lng: origin.lng }, { lat: destination.lat, lng: destination.lng });
-    if (distanceKm({ lat: area.centerLat, lng: area.centerLng }, { lat: destination.lat, lng: destination.lng }) > area.radiusKm || (rule.maxDistanceKm != null && distance > rule.maxDistanceKm) || Math.abs(distance - Number(quote.distanceKm)) > 0.01) throw new BusinessRuleError('Delivery address or coverage changed; request a new quote');
+    if (!rule?.isActive || rule.partnerId !== partner.id || !area?.isActive || area.partnerId !== partner.id || !origin) throw new BusinessRuleError('Coverage needs verification');
+    if (config.providerKey === 'PARTNER_HTTP_V1') {
+      const pickupAddress = origin.address?.trim() || (await tx.merchant.findUniqueOrThrow({ where: { id: quote.order.merchantId }, select: { address: true } })).address?.trim();
+      if (!pickupAddress) throw new BusinessRuleError('أكمل عنوان استلام الشحنة في إعدادات الفرع قبل اختيار شركة الشحن.');
+      if (isQiadIntegration(config.outboundWebhookUrl)) {
+        const phone=origin.phone || (await tx.merchant.findUniqueOrThrow({where:{id:quote.order.merchantId},select:{phone:true}})).phone;
+        if(!qiadPhone(phone))throw new BusinessRuleError('أكمل رقم اتصال صحيحًا للفرع قبل اختيار شركة الشحن.');
+        if(!qiadPhone(quote.order.customerPhone||quote.order.customer?.phone))throw new BusinessRuleError('راجع رقم هاتف العميل قبل اختيار شركة الشحن.');
+      }
+    }
+    const address = getOrderDeliveryAddress(quote.order);
+    if (!hasCompleteDeliveryAddress(address)) throw new BusinessRuleError("أكمل المدينة والحي والعنوان التفصيلي قبل إصدار بوليصة الشحن.");
+    const distance = routeDistance(origin, destination);
+    if (distance == null && !supportsAddressOnly(config)) throw new BusinessRuleError('This provider requires pickup and delivery coordinates');
+    const currentPrice = calculateDeliveryPrice(rule, distance);
+    const distanceChanged = (distance == null) !== (quote.distanceKm == null)
+      || (distance != null && quote.distanceKm != null && Math.abs(distance - Number(quote.distanceKm)) > 0.01);
+    if (!providerAddress(config,address) || !coversDelivery(area, destination, providerAddress(config,address)!) || !currentPrice || distanceChanged
+      || currentPrice.currency !== quote.currency || Math.abs(currentPrice.amount - Number(quote.fee)) > 0.001) {
+      throw new BusinessRuleError('Delivery address, price or coverage changed; request a new quote');
+    }
 
     const accepted = await tx.deliveryQuote.updateMany({
       where: { id: quote.id, status: "OFFERED", expiresAt: { gt: new Date() } },

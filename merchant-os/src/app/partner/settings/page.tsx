@@ -10,7 +10,20 @@ import { z } from 'zod';
 import { PartnerLogoUpload } from '@/components/partner/logo-upload';
 import { CopyField } from '@/components/partner/copy-field';
 import { PartnerAppCredentials } from '@/components/partner/app-credentials';
+import { updatePartnerCodSupport } from '@/modules/delivery-partners/services/partner-cod.service';
 import { ArrowLeft, Building2, CheckCircle2, CloudCog, KeyRound, Radio, ShieldCheck, Webhook } from 'lucide-react';
+
+async function saveCodSettings(formData: FormData) {
+  'use server';
+  const { partnerId } = await requireDeliveryPartner({ verified: true });
+  await updatePartnerCodSupport(partnerId, formData.get('supportsCod') === 'on');
+  revalidatePath('/partner/settings');
+  revalidatePath('/partner/coverage');
+  revalidatePath('/partner');
+  revalidatePath('/admin/delivery-partners');
+  revalidatePath('/dashboard/delivery/partners');
+  redirect('/partner/settings?saved=cod#delivery-services');
+}
 
 async function saveApplication(formData: FormData) {
   "use server";
@@ -108,7 +121,7 @@ export default async function PartnerSettingsPage({ searchParams }: { searchPara
     : null;
   return (
     <div className="mx-auto max-w-6xl space-y-6" dir="rtl">
-      {saved && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">تم حفظ بيانات التطبيق بنجاح.</p>}
+      {saved && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{saved === 'cod' ? 'تم حفظ إعداد الدفع عند الاستلام.' : 'تم حفظ بيانات التطبيق بنجاح.'}</p>}
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">أكمل اسم التطبيق ومفتاح الربط. رابط API يجب أن يكون HTTPS ومعتمداً من إدارة وصلة قبل استخدامه.</p>}
       <header className="rounded-3xl bg-[#07111f] p-6 text-white sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-5"><div><p className="mb-2 text-sm font-bold text-emerald-300">مساحة تطوير تطبيق الشحن</p>
@@ -119,6 +132,15 @@ export default async function PartnerSettingsPage({ searchParams }: { searchPara
         </p></div><span className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold">{({ DRAFT: 'مسودة', SUBMITTED: 'قيد المراجعة', PUBLISHED: 'منشور', REJECTED: 'يحتاج تعديلاً' } as Record<string, string>)[partner.appStatus] ?? partner.appStatus}</span></div>
         <div className="mt-5 flex flex-wrap gap-3 text-sm"><Link className="rounded-xl border border-white/20 px-3 py-2 font-bold hover:bg-white/10" href="/partner/docs">دليل الربط وAPI</Link><Link className="rounded-xl border border-white/20 px-3 py-2 font-bold hover:bg-white/10" href="/partner/sandbox">متجر الاختبار</Link><Link className="rounded-xl border border-white/20 px-3 py-2 font-bold hover:bg-white/10" href="/partner/security">تأكيد الحساب</Link></div>
       </header>
+      <section id="delivery-services" className="scroll-mt-5 rounded-2xl border bg-white p-5 shadow-sm shadow-slate-200/40">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-black">خدمات التوصيل والتحصيل</h2><span className={`rounded-full px-3 py-1 text-xs font-bold ${partner.supportsCod ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>الدفع عند الاستلام: {partner.supportsCod ? 'مفعّل' : 'غير مفعّل'}</span></div>
+        <form action={saveCodSettings} className="mt-4 space-y-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4"><input type="checkbox" name="supportsCod" defaultChecked={partner.supportsCod} className="mt-1 size-5 accent-teal-600" /><span><strong className="block text-sm">تفعيل الدفع عند الاستلام (COD)</strong><span className="mt-2 block text-sm leading-7 text-slate-600">تقبل شركتك تحصيل قيمة الطلب من العميل عند التسليم. يصل المبلغ المطلوب تحصيله مع بيانات الشحنة، وتشمل القيمة رسوم التوصيل المعتمدة.</span></span></label>
+          <p className="text-xs leading-6 text-slate-500">تعطيل الخيار يوقف عروض الدفع عند الاستلام الجديدة ويلغي العروض غير المقبولة، ولا يلغي الشحنات القائمة أو يغيّر مبالغها.</p>
+          {saved === 'cod' && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-800">تم حفظ إعداد الدفع عند الاستلام.</p>}
+          <button className="rounded-xl bg-[var(--primary)] px-5 py-3 font-bold text-white">حفظ إعداد الدفع عند الاستلام</button>
+        </form>
+      </section>
       <section className="rounded-2xl border bg-white p-5 shadow-sm shadow-slate-200/40">
         <div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-700"><CloudCog className="size-5" /></span><div><h2 className="font-black">كيف يعمل الربط الحالي؟</h2><p className="mt-1 text-sm leading-7 text-slate-600">هو ربط مباشر بين وصلة ونظام شركتك: تزودنا شركتك بعنوان API ومفتاح المصادقة، ثم ترسل وصلة طلبات إنشاء وإلغاء الشحنات إلى نظامكم. وفي الاتجاه الآخر تولّد وصلة رابط Webhook خاصاً بكم لإرسال تحديثات حالات الشحن إليه.</p></div></div>
         <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_1fr]"><FlowCard icon={Building2} title="نظام شركة الشحن" text="API Base URL + API Secret من فريقكم التقني" /><div className="grid place-items-center text-teal-600"><ArrowLeft className="size-6 rotate-90 md:rotate-0" /></div><FlowCard icon={Webhook} title="منصة وصلة" text="Webhook URL تولده وصلة لاستقبال الحالات" /></div>

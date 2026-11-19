@@ -1,3 +1,6 @@
+import { getAuthContext, requirePermission } from "@/lib/permissions";
+import { setMerchantPartner } from "@/modules/delivery-partners/services/installation-sync.service";
+import { LiveRefresh } from "@/components/shared/live-refresh";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
@@ -7,33 +10,9 @@ import Link from 'next/link';
 
 async function togglePartner(formData: FormData) {
   "use server";
-  const session = await auth();
-  if (!session?.user?.merchantId) redirect("/login");
-  const partnerId = String(formData.get("partnerId"));
-  const enabled = String(formData.get("enabled")) === "true";
-  const partner = await prisma.deliveryPartner.findFirst({
-    where: {
-      id: partnerId,
-      status: "ACTIVE",
-      isActive: true,
-      appStatus: "PUBLISHED",
-    },
-    select: { id: true },
-  });
-  if (!partner) return;
-  await prisma.merchantDeliveryPartner.upsert({
-    where: {
-      merchantId_partnerId: { merchantId: session.user.merchantId, partnerId },
-    },
-    create: {
-      merchantId: session.user.merchantId,
-      partnerId,
-      isActive: enabled,
-      scopes: ['shipping.read_write'],
-      revokedAt: enabled ? null : new Date(),
-    },
-    update: { isActive: enabled, scopes: ['shipping.read_write'], revokedAt: enabled ? null : new Date() },
-  });
+  const context = await getAuthContext(); requirePermission(context,'settings:update');
+  const partnerId=String(formData.get('partnerId')),enabled=String(formData.get('enabled'))==='true';
+  await setMerchantPartner(context.merchantId,partnerId,enabled);
   revalidatePath("/dashboard/delivery/partners");
 }
 
@@ -58,6 +37,7 @@ export default async function DeliveryMarketplacePage() {
   });
   return (
     <div className="space-y-6" dir="rtl">
+      <LiveRefresh />
       <header>
         <p className="text-sm font-bold text-[var(--primary)]">
           سوق تطبيقات وصلة
@@ -101,7 +81,7 @@ export default async function DeliveryMarketplacePage() {
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-bold ${connected ? "bg-emerald-100 text-emerald-700" : "bg-[var(--muted)]"}`}
                 >
-                  {connected ? "مفعّل" : "غير مفعّل"}
+                  {!connected ? 'غير مفعّل' : p.merchantConnections[0]?.providerSyncStatus === 'PENDING' ? 'جارٍ الربط' : p.merchantConnections[0]?.providerSyncStatus === 'FAILED' ? 'الربط يحتاج مراجعة' : 'مفعّل'}
                 </span>
               </div>
               <p className="mt-4 line-clamp-3 text-sm leading-7 text-[var(--muted-foreground)]">
@@ -130,6 +110,8 @@ export default async function DeliveryMarketplacePage() {
                   </span>
                 )}
               </div>
+              {p.merchantConnections[0]?.providerSyncError && <p role="alert" className="mt-3 text-sm text-amber-800">{p.merchantConnections[0].providerSyncError}</p>}
+              {connected && p.merchantConnections[0]?.providerSyncStatus === 'FAILED' && <form action={togglePartner} className="mt-3"><input type="hidden" name="partnerId" value={p.id}/><button name="enabled" value="true" className="rounded-xl border px-4 py-2">إعادة محاولة الربط</button></form>}
               <form action={togglePartner} className="mt-5">
                 <input type="hidden" name="partnerId" value={p.id} />
                 <button

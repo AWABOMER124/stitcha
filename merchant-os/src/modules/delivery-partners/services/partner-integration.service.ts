@@ -1,3 +1,5 @@
+import { isQiadIntegration } from './partner-protocol';
+import { hasCoordinates } from './delivery-coverage';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
@@ -5,6 +7,7 @@ import { decryptSecret } from '@/lib/crypto/secret';
 import { BusinessRuleError, NotFoundError, UnauthorizedError } from '@/lib/errors';
 import { applyShipmentState } from './shipment-state.service';
 import { validatePartnerEndpoint } from './partner-endpoint';
+import { getOrderDeliveryAddress, hasCompleteDeliveryAddress } from '@/lib/addresses/order-address';
 
 export async function dispatchShipmentToPartner(shipmentId: string) {
   return prisma.$transaction(async tx => {
@@ -31,9 +34,14 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
     }
     const connection = shipment.installation ?? await tx.merchantDeliveryPartner.findUnique({ where: { merchantId_partnerId: { merchantId: shipment.order.merchantId, partnerId: shipment.partnerId } } });
     if (!connection?.isActive || connection.revokedAt || connection.merchantId !== shipment.order.merchantId || connection.partnerId !== shipment.partnerId) throw new BusinessRuleError('Partner installation is inactive');
+    if (isQiadIntegration(config.outboundWebhookUrl) && connection.providerSyncStatus!=='READY') throw new BusinessRuleError('Partner registration is still pending');
     if (!shipment.installationId) await tx.platformShipment.update({ where: { id: shipment.id }, data: { installationId: connection.id } });
     const pickup = shipment.order.branch ?? await tx.branch.findFirst({ where: { merchantId: shipment.order.merchantId, isMain: true, isActive: true } });
-    if (pickup?.lat == null || pickup.lng == null || shipment.order.delivery?.lat == null || shipment.order.delivery.lng == null) throw new BusinessRuleError('Pickup and dropoff coordinates required');
+    if (!pickup) throw new BusinessRuleError('Pickup branch is required');
+    const appMode = config.integrationMode === 'APP_V1';
+    if (!appMode && (!hasCoordinates(pickup) || !hasCoordinates(shipment.order.delivery))) throw new BusinessRuleError('Pickup and dropoff coordinates required by this provider');
+    const deliveryAddress = getOrderDeliveryAddress(shipment.order);
+    if (!hasCompleteDeliveryAddress(deliveryAddress)) throw new BusinessRuleError("أكمل المدينة والحي والعنوان التفصيلي قبل إصدار بوليصة الشحن.");
     const appPayload = {
       id: `evt_${shipment.id}_created`, type: 'shipment.created', apiVersion: '2026-10-20', occurredAt: new Date().toISOString(),
       partner: { id: shipment.partnerId, clientId: config.clientId ?? null },
@@ -43,12 +51,12 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
       shipment: { id: shipment.id, trackingCode: shipment.trackingCode, orderId: shipment.order.id, orderNumber: shipment.order.orderNumber,
         status: shipment.status, createdAt: shipment.createdAt.toISOString() },
       sender: { branchId: pickup.id, name: pickup.name, phone: pickup.phone ?? shipment.order.merchant.phone,
-        email: pickup.email ?? shipment.order.merchant.email, address: pickup.address ?? shipment.order.merchant.address,
-        location: { lat: pickup.lat, lng: pickup.lng } },
+        email: pickup.email ?? shipment.order.merchant.email, address: pickup.address?.trim() || shipment.order.merchant.address?.trim(),
+        location: hasCoordinates(pickup) ? { lat: pickup.lat, lng: pickup.lng } : null },
       recipient: { customerId: shipment.order.customerId, name: shipment.order.customerName ?? shipment.order.customer.name,
         phone: shipment.order.customerPhone ?? shipment.order.customer.phone, email: shipment.order.customer.email,
-        address: shipment.order.customerAddress ?? shipment.order.customer.address,
-        location: { lat: shipment.order.delivery.lat, lng: shipment.order.delivery.lng } },
+        ...deliveryAddress,
+        location: hasCoordinates(shipment.order.delivery) ? { lat: shipment.order.delivery?.lat ?? null, lng: shipment.order.delivery?.lng ?? null } : null },
       payment: { method: shipment.order.paymentMethod, status: shipment.order.payment?.status ?? null,
         codAmount: shipment.order.paymentMethod === 'CASH' ? Number(shipment.order.total) : 0, currency: shipment.currency },
       amounts: { subtotal: Number(shipment.order.subtotal), discount: Number(shipment.order.discount), tax: Number(shipment.order.tax),
@@ -61,12 +69,11 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
       }) }],
       notes: shipment.order.notes,
     };
-    const appMode = config.integrationMode === 'APP_V1';
     const legacyPayload = {
       event: 'shipment.create', version: '2026-10-01', eventId: `shipment.create:${shipment.id}`,
       occurredAt: new Date().toISOString(), shipmentId: shipment.id, trackingCode: shipment.trackingCode, orderNumber: shipment.order.orderNumber,
-      pickup: { name: pickup.name, phone: pickup.phone ?? shipment.order.merchant.phone, address: pickup.address ?? shipment.order.merchant.address, lat: pickup.lat, lng: pickup.lng },
-      dropoff: { name: shipment.order.customerName, phone: shipment.order.customerPhone, address: shipment.order.customerAddress, lat: shipment.order.delivery.lat, lng: shipment.order.delivery.lng },
+      pickup: { name: pickup.name, phone: pickup.phone ?? shipment.order.merchant.phone, address: pickup.address?.trim() || shipment.order.merchant.address?.trim(), lat: pickup.lat, lng: pickup.lng },
+      dropoff: { name: shipment.order.customerName ?? shipment.order.customer.name, phone: shipment.order.customerPhone ?? shipment.order.customer.phone, ...deliveryAddress, lat: shipment.order.delivery?.lat ?? null, lng: shipment.order.delivery?.lng ?? null },
       payment: appPayload.payment, pricing: { deliveryFee: Number(shipment.fee), orderTotal: Number(shipment.order.total), currency: shipment.currency },
       items: shipment.order.items.map(item => {
         const snapshot = item.productSnapshot as { name?: unknown; sku?: unknown } | null;

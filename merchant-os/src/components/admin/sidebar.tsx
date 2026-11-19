@@ -26,6 +26,7 @@ function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
     { type: 'divider' },
     { type: 'section', label: nav.entitiesSection },
     { type: 'link', label: nav.merchants, href: '/admin/merchants', icon: '🏪' },
+    { type: 'link', label: 'الطلبات', href: '/admin/orders', icon: '📦' },
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.complaints, href: '/admin/complaints', icon: '🛟' }] : []),
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.verifications, href: '/admin/verifications', icon: '🪪' }] : []),
     ...(isOwner || isAdmin || isOperations ? [{ type: 'link' as const, label: nav.domains, href: '/admin/domains', icon: '🔗' }] : []),
@@ -44,6 +45,7 @@ function buildNavItems(nav: Dictionary['navAdmin'], role: UserRole): NavItem[] {
     ] : []),
     { type: 'divider' },
     { type: 'section', label: nav.systemSection },
+    ...(isOwner || isAdmin ? [{ type: 'link' as const, label: 'مركز الرسائل', href: '/admin/communications', icon: '✉️' }] : []),
     ...(isOwner ? [{ type: 'link' as const, label: nav.users, href: '/admin/users', icon: '👤' }] : []),
     ...(isOwner || isAdmin ? [{ type: 'link' as const, label: nav.settings, href: '/admin/settings', icon: '⚙️' }] : []),
   ];

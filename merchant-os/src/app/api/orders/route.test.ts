@@ -46,6 +46,11 @@ describe('mobile order creation route', () => {
     const response = await POST(request({
       items: [{ product_id: 'product-1', qty: 2 }],
       address: 'Khartoum',
+      state: 'الخرطوم',
+      city: 'الخرطوم',
+      district: 'الرياض',
+      address_description: 'قرب المدرسة',
+      address_version: '2',
       payment_method: 'cash',
       notes: 'Call on arrival',
     }));
@@ -57,6 +62,11 @@ describe('mobile order creation route', () => {
       {
         items: [{ productId: 'product-1', quantity: 2 }],
         address: 'Khartoum',
+        state: 'الخرطوم',
+        city: 'الخرطوم',
+        district: 'الرياض',
+        addressDescription: 'قرب المدرسة',
+        deliveryAddressVersion: '2',
         paymentMethod: 'cash',
         notes: 'Call on arrival',
       },

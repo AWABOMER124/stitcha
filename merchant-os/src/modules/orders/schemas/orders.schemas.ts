@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { orderAddressFields, validateOrderAddress } from "@/lib/addresses/order-address";
 
 // ============================================================================
 // Order Schemas
@@ -22,6 +23,7 @@ const orderItemSchema = z.object({
 /** Schema for creating a new order */
 export const createOrderSchema = z
   .object({
+    ...orderAddressFields,
     customerId: z.string().cuid().optional(),
     customerName: z.string().min(2).optional(),
     customerPhone: z.string().min(9).optional(),
@@ -34,7 +36,7 @@ export const createOrderSchema = z
     ]),
     paymentMethod: z.enum(["CASH", "CARD", "ONLINE", "WALLET"]),
     notes: z.string().max(500).optional(),
-    customerAddress: z.string().optional(),
+    customerAddress: z.string().trim().max(500).optional(),
     deliveryLat: z.number().min(-90).max(90).optional(),
     deliveryLng: z.number().min(-180).max(180).optional(),
     branchId: z.string().cuid().optional(),
@@ -45,7 +47,7 @@ export const createOrderSchema = z
   )
   .refine((data) => (data.deliveryLat == null) === (data.deliveryLng == null), {
     message: "Delivery latitude and longitude must be provided together",
-  });
+  }).superRefine(validateOrderAddress);
 
 /** Schema for updating order status */
 export const updateOrderStatusSchema = z.object({
@@ -63,13 +65,19 @@ export const updateOrderStatusSchema = z.object({
 });
 
 export const editOrderSchema = z.object({
+  customerState: orderAddressFields.customerState,
+  customerCity: z.string().trim().max(120).optional(),
+  customerDistrict: z.string().trim().max(120).optional(),
+  customerAddressDescription: z.string().trim().max(1000).optional(),
+  deliveryLat: z.preprocess(v => v === "" || v == null ? undefined : Number(v), z.number().min(-90).max(90).optional()),
+  deliveryLng: z.preprocess(v => v === "" || v == null ? undefined : Number(v), z.number().min(-180).max(180).optional()),
   customerName: z.string().trim().min(2).max(120),
   customerPhone: z.string().trim().min(7).max(32),
   customerAddress: z.string().trim().max(500).optional(),
   notes: z.string().trim().max(500).optional(),
   internalNotes: z.string().trim().max(1000).optional(),
   deliveryFee: z.coerce.number().min(0).max(10_000_000),
-});
+}).superRefine((data, context) => validateOrderAddress(data, context)).refine(data => (data.deliveryLat == null) === (data.deliveryLng == null), 'Delivery coordinates must be provided together');
 
 /** Schema for filtering orders */
 export const orderFilterSchema = z.object({

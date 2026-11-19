@@ -1,3 +1,4 @@
+import { stateForCity } from '@/lib/geography/regional-coverage';
 import prisma from "@/lib/db/prisma";
 import {
   NotFoundError,
@@ -185,6 +186,10 @@ export async function createOrder(merchantId: string, data: CreateOrderInput) {
     customerName: data.customerName,
     customerPhone: data.customerPhone,
     customerAddress: data.customerAddress,
+    customerState: data.customerState ?? stateForCity(data.customerCity) ?? undefined,
+    customerCity: data.customerCity,
+    customerDistrict: data.customerDistrict,
+    customerAddressDescription: data.customerAddressDescription,
     deliveryLat: data.deliveryLat,
     deliveryLng: data.deliveryLng,
     items: orderItems,
@@ -277,50 +282,61 @@ export async function editOrder(
   data: EditOrderInput,
   userId?: string,
 ) {
-  const current = await prisma.order.findFirst({
-    where: { id, merchantId },
-    include: {
-      platformShipment: { select: { id: true } },
-      payment: { select: { id: true } },
-    },
-  });
-  if (!current) throw new NotFoundError("Order", id);
-  if (!["NEW", "ACCEPTED", "PREPARING", "READY"].includes(current.status)) {
-    throw new BusinessRuleError(
-      "Order can no longer be edited after delivery starts",
-    );
-  }
-  const financialChanged = Number(current.deliveryFee) !== data.deliveryFee;
-  if (
-    current.platformShipment &&
-    (financialChanged || current.customerAddress !== data.customerAddress)
-  ) {
-    throw new BusinessRuleError(
-      "Address and delivery fee cannot change after a delivery shipment is created",
-    );
-  }
-  const total =
-    Number(current.subtotal) -
-    Number(current.discount) +
-    Number(current.tax) +
-    data.deliveryFee;
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id} AND "merchantId" = ${merchantId} FOR UPDATE`;
+    const current = await tx.order.findFirst({
+      where: { id, merchantId },
+      include: {
+        platformShipment: { select: { id: true } },
+        delivery: true,
+        payment: { select: { id: true } },
+      },
+    });
+    if (!current) throw new NotFoundError("Order", id);
+    if (!["NEW", "ACCEPTED", "PREPARING", "READY"].includes(current.status)) {
+      throw new BusinessRuleError(
+        "Order can no longer be edited after delivery starts",
+      );
+    }
+    const city = data.customerCity === undefined ? current.delivery?.city ?? null : data.customerCity || null;
+    const state = data.customerState === undefined ? (data.customerCity !== undefined && city !== current.delivery?.city ? stateForCity(city) : current.delivery?.state ?? stateForCity(city)) : data.customerState || null;
+    const district = data.customerDistrict === undefined ? current.delivery?.area ?? null : data.customerDistrict || null;
+    const description = data.customerAddressDescription === undefined ? current.delivery?.notes ?? null : data.customerAddressDescription || null;
+    const address = data.customerAddress || null;
+    const geographyChanged = current.customerAddress !== address || (current.delivery?.state ?? stateForCity(current.delivery?.city)) !== state || (current.delivery?.city ?? null) !== city || (current.delivery?.area ?? null) !== district;
+    const addressChanged = geographyChanged || (current.delivery?.notes ?? null) !== description;
+    const lat = data.deliveryLat ?? (geographyChanged ? null : current.delivery?.lat ?? null);
+    const lng = data.deliveryLng ?? (geographyChanged ? null : current.delivery?.lng ?? null);
+    const coordinatesChanged = (current.delivery?.lat ?? null) !== lat || (current.delivery?.lng ?? null) !== lng;
+    const financialChanged = Number(current.deliveryFee) !== data.deliveryFee;
+    if (
+      current.platformShipment &&
+      (financialChanged || addressChanged || coordinatesChanged)
+    ) {
+      throw new BusinessRuleError(
+        "Address and delivery fee cannot change after a delivery shipment is created",
+      );
+    }
+    const total =
+      Number(current.subtotal) -
+      Number(current.discount) +
+      Number(current.tax) +
+      data.deliveryFee;
+
     await tx.order.update({
       where: { id },
       data: {
         customerName: data.customerName,
         customerPhone: data.customerPhone,
-        customerAddress: data.customerAddress || null,
+        customerAddress: address,
         notes: data.notes || null,
         internalNotes: data.internalNotes || null,
         deliveryFee: data.deliveryFee,
         total,
-        delivery: {
-          update: {
-            address: data.customerAddress || null,
-            fee: data.deliveryFee,
-          },
-        },
+        delivery: { upsert: {
+          update: { address, state, city, area: district, notes: description, lat, lng, fee: data.deliveryFee },
+          create: { type: current.deliveryMethod, address, state, city, area: district, notes: description, lat, lng, fee: data.deliveryFee },
+        } },
         ...(current.payment ? { payment: { update: { amount: total } } } : {}),
       },
     });

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { getOrderDetailAction } from '@/modules/fulfillment/actions';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
+import { MerchantShipping } from './_shipping';
 import { OrderDetailClient } from './_client';
 
 interface PageProps {
@@ -29,6 +30,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
         {t.backToOrders}
       </Link>
       <OrderDetailClient key={String(result.data.updatedAt)} order={result.data} platformDeliveryEnabled={process.env.PLATFORM_DELIVERY_ENABLED === 'true'} />
+      <MerchantShipping orderId={id} />
     </div>
   );
 }

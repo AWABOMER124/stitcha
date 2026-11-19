@@ -1,7 +1,28 @@
 # دليل ربط وصلة مع شركات الشحن والتوصيل
 
-> الحالة: منفذ وجاهز لاختبار قبول أول شريك — آخر تحديث 2026-10-19
+> الحالة: منفذ وجاهز لاختبار قبول أول شريك — آخر تحديث 2026-11-16
 > النطاق: تعاقد وصلة مباشرة مع شركات التوصيل، إنشاء الشحنات، التتبع، إثبات التسليم، والتحصيل عند الاستلام.
+
+## تحديث عنوان المستلم — 16 نوفمبر 2026
+
+التكامل المفضل للتطبيقات الجديدة هو **APP_V1** بإصدار apiVersion `2026-10-20`، والحدث `shipment.created` إلى Webhook المسجل. دليل العقد الحي: https://wassla-sd.shop/developers/shipping ويظهر أيضًا في /partner/docs و/dashboard/delivery/partners/docs.
+
+تضاف داخل `recipient` الحقول التالية، وتضاف الأسماء نفسها داخل `dropoff` عند استخدام LEGACY_HTTP:
+
+```json
+{
+  "city": "بورتسودان",
+  "district": "ديم عرب",
+  "address": "شارع الاختبار، مبنى 7",
+  "addressDescription": "قرب الميدان"
+}
+```
+
+المدينة والحي والعنوان مطلوبة لإصدار شحنة حقيقية، والوصف اختياري وقد يكون null. يستقبل المتجر نفس البيانات في الطلب؛ مصدرها Delivery.city وDelivery.area وDelivery.address وDelivery.notes على التوالي. ليست أسماء نطاق التغطية، ولا تستنتج من عنوان قديم. تستكمل الطلبات القديمة قبل العرض والقبول والإرسال الخارجي. تحفظ ملاحظات الطلب منفصلة عن وصف العنوان.
+
+تجمع واجهات الشراء والإنشاء اليدوي هذه البيانات باستخدام deliveryAddressVersion="2"؛ واجهة الجوال تقبل city / district / address / address_description / address_version="2"، وتعيد المدينة والحي والوصف في بيانات الطلب. لا يتغير إصدار العقد أو HMAC أو Idempotency-Key؛ هذه حقول إضافية متوافقة. يجب أن يخزن قياد الحقول مستقلة ويطبع المدينة والحي والعنوان والوصف دون إسقاطها.
+
+صفحة /partner/shipments/{id} تعرض بيانات الشحنة الكاملة والطباعة للشركة المالكة فقط. مرجع الشركة لا يظهر إلا بعد إصداره من نظامها. عنوان المرسل sender.address وموقعه sender.location، دون حقلي مدينة وحي مستقلين حاليًا. [تفاصيل المسار وحدوده](../../docs/operations/SHIPMENT_ADDRESS.md).
 
 ## 1. الملخص التنفيذي
 
@@ -68,9 +89,9 @@ Order
 7. تسجل وصلة كل حدث في `DeliveryEvent` ثم تحدّث الحالة الحالية للشحنة والطلب.
 8. في COD تسجل الشركة المبلغ المحصل، ثم يطابقه فريق المالية ضمن التسوية.
 
-## 5. عقد API المتوقع من شركة الشحن
+## 5. عقد LEGACY_HTTP للتوافق مع الشركاء السابقين
 
-يجوز تكييف أسماء الحقول داخل Adapter، لكن هذه هي القدرات الدنيا المطلوبة.
+هذا القسم خاص بالوضع LEGACY_HTTP؛ للتكامل الجديد استخدم APP_V1 في الدليل الحي أعلاه. يجوز تكييفه داخل Adapter عند الحاجة.
 
 ### 5.1 إنشاء شحنة
 
@@ -105,7 +126,10 @@ Request:
   "dropoff": {
     "name": "اسم العميل",
     "phone": "+249...",
-    "address": "الخرطوم، الرياض",
+    "city": "الخرطوم",
+    "district": "الرياض",
+    "address": "شارع الاختبار، مبنى 7",
+    "addressDescription": "قرب المدرسة",
     "lat": 15.5701,
     "lng": 32.5752
   },
@@ -300,10 +324,12 @@ interface DeliveryPartnerAdapter {
 - أقل بيانات لازمة: الاسم والهاتف والعنوان والموقع وملاحظات التوصيل فقط.
 - عدم إرسال تفاصيل منتجات حساسة إلا إذا تطلب العقد ذلك.
 - روابط إثبات التسليم قصيرة الصلاحية أو تنسخ إلى التخزين الخاص لوصلة.
-- Rate limits لكل شريك، وحجم Webhook أقصى 256KB.
+- Rate limits لكل شريك، والالتزام بحد حجم كل endpoint؛ المسار LEGACY_HTTP الحالي يرفض جسمًا أكبر من 32KB.
 - فصل بيئة Sandbox عن Production بمفاتيح وtokens وwebhook URLs مختلفة.
 
-## 12. خطة التنفيذ الفنية
+## 12. خطة التنفيذ الفنية الأصلية (أرشيف)
+
+هذه القائمة توثق خطة أكتوبر قبل النشر، وليست قائمة الأعمال المتبقية الحالية. نُفذت خدمات الأحداث والطابور والتوقيع وبوابة الشريك بالفعل. المرجع الحالي للإعداد والإطلاق هو دليل التشغيل ودليل APP_V1 الحي ومذكرة قياد؛ لا تعد تشغيل seed أو إنشاء موارد بديلة لمجرد ورودها في هذه الخطة.
 
 ### P0 — قبل أول شحنة حقيقية
 
@@ -333,6 +359,8 @@ interface DeliveryPartnerAdapter {
 
 ## 13. اختبار القبول مع كل شركة
 
+تضاف مطابقة المدينة والحي والعنوان والوصف بين طلب المتجر والحدث وبوليصة الشركة، ورفض العنوان الناقص دون اتصال بالناقل. تبقى القائمة التالية معايير اختبار، وليست ادعاء اجتيازها كلها مع قياد.
+
 - إنشاء نفس الشحنة مرتين بنفس `Idempotency-Key` لا ينشئ شحنتين.
 - رفض توقيع Webhook خاطئ أو قديم أو معاد الإرسال دون أثر جانبي.
 - حفظ الحدث المكرر مرة واحدة وإرجاع `200`.
@@ -356,6 +384,28 @@ interface DeliveryPartnerAdapter {
 - سياسة إثبات التسليم والاحتفاظ بالصور.
 - بيانات مسؤول تقني ومسؤول عمليات ومسؤول مالية للتصعيد.
 
-## 15. قرار الإطلاق
+## 15. معايير الإطلاق المقترحة في الخطة الأصلية
 
 لا تُفعّل `PLATFORM_DELIVERY_ENABLED=true` إلا بعد اكتمال P0، نجاح اختبارات العقد والميدان، إدخال شركتين على الأقل أو اعتماد خطة بديل يدوي، توقيع SLA وCOD، وتجربة مغلقة في مدينة واحدة مع خطة رجوع موثقة.
+
+## إضافة الولاية والتسعير المبسط — 17 نوفمبر 2026
+
+أضيف حقل state إلى عنوان المستلم: customerState في مدخل الطلب، وDelivery.state في التخزين، وrecipient.state في APP_V1 (وdropoff.state في LEGACY_HTTP)، وstate في واجهة الجوال واستجابتها. تجمع نماذج العنوان الجديدة الولاية باستخدام deliveryAddressVersion="3"؛ يقبل الجوال address_version="3" مع state، وتظل النسخة 2 والمدخلات القديمة متوافقة. تحدد ولاية مدينة مدرجة وفريدة من الدليل عند غياب الولاية، دون تخمين للمدن غير المدرجة أو نص العنوان الحر.
+
+تسعير الشركة الآن سعر ثابت حسب الولاية ثم مدينة أو كل المدن ثم حي أو كل الأحياء؛ الأولوية للحي ثم المدينة ثم الولاية. لا توجد إحداثيات مطلوبة في نموذج إعداد السعر الجديد، ولا يتغير إصدار APP_V1 أو التوقيع أو مفتاح منع التكرار. يستقبل الشريك الولاية مع بقية حقول العنوان، ويضيفها إلى عرض وطباعة بوليصته.
+
+
+## تحديث 17 نوفمبر 2026: الرجيع وPDF وصلة
+
+يدعم الربط شحنة رجيع مستقلة لكامل طلب تم تسليمه فقط، مع parentShipmentId وparentProviderReference وkind=RETURN وتحويل اتجاه sender/recipient، وتحصيل صفر دون رد مالي تلقائي. تعيد الشركة providerReference بحالة REQUESTED فور إصدار المرجع. PDF الأصلي مدعوم حاليًا بموصل قياد/وصلة توصيل، بمقاس 100×150 مم وهوية وصلة، مع تحقق حساب التاجر أو الشركة ثم طلب موقّع ومؤقت لجلب الملف. أي شركة أخرى تحتاج واجهة PDF وموصلًا معتمدًا؛ لا يكفي تفعيلها. راجع [دليل التشغيل](../../docs/operations/SHIPPING_RETURNS.md) للتفاصيل والصلاحيات والرجوع.
+
+
+## WASLA / QIAD installation lifecycle (2026-11-18)
+
+QIAD APP_V1 registrations use a signed POST to `/api/method/qiad_logistics.wassla_webhooks.sync_installation`. Headers and raw-body HMAC match shipment events. `installation.updated` contains `id`, `occurredAt`, `partner: {id, clientId}`, `installation: {id, merchantId, revision, active}`, and `store: {id, name, phone?, address?}`. Revision is a positive integer; active is a JSON boolean; the store ID must equal merchantId. Timestamp tolerance is five minutes, with 30 seconds future clock tolerance.
+
+Response is Frappe `{message: {ok: true, revision, active}}`. Core accepts the exact requested revision/state before READY/DISABLED. Older/equal revisions return current state without recreating or reactivating an installation. Revoking an unknown installation creates an inactive tombstone without a merchant. Re-enabling a locally suspended Merchant requires QIAD operations approval. Pending/failed registration blocks new quotes, booking and returns. Existing merchants are enrolled only if already opted in.
+
+Actual QIAD serviceability is restricted to Khartoum, Omdurman and Khartoum Bahri in Khartoum state. A broad price rule does not expand the provider service area. Branch and recipient phone normalization is validated before acceptance. Full pickup address uses a read-only Small Text custom field on QIAD Merchant.
+
+COD is recorded in WASLA after delivery: COLLECTED, REMITTED and merchant CONFIRMED. Each stage has one immutable receipt per shipment; submitted amount/currency must exactly match expected COD. The merchant confirmation completes CASH payment; recording does not move bank funds. Return shipping retains zero COD and does not refund the original payment.

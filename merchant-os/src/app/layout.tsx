@@ -6,6 +6,7 @@ import "@fontsource-variable/alexandria";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import { brand } from '@/config/brand.config';
+import { DeploymentNotice } from '@/components/shared/deployment-notice';
 
 export const metadata: Metadata = {
   title: {
@@ -34,7 +35,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <Providers>{children}</Providers>
+        <Providers><DeploymentNotice release={process.env.APP_RELEASE ?? 'unknown'} />{children}</Providers>
       </body>
     </html>
   );

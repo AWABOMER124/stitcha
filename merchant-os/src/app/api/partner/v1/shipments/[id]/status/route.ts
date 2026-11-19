@@ -1,14 +1,15 @@
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
-import { AppError, BusinessRuleError, NotFoundError } from '@/lib/errors';
+import { AppError, BusinessRuleError } from '@/lib/errors';
 import { authenticatePartnerApi } from '@/modules/delivery-partners/services/partner-api-auth';
+import { applyReturnShipmentState } from '@/modules/delivery-partners/services/return-shipment.service';
 import { applyShipmentState } from '@/modules/delivery-partners/services/shipment-state.service';
 
 const bodySchema = z.object({
   eventId: z.string().min(8).max(200),
   providerReference: z.string().trim().min(1).max(200).optional(),
-  status: z.enum(['ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'CANCELLED']),
+  status: z.enum(['REQUESTED', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'FAILED', 'CANCELLED']),
   note: z.string().trim().max(1000).optional(),
   occurredAt: z.iso.datetime({ offset: true }).optional(),
 }).strict();
@@ -20,7 +21,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!scope.split(' ').includes('shipping.read_write')) throw new BusinessRuleError('Missing shipping scope');
     const data = bodySchema.parse(body);
     const shipment = await prisma.platformShipment.findFirst({ where: { id, partnerId }, include: { installation: true } });
-    if (!shipment) throw new NotFoundError('Shipment not found');
+    if (!shipment) {
+      const result = await applyReturnShipmentState(partnerId, id, data);
+      return Response.json({ success: true, data: result, requestId });
+    }
+    if (shipment.providerReference && data.providerReference && shipment.providerReference !== data.providerReference) throw new BusinessRuleError('Shipment reference cannot change');
     if (!shipment.installation?.isActive || shipment.installation.revokedAt) throw new BusinessRuleError('Store installation is inactive');
     try {
       await prisma.deliveryPartnerApiEvent.create({ data: { partnerId, shipmentId: id, eventId: data.eventId } });

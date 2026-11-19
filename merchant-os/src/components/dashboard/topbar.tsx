@@ -101,7 +101,7 @@ export function DashboardTopbar() {
       });
     }
     setNotifOpen(false);
-    router.push(notificationHref(n.metadata));
+    router.push(notificationHref(n.metadata,n));
   }
 
   const userName = session?.user?.name ?? session?.user?.email ?? dict.topbar.merchantOwner;

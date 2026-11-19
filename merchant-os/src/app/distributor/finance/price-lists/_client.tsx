@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { SUDAN_STATES, getSudanDistricts } from '@/lib/geography/sudan';
 import { createDeliveryZoneAction, updateDeliveryZoneAction, deleteDeliveryZoneAction } from '@/modules/finance/actions';
 import { useLocale } from '@/lib/i18n/context';
 import { useToast } from '@/components/ui/toast';
@@ -10,6 +11,8 @@ export interface Zone {
   id: string;
   name: string;
   description?: string | null;
+  city?: string | null;
+  district?: string | null;
   baseFee: number | string;
   perKmFee: number | string;
   maxDistanceKm?: number | null;
@@ -31,6 +34,8 @@ export function PriceListsClient({ initialZones }: { initialZones: Zone[] }) {
 
   const [form, setForm] = useState({
     name: '',
+    city: '',
+    district: '',
     description: '',
     baseFee: '',
     perKmFee: '0',
@@ -46,6 +51,8 @@ export function PriceListsClient({ initialZones }: { initialZones: Zone[] }) {
     startTransition(async () => {
       const res = await createDeliveryZoneAction({
         name: form.name,
+        city: form.city || undefined,
+        district: form.district || undefined,
         description: form.description || undefined,
         baseFee: parseFloat(form.baseFee) || 0,
         perKmFee: parseFloat(form.perKmFee) || 0,
@@ -57,7 +64,7 @@ export function PriceListsClient({ initialZones }: { initialZones: Zone[] }) {
       if (res.success) {
         setZones((prev) => [...prev, res.data as Zone]);
         setShowForm(false);
-        setForm({ name: '', description: '', baseFee: '', perKmFee: '0', maxDistanceKm: '', estimatedTime: '', currency: 'SDG', sortOrder: '0' });
+        setForm({ name: '', city: '', district: '', description: '', baseFee: '', perKmFee: '0', maxDistanceKm: '', estimatedTime: '', currency: 'SDG', sortOrder: '0' });
       } else {
         setError(res.error);
       }
@@ -111,6 +118,7 @@ export function PriceListsClient({ initialZones }: { initialZones: Zone[] }) {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-bold text-[var(--foreground)]">{zone.name}</h3>
+                  {(zone.city || zone.district) && <p className="mt-1 text-xs text-[var(--muted-foreground)]">المدينة: {zone.city || "غير مسجلة"} · الحي: {zone.district || "غير مسجل"}</p>}
                   {zone.description && <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{zone.description}</p>}
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 mr-2 ${zone.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-600'}`}>
@@ -183,9 +191,14 @@ export function PriceListsClient({ initialZones }: { initialZones: Zone[] }) {
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                   placeholder={t.zoneNamePlaceholder} />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-sm font-medium">المدينة<input required minLength={2} maxLength={120} list="zone-cities" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value, district: '' }))} className="mt-2 w-full rounded-lg border bg-[var(--background)] px-3 py-2.5" /><datalist id="zone-cities">{SUDAN_STATES.flatMap(state => state.cities).map(city => <option key={city.id} value={city.name} />)}</datalist></label>
+                <label className="text-sm font-medium">الحي<input required minLength={2} maxLength={120} list="zone-districts" value={form.district} onChange={e => setForm(p => ({ ...p, district: e.target.value }))} className="mt-2 w-full rounded-lg border bg-[var(--background)] px-3 py-2.5" /><datalist id="zone-districts">{getSudanDistricts(SUDAN_STATES.flatMap(state => state.cities).find(city => city.name === form.city)?.id ?? '').map(d => <option key={d.id} value={d.name} />)}</datalist></label>
+              </div>
+              <p className="text-xs text-[var(--muted-foreground)]">اختر من الاقتراحات أو اكتب مدينة وحيًا غير مدرجين.</p>
               <div>
                 <label className="block text-sm font-medium text-[var(--foreground)] mb-1.5">{t.descriptionLabel}</label>
-                <input type="text" value={form.description}
+                <textarea rows={3} maxLength={500} value={form.description}
                   onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                   className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
                   placeholder={t.descriptionPlaceholder} />

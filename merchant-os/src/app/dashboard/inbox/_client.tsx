@@ -12,13 +12,14 @@ const STATUS_COLORS: Record<string, string> = {
   CLOSED: 'bg-stone-100 text-stone-600',
 };
 
-export function InboxClient({ conversations: initial }: { conversations: Conversation[] }) {
+export function InboxClient({ conversations: initial, initialConversationId }: { conversations: Conversation[]; initialConversationId?: string }) {
   const { dict, locale } = useLocale();
   const t = dict.inboxPage;
   const dateLocale = locale === 'ar' ? 'ar-SA' : 'en-US';
+  const initialSelected=initialConversationId ? initial.find(c=>c.id===initialConversationId) ?? null : initial[0] ?? null;
   const [conversations, setConversations] = useState(initial);
-  const [selected, setSelected] = useState<Conversation | null>(initial[0] ?? null);
-  const [messages, setMessages] = useState<Message[]>(initial[0]?.messages ?? []);
+  const [selected, setSelected] = useState<Conversation | null>(initialSelected);
+  const [messages, setMessages] = useState<Message[]>(initialSelected?.messages ?? []);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -37,7 +38,7 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
         .then(data => {
           if (!data.conversations) return;
           setConversations(data.conversations);
-          setSelected(current => current ? (data.conversations.find((item: Conversation) => item.id === current.id) ?? current) : (data.conversations[0] ?? null));
+          setSelected(current => current ? (data.conversations.find((item: Conversation) => item.id === current.id) ?? current) : (initialConversationId ? data.conversations.find((item:Conversation)=>item.id===initialConversationId) ?? null : data.conversations[0] ?? null));
         })
         .catch(() => {});
     };
@@ -47,7 +48,7 @@ export function InboxClient({ conversations: initial }: { conversations: Convers
       window.clearInterval(poll);
       document.removeEventListener('visibilitychange', refreshList);
     };
-  }, []);
+  }, [initialConversationId]);
 
   useEffect(() => {
     if (!selectedId) return;

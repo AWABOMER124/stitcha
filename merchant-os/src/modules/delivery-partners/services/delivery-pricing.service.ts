@@ -12,7 +12,7 @@ export interface DeliveryPricingRule {
 export interface DeliveryPriceQuote {
   amount: number;
   currency: string;
-  distanceKm: number;
+  distanceKm: number | null;
 }
 
 function asFiniteNumber(value: NumericValue, field: string): number {
@@ -30,17 +30,18 @@ function asFiniteNumber(value: NumericValue, field: string): number {
  */
 export function calculateDeliveryPrice(
   rule: DeliveryPricingRule,
-  distanceKm: number,
+  distanceKm: number | null,
 ): DeliveryPriceQuote | null {
-  if (!Number.isFinite(distanceKm) || distanceKm < 0) {
+  if (distanceKm != null && (!Number.isFinite(distanceKm) || distanceKm < 0)) {
     throw new Error("Delivery distance must be a non-negative number");
   }
-  if (rule.maxDistanceKm != null && distanceKm > rule.maxDistanceKm) {
+  if (rule.maxDistanceKm != null && (distanceKm == null || distanceKm > rule.maxDistanceKm)) {
     return null;
   }
 
   const baseFee = asFiniteNumber(rule.baseFee, "baseFee");
   const perKmFee = asFiniteNumber(rule.perKmFee, "perKmFee");
+  if (distanceKm == null && perKmFee > 0) return null;
   const minimumFee = asFiniteNumber(rule.minimumFee, "minimumFee");
   const maximumFee =
     rule.maximumFee == null
@@ -51,7 +52,7 @@ export function calculateDeliveryPrice(
     throw new Error("Delivery maximum fee cannot be less than minimum fee");
   }
 
-  let amount = Math.max(baseFee + perKmFee * distanceKm, minimumFee);
+  let amount = Math.max(baseFee + perKmFee * (distanceKm ?? 0), minimumFee);
   if (maximumFee != null) amount = Math.min(amount, maximumFee);
 
   return {

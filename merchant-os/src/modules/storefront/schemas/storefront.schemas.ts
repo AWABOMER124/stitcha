@@ -1,7 +1,9 @@
 import { z } from 'zod';
+import { orderAddressFields, validateOrderAddress } from '@/lib/addresses/order-address';
 
 /** Public storefront checkout schema */
 export const placeOrderSchema = z.object({
+  ...orderAddressFields,
   customerName: z.string().trim().min(2, 'Name is required').max(120),
   // Storefront customers can use any international number. Registration and
   // checkout must not impose a Sudan-only length assumption.
@@ -11,7 +13,7 @@ export const placeOrderSchema = z.object({
     quantity: z.number().int().min(1),
   })).min(1, 'At least one item is required'),
   deliveryMethod: z.enum(['PICKUP', 'MERCHANT_DELIVERY']).default('PICKUP'),
-  customerAddress: z.string().optional(),
+  customerAddress: z.string().trim().max(500).optional(),
   deliveryLat: z.number().min(-90).max(90).optional(),
   deliveryLng: z.number().min(-180).max(180).optional(),
   notes: z.string().optional(),
@@ -21,6 +23,7 @@ export const placeOrderSchema = z.object({
   senderName: z.string().trim().max(120).optional(),
   transferredAt: z.coerce.date().optional(),
 }).superRefine((data, context) => {
+  validateOrderAddress(data, context);
   if (data.paymentMethod === 'MANUAL_TRANSFER' && (!data.paymentAccountId || !data.transactionRef)) {
     context.addIssue({ code: 'custom', message: 'Payment account and transaction reference are required' });
   }

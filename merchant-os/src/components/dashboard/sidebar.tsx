@@ -55,6 +55,7 @@ function buildNavItems(nav: Dictionary["navDashboard"]): NavItem[] {
     { type: "link", label: nav.deliveryPartners, href: "/dashboard/delivery/partners", icon: "🧩" },
     { type: "link", label: nav.reports, href: "/dashboard/reports", icon: "📈" },
     { type: "link", label: nav.notifications, href: "/dashboard/notifications", icon: "🔔" },
+    { type: "link", label: 'تفضيلات الرسائل', href: '/dashboard/notifications/preferences', icon: '✉️' },
     { type: "link", label: nav.subscription, href: "/dashboard/subscription", icon: "💎" },
     { type: "link", label: nav.settings, href: "/dashboard/settings", icon: "⚙️" },
   ];

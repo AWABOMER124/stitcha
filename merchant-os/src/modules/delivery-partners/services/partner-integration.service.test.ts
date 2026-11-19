@@ -8,13 +8,14 @@ const shipment = {
   order: { id: 'order_1', merchantId: 'merchant_1', customerId: 'customer_1', orderNumber: 'ORD-1', status: 'READY', customerName: 'Customer', customerPhone: '+249900000000', customerAddress: 'Khartoum', subtotal: 850, discount: 0, tax: 0, total: 1000,
     paymentMethod: 'CASH', notes: 'Fragile', branch: { name: 'Main', phone: '+249911111111', address: 'Store', lat: 15.5, lng: 32.5 },
     merchant: { id: 'merchant_1', name: 'Store', slug: 'store', phone: '+249911111111', email: 'store@example.com', address: 'Store', currency: 'SDG' },
-    customer: { id: 'customer_1', name: 'Customer', phone: '+249900000000', email: null, address: 'Khartoum' }, delivery: { lat: 15.6, lng: 32.6 }, payment: { status: 'PENDING' },
+    customer: { id: 'customer_1', name: 'Customer', phone: '+249900000000', email: null, address: 'Khartoum' }, delivery: { city: "بورتسودان", area: "ديم عرب", address: "شارع الاختبار، مبنى 7", notes: "قرب الميدان", lat: 15.6, lng: 32.6 }, payment: { status: 'PENDING' },
     items: [{ productSnapshot: { name: 'Phone', sku: 'P-1' }, quantity: 2, unitPrice: 425, total: 850, notes: null }] },
 };
 const tx = { $queryRaw: vi.fn(), platformShipment: { findUniqueOrThrow: vi.fn(), update: vi.fn() }, branch: { findFirst: vi.fn() } };
 const prisma = { $transaction: vi.fn(), platformShipment: { findUnique: vi.fn() } };
 vi.mock('@/lib/db/prisma', () => ({ default: prisma }));
 vi.mock('@/lib/crypto/secret', () => ({ decryptSecret: () => 'provider-secret' }));
+vi.mock('./shipment-state.service', () => ({ applyShipmentState: vi.fn() }));
 
 const { dispatchShipmentToPartner, cancelShipmentAtPartner } = await import('./partner-integration.service');
 
@@ -28,6 +29,30 @@ beforeEach(() => {
 });
 
 describe('delivery partner HTTP contract', () => {
+  it('sends APP_V1 city and district with null locations when coordinates are not supplied', async () => {
+    const appShipment = { ...shipment, order: { ...shipment.order, branch: { ...shipment.order.branch, lat: null, lng: null },
+      delivery: { ...shipment.order.delivery, lat: null, lng: null } },
+      partner: { ...shipment.partner, providerConfig: { ...shipment.partner.providerConfig, integrationMode: 'APP_V1',
+        clientId: 'wsl_app_client', outboundWebhookUrl: 'https://carrier.example/events', webhookSigningSecret: 'encrypted' } } };
+    tx.platformShipment.findUniqueOrThrow.mockReset().mockResolvedValue(appShipment);
+    await dispatchShipmentToPartner('shipment_1');
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+    expect(body.sender.location).toBeNull();
+    expect(body.recipient).toMatchObject({ city: 'بورتسودان', district: 'ديم عرب', address: 'شارع الاختبار، مبنى 7', location: null });
+  });
+  it('preserves the coordinate requirement for legacy carriers', async () => {
+    const legacy = { ...shipment, order: { ...shipment.order, delivery: { ...shipment.order.delivery, lat: null, lng: null } } };
+    tx.platformShipment.findUniqueOrThrow.mockReset().mockResolvedValue(legacy);
+    await expect(dispatchShipmentToPartner('shipment_1')).rejects.toThrow('coordinates required by this provider');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each(['city', 'area', 'address'])('does not send a real shipment missing delivery %s', async field => {
+    const incomplete = { ...shipment, order: { ...shipment.order, customerAddress: null, customer: { ...shipment.order.customer, address: null }, delivery: { ...shipment.order.delivery, [field]: null } } };
+    tx.platformShipment.findUniqueOrThrow.mockReset().mockResolvedValue(incomplete);
+    await expect(dispatchShipmentToPartner('shipment_1')).rejects.toThrow('المدينة');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('sends a versioned, idempotent create payload with payment and line items', async () => {
     await dispatchShipmentToPartner('shipment_1');
     const [url, request] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
@@ -35,7 +60,7 @@ describe('delivery partner HTTP contract', () => {
     expect(new Headers(request.headers).get('idempotency-key')).toBe('shipment_1');
     const body = JSON.parse(String(request.body));
     expect(body).toMatchObject({ event: 'shipment.create', version: '2026-10-01', shipmentId: 'shipment_1',
-      payment: { method: 'CASH', codAmount: 1000 }, items: [{ name: 'Phone', sku: 'P-1', quantity: 2 }] });
+      dropoff: { city: 'بورتسودان', district: 'ديم عرب', address: 'شارع الاختبار، مبنى 7', addressDescription: 'قرب الميدان' }, payment: { method: 'CASH', codAmount: 1000 }, items: [{ name: 'Phone', sku: 'P-1', quantity: 2 }] });
   });
 
   it('sends an installation-scoped signed app event without mixing merchant identity', async () => {
@@ -51,7 +76,7 @@ describe('delivery partner HTTP contract', () => {
     const body = JSON.parse(String(request.body));
     expect(body).toMatchObject({ type: 'shipment.created', installation: { id: 'installation_1', merchantId: 'merchant_1' },
       store: { id: 'merchant_1', slug: 'store' }, shipment: { id: 'shipment_1', orderId: 'order_1' },
-      sender: { name: 'Main' }, recipient: { customerId: 'customer_1', phone: '+249900000000' } });
+      sender: { name: 'Main' }, recipient: { customerId: 'customer_1', phone: '+249900000000', city: 'بورتسودان', district: 'ديم عرب', address: 'شارع الاختبار، مبنى 7', addressDescription: 'قرب الميدان' } });
   });
 
   it('does not create a shipment after cancellation wins the race', async () => {

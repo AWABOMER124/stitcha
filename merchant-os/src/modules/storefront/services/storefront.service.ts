@@ -1,4 +1,7 @@
+import { stateForCity } from '@/lib/geography/regional-coverage';
 import prisma from '@/lib/db/prisma';
+import { z } from 'zod';
+import { orderAddressFields, validateOrderAddress, getOrderDeliveryAddress } from '@/lib/addresses/order-address';
 import { NotFoundError, ValidationError } from '@/lib/errors';
 import * as storefrontRepo from '../repositories/storefront.repository';
 import type { PlaceOrderInput } from '../schemas/storefront.schemas';
@@ -151,6 +154,10 @@ export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?:
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerAddress: data.customerAddress,
+      customerState: data.customerState ?? stateForCity(data.customerCity) ?? undefined,
+      customerCity: data.customerCity,
+      customerDistrict: data.customerDistrict,
+      customerAddressDescription: data.customerAddressDescription,
       deliveryLat: data.deliveryLat,
       deliveryLng: data.deliveryLng,
       items: orderItems,
@@ -296,6 +303,7 @@ type OrderForApp = {
   createdAt: Date;
   customerAddress: string | null;
   merchant: { name: string };
+  delivery?: { state?: string | null; city: string | null; area: string | null; address: string | null; notes: string | null } | null;
 };
 
 function mapOrderForApp(order: OrderForApp) {
@@ -304,7 +312,11 @@ function mapOrderForApp(order: OrderForApp) {
     status: mapOrderStatusForApp(order.status),
     totalAmount: Number(order.total),
     date: order.createdAt,
-    address: order.customerAddress,
+    address: getOrderDeliveryAddress(order).address,
+    state: getOrderDeliveryAddress(order).state,
+    city: getOrderDeliveryAddress(order).city,
+    district: getOrderDeliveryAddress(order).district,
+    address_description: getOrderDeliveryAddress(order).addressDescription,
     storeName: order.merchant.name,
   };
 }
@@ -312,6 +324,11 @@ function mapOrderForApp(order: OrderForApp) {
 export interface MobileOrderInput {
   items: { productId: string; quantity: number }[];
   address?: string;
+  state?: string;
+  city?: string;
+  district?: string;
+  addressDescription?: string;
+  deliveryAddressVersion?: "2" | "3";
   deliveryLat?: number;
   deliveryLng?: number;
   paymentMethod?: string;
@@ -322,6 +339,9 @@ export interface MobileOrderInput {
  * Infers the merchant from the cart's products — a single order can only
  * belong to one merchant, matching the existing single-slug placeOrder(). */
 export async function placeOrderForAccount(account: CustomerAccount, data: MobileOrderInput) {
+  const addressResult = z.object({ ...orderAddressFields, customerAddress: z.string().trim().max(500).optional(), deliveryMethod: z.literal("MERCHANT_DELIVERY") }).superRefine(validateOrderAddress).safeParse({ customerState: data.state, customerCity: data.city, customerDistrict: data.district, customerAddressDescription: data.addressDescription, customerAddress: data.address, deliveryAddressVersion: data.deliveryAddressVersion, deliveryMethod: "MERCHANT_DELIVERY" });
+  if (!addressResult.success) throw new ValidationError(addressResult.error.issues[0]?.message || 'عنوان التوصيل غير صالح');
+  const validatedAddress = addressResult.data;
   if (data.items.length === 0) throw new ValidationError('السلة فارغة');
 
   if ((data.deliveryLat == null) !== (data.deliveryLng == null)) throw new ValidationError('إحداثيات التوصيل غير مكتملة');
@@ -397,7 +417,11 @@ export async function placeOrderForAccount(account: CustomerAccount, data: Mobil
     notes: data.notes,
     customerName: account.name,
     customerPhone: account.phone,
-    customerAddress: data.address,
+    customerAddress: validatedAddress.customerAddress,
+    customerState: validatedAddress.customerState ?? stateForCity(validatedAddress.customerCity) ?? undefined,
+    customerCity: validatedAddress.customerCity,
+    customerDistrict: validatedAddress.customerDistrict,
+    customerAddressDescription: validatedAddress.customerAddressDescription,
     deliveryLat: data.deliveryLat,
     deliveryLng: data.deliveryLng,
     items: orderItems,
@@ -410,7 +434,7 @@ export async function placeOrderForAccount(account: CustomerAccount, data: Mobil
 export async function getOrderHistoryForAccount(accountId: string) {
   const orders = await prisma.order.findMany({
     where: { customer: { accountId } },
-    include: { merchant: { select: { name: true } } },
+    include: { merchant: { select: { name: true } }, delivery: true },
     orderBy: { createdAt: 'desc' },
   });
   return orders.map(mapOrderForApp);
