@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  packages: write
 concurrency:
   group: release-build
   cancel-in-progress: false
@@ -16,24 +17,23 @@ jobs:
     environment: production-build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Require explicitly configured private image storage
+      - name: Select the repository-owned registry and require the existing build key
         env:
-          REGISTRY: ${{ vars.RELEASE_REGISTRY }}
-          IMAGE: ${{ vars.RELEASE_IMAGE }}
-          PRIVATE_CONFIRMED: ${{ vars.PRIVATE_REGISTRY_CONFIRMED }}
           ACTION_KEY: ${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
-          test "$PRIVATE_CONFIRMED" = true
-          test -n "$REGISTRY" && test -n "$IMAGE" && test -n "$REGISTRY_TOKEN"
           test -n "$ACTION_KEY"
+          echo "RELEASE_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-production" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
-          registry: ${{ vars.RELEASE_REGISTRY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_TOKEN }}
-      - name: Build once and publish only to the configured private registry
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Verify private visibility using only a harmless initialization probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ops/releases/ensure_private_registry.py
+      - name: Build once and publish only to the verified private registry
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
@@ -41,7 +41,7 @@ jobs:
           file: Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ${{ vars.RELEASE_IMAGE }}:release-${{ github.sha }}
+          tags: ${{ env.RELEASE_IMAGE }}:release-${{ github.sha }}
           build-args: |
             APP_RELEASE=git-${{ github.sha }}
             NEXT_PUBLIC_APP_URL=https://wassla-sd.shop
@@ -49,7 +49,7 @@ jobs:
             next_server_actions_key=${{ secrets.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY }}
       - name: Record the immutable image to be staged and promoted
         env:
-          IMAGE: ${{ vars.RELEASE_IMAGE }}
+          IMAGE: ${{ env.RELEASE_IMAGE }}
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           printf '%s@%s\n' "$IMAGE" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
