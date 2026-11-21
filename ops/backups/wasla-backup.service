@@ -1,0 +1,12 @@
+[Unit]
+Description=Wasla database, files and configuration encrypted backup
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wasla-backup
+UMask=0077
+Nice=10
+TimeoutStartSec=3600

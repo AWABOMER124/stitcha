@@ -16,6 +16,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  backup-tools:
+    name: Backup integrity and retry controls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: python3 -m unittest discover -s ops/backups -p 'test_*.py' -v
+      - run: bash -n ops/backups/wasla-backup.sh
   merchant-os:
     name: Merchant OS
     runs-on: ubuntu-latest

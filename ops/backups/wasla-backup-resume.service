@@ -1,0 +1,12 @@
+[Unit]
+Description=Resume pending Wasla encrypted backup uploads without creating new snapshots
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wasla-backup --resume
+UMask=0077
+Nice=10
+TimeoutStartSec=3600
