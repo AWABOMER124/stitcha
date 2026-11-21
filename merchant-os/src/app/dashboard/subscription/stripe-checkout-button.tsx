@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export function StripeCheckoutButton({ locale, provider = 'STRIPE' }: { locale: 'ar' | 'en'; provider?: 'STRIPE' | 'PAYMOB' }) {
+export function StripeCheckoutButton({ locale, provider = 'STRIPE', planChangeRequestId }: { planChangeRequestId?: string; locale: 'ar' | 'en'; provider?: 'STRIPE' | 'PAYMOB' }) {
   const ar = locale === 'ar';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -11,7 +11,7 @@ export function StripeCheckoutButton({ locale, provider = 'STRIPE' }: { locale: 
     setBusy(true);
     setError('');
     try {
-      const response = await fetch('/api/subscriptions/checkout', { method: 'POST' });
+      const response = await fetch('/api/subscriptions/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ planChangeRequestId }) });
       const payload = await response.json() as { checkoutUrl?: string; error?: string };
       if (!response.ok || !payload.checkoutUrl) throw new Error(payload.error || (ar ? 'تعذر بدء الدفع' : 'Could not start payment'));
       window.location.assign(payload.checkoutUrl);

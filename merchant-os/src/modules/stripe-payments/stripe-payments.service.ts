@@ -7,7 +7,7 @@ import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referr
 import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referrals/marketer-referrals.service';
 import { getPlatformBillingSettings } from '@/modules/subscription-payments/subscription-payments.service';
 import { recordOnlinePaymentEntry, recordRefundEntry } from '@/modules/online-settlements/online-settlements.service';
-import { planRequestQuote } from '@/modules/merchant-subscriptions/market-pricing';
+import { planBelongsToMarket, planRequestQuote, resolveMarket } from '@/modules/merchant-subscriptions/market-pricing';
 import { paymentProviderForMarket } from '@/services/payment-gateways/market-policy';
 
 const PROVIDER = 'stripe';
@@ -96,6 +96,7 @@ export async function refreshMerchantStripeAccount(merchantId: string) {
 }
 
 export async function createSubscriptionStripeCheckout(input: {
+  planChangeRequestId?: string;
   merchantId: string;
   customerEmail?: string | null;
   origin: string;
@@ -104,13 +105,14 @@ export async function createSubscriptionStripeCheckout(input: {
   if (paymentProviderForMarket(merchant.subscriptionMarket) !== 'STRIPE') throw new BusinessRuleError('اشتراكات السعودية تستخدم Paymob.');
   const [request, current] = await Promise.all([
     prisma.merchantPlanChangeRequest.findFirst({
-      where: { merchantId: input.merchantId, status: { in: ['PENDING', 'CONTACTED'] } },
+      where: { id: input.planChangeRequestId, merchantId: input.merchantId, status: { in: ['PENDING', 'CONTACTED'] } },
       include: { targetPlan: true },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.merchantSubscription.findUnique({ where: { merchantId: input.merchantId }, select: { billingProvider: true, externalSubscriptionId: true, status: true } }),
   ]);
   if (!request) throw new ValidationError('Request a paid plan before opening Stripe checkout');
+  if (!planBelongsToMarket(request.targetPlan.code, resolveMarket(merchant.subscriptionMarket))) throw new ValidationError('The selected quote no longer matches the business market');
   if (current?.billingProvider === PROVIDER && current.externalSubscriptionId && current.status !== 'CANCELLED') {
     throw new ConflictError('An active Stripe subscription already exists; cancel or change it before starting another subscription');
   }

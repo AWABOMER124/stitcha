@@ -1,27 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useLocale } from '@/lib/i18n/context';
 import { LanguageToggle } from '@/lib/i18n/language-toggle';
 import { useMobileNav } from '@/components/ui/mobile-nav-context';
-import {
-  getPlatformNotificationsAction,
-  getPlatformUnreadCountAction,
-  markPlatformNotificationsReadAction,
-} from '@/modules/platform-notifications/actions';
-
-interface NotificationItem {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  isRead: boolean;
-  createdAt: string;
-  metadata?: unknown;
-}
+import { useNotificationSummary, type NotificationSummaryItem as NotificationItem } from '@/components/shared/use-notification-summary';
 
 const TYPE_ICON: Record<string, string> = {
   NEW_DISTRIBUTOR: '🏢',
@@ -33,37 +19,13 @@ export function AdminTopbar() {
   const { dict } = useLocale();
   const router = useRouter();
   const { toggle: toggleMobileNav } = useMobileNav();
-  const [, startTransition] = useTransition();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const [unreadCount, setUnreadCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [notifLoaded, setNotifLoaded] = useState(false);
+  const { unreadCount, notifications, loaded: notifLoaded, refresh, markRead } = useNotificationSummary();
   const notifRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function refreshNotifications() {
-      if (document.visibilityState !== 'visible') return;
-      void Promise.all([
-        getPlatformUnreadCountAction(),
-        getPlatformNotificationsAction({ limit: 5 }),
-      ]).then(([count, latest]) => {
-        if (count.success) setUnreadCount(count.data);
-        if (latest.success) setNotifications(latest.data.data as unknown as NotificationItem[]);
-        setNotifLoaded(true);
-      });
-    }
-    refreshNotifications();
-    const interval = window.setInterval(refreshNotifications, 5000);
-    document.addEventListener('visibilitychange', refreshNotifications);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', refreshNotifications);
-    };
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -78,25 +40,14 @@ export function AdminTopbar() {
     setMenuOpen(false);
     setNotifOpen((open) => {
       const next = !open;
-      if (next && !notifLoaded) {
-        getPlatformNotificationsAction({ limit: 5 }).then((res) => {
-          if (res.success) setNotifications(res.data.data as unknown as NotificationItem[]);
-          setNotifLoaded(true);
-        });
-      }
+      if (next && !notifLoaded) void refresh();
       return next;
     });
   }
 
   function handleNotificationClick(n: NotificationItem) {
     if (!n.isRead) {
-      startTransition(async () => {
-        const res = await markPlatformNotificationsReadAction({ ids: [n.id] });
-        if (res.success) {
-          setNotifications((list) => list.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
-          setUnreadCount((c) => Math.max(0, c - 1));
-        }
-      });
+      void markRead([n.id]);
     }
     setNotifOpen(false);
     const metadata = n.metadata && typeof n.metadata === 'object' && !Array.isArray(n.metadata)

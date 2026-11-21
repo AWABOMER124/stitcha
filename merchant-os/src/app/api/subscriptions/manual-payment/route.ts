@@ -11,16 +11,18 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     const merchantId = session?.user?.merchantId;
-    if (!merchantId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!merchantId || !['MERCHANT_OWNER', 'MERCHANT_ADMIN'].includes(session.user.role)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     if (!checkRateLimit(`subscription-payment:${merchantId}:${getClientIp(request)}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Too many attempts' }, { status: 429 });
     const form = await request.formData();
+    const planChangeRequestId = form.get('planChangeRequestId');
+    if (planChangeRequestId !== null && (typeof planChangeRequestId !== 'string' || !planChangeRequestId || planChangeRequestId.length > 180)) return NextResponse.json({ error: 'Invalid checkout request' }, { status: 400 });
     const proof = form.get('proof');
     if (!(proof instanceof File)) return NextResponse.json({ error: 'Transfer receipt is required' }, { status: 400 });
     const transferredAtRaw = String(form.get('transferredAt') ?? '');
     const transferredAt = transferredAtRaw ? new Date(transferredAtRaw) : undefined;
     if (transferredAt && Number.isNaN(transferredAt.getTime())) return NextResponse.json({ error: 'Invalid transfer date' }, { status: 400 });
     const result = await submitManualSubscriptionPayment(merchantId, {
-      paymentAccountId: String(form.get('paymentAccountId') ?? ''), transactionRef: String(form.get('transactionRef') ?? ''), senderName: String(form.get('senderName') ?? ''), transferredAt,
+      planChangeRequestId: planChangeRequestId ?? undefined, paymentAccountId: String(form.get('paymentAccountId') ?? ''), transactionRef: String(form.get('transactionRef') ?? ''), senderName: String(form.get('senderName') ?? ''), transferredAt,
     }, await normalizePrivateEvidence(proof));
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

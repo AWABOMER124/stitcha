@@ -25,7 +25,7 @@ export async function createMarketOrderCheckout(input: { merchantId: string; ord
   return status.provider === 'PAYMOB' ? createPaymobOrderCheckout(input) : createOrderStripeCheckout(input);
 }
 
-export async function createMarketSubscriptionCheckout(input: { merchantId: string; customerEmail?: string | null; origin: string }) {
+export async function createMarketSubscriptionCheckout(input: { planChangeRequestId?: string; merchantId: string; customerEmail?: string | null; origin: string }) {
   const status = await getMerchantPaymentGatewayStatus(input.merchantId);
   return status.provider === 'PAYMOB' ? createPaymobSubscriptionCheckout(input) : createSubscriptionStripeCheckout(input);
 }
