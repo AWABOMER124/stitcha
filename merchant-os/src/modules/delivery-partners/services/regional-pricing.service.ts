@@ -12,10 +12,13 @@ export const regionalPriceSchema = z.object({
 }).refine(value => value.etaMin == null || value.etaMax == null || value.etaMax >= value.etaMin, 'زمن التوصيل الأعلى يجب ألا يقل عن الأدنى.');
 
 export async function saveRegionalPrice(partnerId: string, input: Record<string, unknown>, priceId?: string) {
-  const address = resolveRegionalCoverage(input);
+  const config = await prisma.deliveryPartnerProviderConfig.findUnique({ where: { partnerId }, select: { market: true } });
+  const saudi = config?.market === 'SA';
+  const address = resolveRegionalCoverage(input, saudi ? 'SA' : 'SD');
   if (!address) throw new BusinessRuleError('اختر الولاية والمدينة أو كل المدن، ثم الحي أو كل الأحياء.');
   const parsed = regionalPriceSchema.safeParse(input);
   if (!parsed.success) throw new BusinessRuleError(parsed.error.issues[0]?.message ?? 'راجع السعر وزمن التوصيل.');
+  if (saudi && parsed.data.baseFee !== 20) throw new BusinessRuleError('التسعيرة السعودية المعتمدة 20 ريال لكل المملكة.');
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM delivery_partners WHERE id = ${partnerId} FOR UPDATE`;
     const current = priceId ? await tx.deliveryPartnerPricingRule.findFirst({ where: { id: priceId, partnerId, isActive: true } }) : null;
@@ -29,7 +32,7 @@ export async function saveRegionalPrice(partnerId: string, input: Record<string,
       partnerId, ...address, code: `LOC-${randomUUID().slice(0, 12).toUpperCase()}`, centerLat: null, centerLng: null, radiusKm: null,
       estimatedMinutesMin: parsed.data.etaMin, estimatedMinutesMax: parsed.data.etaMax,
     } });
-    const data = { serviceAreaId: area.id, baseFee: parsed.data.baseFee, perKmFee: 0, minimumFee: 0, maximumFee: null, maxDistanceKm: null, currency: 'SDG' };
+    const data = { serviceAreaId: area.id, baseFee: parsed.data.baseFee, perKmFee: 0, minimumFee: 0, maximumFee: null, maxDistanceKm: null, currency: saudi ? 'SAR' : 'SDG' };
     const price = current
       ? await tx.deliveryPartnerPricingRule.update({ where: { id: current.id }, data })
       : await tx.deliveryPartnerPricingRule.create({ data: { partnerId, ...data } });

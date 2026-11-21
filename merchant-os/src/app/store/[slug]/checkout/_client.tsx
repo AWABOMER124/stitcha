@@ -6,14 +6,15 @@ import { DeliveryAddressFields } from '@/components/orders/delivery-address-fiel
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
 type PaymentAccount = { id: string; channel: string; label: string; accountName: string; accountNumber: string; instructions: string | null };
-export type Merchant = { id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null; storePaymentAccounts: PaymentAccount[] };
+export type Merchant = { subscriptionMarket?: string; currency?: string; id: string; name: string; slug: string; storefrontSettings: { theme: unknown; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean } | null; storePaymentAccounts: PaymentAccount[] };
 
-export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEnabled }: { merchant: Merchant; slug: string; usdToSdgRate: number; onlinePaymentsEnabled: boolean }) {
+export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEnabled, onlineProvider = 'STRIPE' }: { merchant: Merchant; slug: string; usdToSdgRate: number; onlinePaymentsEnabled: boolean; onlineProvider?: 'STRIPE' | 'PAYMOB' }) {
   const router = useRouter();
   const sp = useSearchParams();
   const { dict, dir, locale } = useLocale();
   const t = dict.storefrontPublic;
   const ar = locale === 'ar';
+  const currency = merchant.currency || 'SDG';
   const settings = merchant.storefrontSettings;
   const theme = (settings?.theme ?? {}) as Record<string, string>;
   const primary = theme.primaryColor ?? '#b91c1c';
@@ -156,12 +157,12 @@ export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEna
                 <span className="font-medium text-stone-800">{item.name}</span>
                 {item.selectedModifiers.length > 0 && <span className="text-stone-400 text-xs block">{item.selectedModifiers.map(m => m.optionName).join('، ')}</span>}
               </div>
-              <span className="text-stone-600 whitespace-nowrap">{item.quantity} × {item.totalPrice.toLocaleString()} SDG</span>
+              <span className="text-stone-600 whitespace-nowrap">{item.quantity} × {item.totalPrice.toLocaleString()} {currency}</span>
             </div>
           ))}
           <div className="border-t border-stone-100 pt-3 flex justify-between font-bold">
             <span>{t.total}</span>
-            <span style={{ color: primary }}>{subtotal.toLocaleString()} SDG</span>
+            <span style={{ color: primary }}>{subtotal.toLocaleString()} {currency}</span>
           </div>
         </div>
 
@@ -195,7 +196,7 @@ export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEna
           </div>
           {method === 'MERCHANT_DELIVERY' && (
             <div className="space-y-3">
-              <DeliveryAddressFields locale={locale} onLocationChange={() => setDeliveryLocation(null)} />
+              <DeliveryAddressFields country={merchant.subscriptionMarket} locale={locale} onLocationChange={() => setDeliveryLocation(null)} />
               <label className="block text-sm font-bold">{ar ? "العنوان التفصيلي (الشارع والمبنى)" : "Detailed address (street and building)"}<input maxLength={500} value={address} onChange={e => { setAddress(e.target.value); setDeliveryLocation(null); }} required placeholder={t.addressPlaceholder} className="mt-1 w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[var(--sp)]" /></label>
               <button type="button" onClick={captureLocation} disabled={locating} className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700 disabled:opacity-50">
                 {locating ? (ar ? 'جارٍ تحديد الموقع…' : 'Getting location…') : deliveryLocation ? (ar ? '✓ تم حفظ موقع التوصيل' : '✓ Delivery location saved') : (ar ? '📍 تحديد موقعي للتوصيل الدقيق' : '📍 Use my precise delivery location')}
@@ -216,12 +217,12 @@ export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEna
           <h2 className="font-bold text-stone-900 mb-3">{t.paymentMethodTitle}</h2>
           <button type="button" onClick={() => setPaymentMethod('CASH')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'CASH' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💵</span><span className="text-sm text-stone-700">{t.cashOnDelivery}</span></button>
           {onlinePaymentsEnabled && <button type="button" onClick={() => setPaymentMethod('ONLINE')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'ONLINE' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">💳</span><span className="text-sm text-stone-700">{ar ? 'دفع إلكتروني آمن عبر وصلة' : 'Secure online payment via WASLA'}</span></button>}
-          {paymentMethod === 'ONLINE' && <p className="rounded-xl bg-indigo-50 p-3 text-xs text-indigo-900">{ar ? `سيتم تحصيل ما يعادل تقريباً ${(subtotal / usdToSdgRate).toFixed(2)} USD عبر Stripe وفق سعر الصرف المعتمد وقت الدفع.` : `Stripe will charge approximately ${(subtotal / usdToSdgRate).toFixed(2)} USD using the exchange rate active at checkout.`}</p>}
+          {paymentMethod === 'ONLINE' && <p className="rounded-xl bg-indigo-50 p-3 text-xs text-indigo-900">{onlineProvider === 'PAYMOB' ? (ar ? 'الدفع بالريال السعودي عبر Paymob باسم مؤسسة فهد لاين. يُؤكّد الطلب بعد مطابقة الدفع.' : 'Pay in SAR with Paymob. Seller: Fahd Line Establishment.') : currency === 'SDG' ? (ar ? `سيتم تحصيل ما يعادل تقريباً ${(subtotal / usdToSdgRate).toFixed(2)} USD عبر Stripe وفق سعر الصرف المعتمد وقت الدفع.` : `Stripe will charge approximately ${(subtotal / usdToSdgRate).toFixed(2)} USD.`) : (ar ? `الدفع بعملة ${currency} عبر Stripe.` : `Pay in ${currency} with Stripe.`)}</p>}
           {merchant.storePaymentAccounts.length > 0 && <button type="button" onClick={() => setPaymentMethod('MANUAL_TRANSFER')} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-start ${paymentMethod === 'MANUAL_TRANSFER' ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_6%,white)]' : 'border-stone-200'}`}><span className="text-xl">🏦</span><span className="text-sm text-stone-700">{ar ? 'تحويل بنكك أو ماي كاشي' : 'Bankak or MyCashy transfer'}</span></button>}
           {paymentMethod === 'MANUAL_TRANSFER' && <div className="space-y-3 rounded-xl bg-stone-50 p-3">
             <p className="text-sm text-stone-600">{ar ? 'حوّل المبلغ الكامل ثم ارفع إشعار التحويل. سيؤكد المتجر الطلب بعد المطابقة.' : 'Transfer the full amount and upload the receipt. The store confirms after review.'}</p>
             <div className="grid gap-2">{merchant.storePaymentAccounts.map(account => <button key={account.id} type="button" onClick={() => setPaymentAccountId(account.id)} className={`rounded-xl border p-3 text-start ${paymentAccountId === account.id ? 'border-[var(--sp)] bg-white' : 'border-stone-200'}`}><strong className="block text-sm">{account.label}</strong><span className="block text-xs text-stone-500">{account.accountName}</span><span className="block font-mono text-sm">{account.accountNumber}</span>{account.instructions && <span className="mt-1 block text-xs text-stone-500">{account.instructions}</span>}</button>)}</div>
-            <p className="rounded-lg bg-white p-3 text-sm">{ar ? 'المبلغ المطلوب' : 'Amount due'}: <strong>{subtotal.toLocaleString()} SDG</strong></p>
+            <p className="rounded-lg bg-white p-3 text-sm">{ar ? 'المبلغ المطلوب' : 'Amount due'}: <strong>{subtotal.toLocaleString()} {currency}</strong></p>
             <input value={transactionRef} onChange={e => setTransactionRef(e.target.value)} required minLength={4} maxLength={100} placeholder={ar ? 'رقم العملية' : 'Transaction reference'} className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm"/>
             <input value={senderName} onChange={e => setSenderName(e.target.value)} maxLength={120} placeholder={ar ? 'اسم المحوّل (اختياري)' : 'Sender name (optional)'} className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm"/>
             <input value={transferredAt} onChange={e => setTransferredAt(e.target.value)} type="datetime-local" className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm"/>
@@ -233,7 +234,7 @@ export function CheckoutClient({ merchant, slug, usdToSdgRate, onlinePaymentsEna
         {error && <p role="alert" aria-live="polite" className="text-sm text-red-600 text-center bg-red-50 rounded-xl py-2.5">{error}</p>}
 
         <button type="submit" disabled={loading || cart.length === 0} className="w-full py-4 rounded-2xl text-white font-bold text-base disabled:opacity-50 transition-all active:scale-95 shadow-lg" style={{ background: primary }}>
-          {loading ? t.placingOrder : paymentMethod === 'ONLINE' ? (ar ? `المتابعة للدفع — ${subtotal.toLocaleString()} SDG` : `Continue to payment — ${subtotal.toLocaleString()} SDG`) : `${t.confirmOrder} — ${subtotal.toLocaleString()} SDG`}
+          {loading ? t.placingOrder : paymentMethod === 'ONLINE' ? (ar ? `المتابعة للدفع — ${subtotal.toLocaleString()} ${currency}` : `Continue to payment — ${subtotal.toLocaleString()} ${currency}`) : `${t.confirmOrder} — ${subtotal.toLocaleString()} ${currency}`}
         </button>
       </form>
     </div>

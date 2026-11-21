@@ -19,8 +19,9 @@ async function togglePartner(formData: FormData) {
 export default async function DeliveryMarketplacePage() {
   const session = await auth();
   if (!session?.user?.merchantId) redirect("/login");
+  const merchant = await prisma.merchant.findUniqueOrThrow({ where: { id: session.user.merchantId }, select: { subscriptionMarket: true } });
   const partners = await prisma.deliveryPartner.findMany({
-    where: { status: "ACTIVE", isActive: true, appStatus: "PUBLISHED" },
+    where: { status: "ACTIVE", isActive: true, appStatus: "PUBLISHED", providerConfig: { market: merchant.subscriptionMarket, isActive: true } },
     include: {
       serviceAreas: { where: { isActive: true }, take: 4 },
       pricingRules: {

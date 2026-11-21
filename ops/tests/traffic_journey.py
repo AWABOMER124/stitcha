@@ -100,6 +100,12 @@ def main():
             assert request()[1]["release"] == "fixture-blue"
             for task in loads:
                 task.result()
+        config['financial_pin'] = {'slot': 'green', 'release': slots['green']['release'], 'image_id': slots['green']['image_id']}
+        control.promote('green')
+        control.rollback()
+        assert request()[1]['release'] == 'fixture-blue'
+        for path in ['/api/paymob/webhook', '/api/subscriptions/checkout', '/api/store/synthetic/orders', '/store/synthetic/checkout', '/dashboard/orders', '/admin/settings/payments']:
+            assert request(path, headers={'x-deployment-id': 'fixture-blue'})[1]['release'] == 'fixture-green', 'UI rollback selected incompatible financial logic'
         assert not errors, errors
         assert set(observed) == {"fixture-blue", "fixture-green"}
         old_route = (config_dir / "wasla.yml").read_bytes()
@@ -116,6 +122,7 @@ def main():
                    "mutationReplays": 0, "rollbackVerified": True, "unhealthyPromotionRejected": True,
                    "candidateJobsDisabled": True, "productionWrites": False}
         summary["criticalApisIgnoreOldBrowserVersion"] = True
+        summary['financialImplementationPreservedOnUiRollback'] = True
         (out / "result.json").write_text(json.dumps(summary, indent=2))
         print(json.dumps(summary))
     finally:

@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { SUDAN_STATES } from '@/lib/geography/sudan';
+import { SAUDI_REGIONS, saudiRegionForCity } from '@/lib/geography/saudi';
 import { normalizePlace, stateForCity } from '@/lib/geography/regional-coverage';
 
 const optionalText = (max: number) => z.preprocess(value => typeof value === 'string' ? value.trim() || undefined : value == null ? undefined : value,
   z.string().trim().max(max).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value), 'نص العنوان غير صالح').optional());
 export const orderAddressFields = {
-  customerState: optionalText(120).refine(value => !value || SUDAN_STATES.some(item => normalizePlace(item.name) === normalizePlace(value)), 'اختر ولاية صحيحة.').transform(value => SUDAN_STATES.find(item => normalizePlace(item.name) === normalizePlace(value))?.name ?? value).optional(),
+  customerState: optionalText(120).refine(value => !value || [...SUDAN_STATES, ...SAUDI_REGIONS].some(item => normalizePlace(item.name) === normalizePlace(value)), 'اختر ولاية أو منطقة صحيحة.').transform(value => [...SUDAN_STATES, ...SAUDI_REGIONS].find(item => normalizePlace(item.name) === normalizePlace(value))?.name ?? value).optional(),
   customerCity: optionalText(120),
   customerDistrict: optionalText(120),
   customerAddressDescription: optionalText(1000),
@@ -16,7 +17,8 @@ export type OrderAddressInput = {
   customerAddressDescription?: string; deliveryAddressVersion?: '2' | '3'; deliveryMethod?: string;
 };
 export function validateOrderAddress(value: OrderAddressInput, context: z.RefinementCtx) {
-  if (value.customerState && stateForCity(value.customerCity) && stateForCity(value.customerCity) !== value.customerState) context.addIssue({ code: 'custom', path: ['customerState'], message: 'المدينة لا تتبع الولاية المختارة.' });
+  const knownState = stateForCity(value.customerCity) ?? saudiRegionForCity(value.customerCity);
+  if (value.customerState && knownState && knownState !== value.customerState) context.addIssue({ code: 'custom', path: ['customerState'], message: 'المدينة لا تتبع الولاية أو المنطقة المختارة.' });
   if (!value.deliveryAddressVersion || value.deliveryMethod === 'PICKUP') return;
   if (value.deliveryAddressVersion === '3' && !value.customerState) context.addIssue({ code: 'custom', path: ['customerState'], message: 'اختر الولاية.' });
   for (const [key, label] of [['customerCity', 'المدينة'], ['customerDistrict', 'الحي'], ['customerAddress', 'العنوان التفصيلي']] as const) {

@@ -10,6 +10,8 @@ export async function setMerchantPartner(merchantId: string, partnerId: string, 
   await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${merchantId} FOR UPDATE`;
   const partner=await tx.deliveryPartner.findUnique({where:{id:partnerId},include:{providerConfig:true}});
   if(!partner || enabled&&(!partner.isActive||partner.status!=='ACTIVE'||partner.appStatus!=='PUBLISHED'))throw new BusinessRuleError('شركة الشحن غير متاحة.');
+  const merchant=await tx.merchant.findUniqueOrThrow({where:{id:merchantId},select:{subscriptionMarket:true,currency:true}});
+  if(enabled&&((partner.providerConfig?.market??'SD')!==merchant.subscriptionMarket || merchant.subscriptionMarket==='SA'&&merchant.currency!=='SAR'))throw new BusinessRuleError('شركة الشحن لا تطابق سوق وعملة المتجر.');
   const sync=isQiadIntegration(partner.providerConfig?.outboundWebhookUrl);
   const previous=await tx.merchantDeliveryPartner.findUnique({where:{merchantId_partnerId:{merchantId,partnerId}}});
   if(!enabled&&!previous)throw new BusinessRuleError('الشركة غير مثبتة لهذا المتجر.');
@@ -26,6 +28,7 @@ export async function syncMerchantInstallation(installationId: string, version: 
  const config=row.partner.providerConfig,active=row.isActive&&!row.revokedAt;
  try{
   if(active&&(!row.partner.isActive||row.partner.status!=='ACTIVE')||!config||active&&!config.isActive||config.integrationMode!=='APP_V1'||!config.clientId||!config.webhookSigningSecret||!isQiadIntegration(config.outboundWebhookUrl))throw new BusinessRuleError('تكامل الشركة غير جاهز للتسجيل.');
+  if(active&&(config.market!==row.merchant.subscriptionMarket || config.market==='SA'&&row.merchant.currency!=='SAR'))throw new BusinessRuleError('شركة الشحن لا تطابق سوق المتجر.');
   const endpoint=new URL(config.outboundWebhookUrl!);endpoint.pathname='/api/method/qiad_logistics.wassla_webhooks.sync_installation';endpoint.search='';validatePartnerEndpoint(endpoint.toString(),config.approvedOrigin);
   const id='installation_'+row.id+'_'+version,branch=row.merchant.branches[0];
   const event={id,type:'installation.updated',occurredAt:new Date().toISOString(),partner:{id:row.partnerId,clientId:config.clientId},installation:{id:row.id,merchantId:row.merchantId,revision:version,active:!!active},store:{id:row.merchantId,name:row.merchant.name,...(active?{phone:branch?.phone||row.merchant.phone,address:branch?.address||row.merchant.address}:{})}};

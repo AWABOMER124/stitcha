@@ -8,7 +8,8 @@ import { ValidationError } from '@/lib/errors';
 import type { PrivateEvidence } from '@/services/storage/private-evidence-input';
 import { ZodError } from 'zod';
 import { AFFILIATE_COOKIE } from '@/modules/store-affiliates/store-affiliates.service';
-import { createOrderStripeCheckout } from '@/modules/stripe-payments/stripe-payments.service';
+import { createMarketOrderCheckout, getMerchantOnlinePaymentStatus } from '@/modules/paymob-payments/market-payments.service';
+import { getMerchantBySlug } from '@/modules/storefront/services/storefront.service';
 import { resolvePublicOrigin } from '@/lib/public-origin';
 import * as ordersRepo from '@/modules/orders/repositories/orders.repository';
 
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/sto
       senderName: String(form.get('senderName') ?? '') || undefined,
       transferredAt: transferredAtRaw || undefined,
     });
+    if (paymentMethod === 'ONLINE') {
+      const merchant = await getMerchantBySlug(slug);
+      if (!merchant || !(await getMerchantOnlinePaymentStatus(merchant.id)).ready) throw new ValidationError('الدفع الإلكتروني غير متاح لهذا المتجر حاليًا.');
+    }
     const proofInput = form.get('proof');
     let evidence: PrivateEvidence | undefined;
     if (paymentMethod === 'MANUAL_TRANSFER') {
@@ -55,9 +60,15 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/sto
     const result = await placeOrder(slug, data, evidence, request.cookies.get(AFFILIATE_COOKIE)?.value);
     if (paymentMethod === 'ONLINE') {
       try {
-        const checkout = await createOrderStripeCheckout({ orderId: result.orderId, merchantId: result.merchantId, origin: resolvePublicOrigin(request.headers) });
+        const checkout = await createMarketOrderCheckout({ orderId: result.orderId, merchantId: result.merchantId, origin: resolvePublicOrigin(request.headers) });
         return NextResponse.json({ orderId: result.orderId, orderNumber: result.orderNumber, checkoutUrl: checkout.checkoutUrl }, { status: 201 });
       } catch (error) {
+        const status = await getMerchantOnlinePaymentStatus(result.merchantId);
+        if (status.provider === 'PAYMOB') {
+          // Keep the order unpaid if upstream creation was ambiguous. A later
+          // verified callback must not find an order cancelled by our timeout.
+          return NextResponse.json({ orderId: result.orderId, orderNumber: result.orderNumber, paymentPending: true, message: 'الطلب محفوظ وبانتظار تأكيد حالة الدفع.' }, { status: 202 });
+        }
         await ordersRepo.updateStatus(result.merchantId, result.orderId, 'CANCELLED', 'Online checkout could not start').catch(() => undefined);
         throw error;
       }

@@ -1,4 +1,5 @@
 import { stateForCity } from '@/lib/geography/regional-coverage';
+import { SAUDI_REGIONS } from '@/lib/geography/saudi';
 import prisma from '@/lib/db/prisma';
 import { z } from 'zod';
 import { orderAddressFields, validateOrderAddress, getOrderDeliveryAddress } from '@/lib/addresses/order-address';
@@ -61,6 +62,7 @@ export async function getStoreProduct(slug: string, productSlug: string) {
 export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?: PrivateEvidence, affiliateToken?: string) {
   const merchant = await storefrontRepo.getMerchantBySlug(slug);
   if (!merchant) throw new NotFoundError('Store');
+  if (data.customerState && SAUDI_REGIONS.some(region => region.name === data.customerState) !== (merchant.subscriptionMarket === 'SA')) throw new ValidationError('العنوان لا يطابق بلد نشاط المتجر.');
 
   const settings = merchant.storefrontSettings;
   if (settings && !settings.isOpen) {
@@ -112,7 +114,7 @@ export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?:
 
   // Check minimum order
   if (settings && Number(settings.minimumOrderAmount) > subtotal) {
-    throw new ValidationError(`Minimum order amount is ${settings.minimumOrderAmount} SDG`);
+    throw new ValidationError(`Minimum order amount is ${settings.minimumOrderAmount} ${merchant.currency}`);
   }
 
   const orderNumber = `ORD-${nanoid(8).toUpperCase()}`;
@@ -154,7 +156,7 @@ export async function placeOrder(slug: string, data: PlaceOrderInput, evidence?:
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       customerAddress: data.customerAddress,
-      customerState: data.customerState ?? stateForCity(data.customerCity) ?? undefined,
+      customerState: data.customerState ?? (merchant.subscriptionMarket === 'SA' ? undefined : stateForCity(data.customerCity)) ?? undefined,
       customerCity: data.customerCity,
       customerDistrict: data.customerDistrict,
       customerAddressDescription: data.customerAddressDescription,
@@ -179,6 +181,7 @@ export async function getOrderStatus(orderId: string) {
     where: { id: orderId },
     select: {
       id: true, orderNumber: true, status: true, total: true, subtotal: true,
+      merchant: { select: { currency: true, slug: true } },
       deliveryFee: true, deliveryMethod: true, createdAt: true,
       payment: { select: { method: true, status: true, manualProof: { select: { status: true, rejectionReason: true } } } },
       items: {

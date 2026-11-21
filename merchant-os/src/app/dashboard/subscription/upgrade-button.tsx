@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { requestPlanChangeAction } from '@/modules/merchant-subscriptions/actions';
 
-export function UpgradeButton({ locale, planCode, planName, yearlyPrice }: { locale: 'ar' | 'en'; planCode: string; planName: string; yearlyPrice?: number | null }) {
+export function UpgradeButton({ locale, planCode, planName, yearlyPrice, renewal = false }: { locale: 'ar' | 'en'; planCode: string; planName: string; yearlyPrice?: number | null; renewal?: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [billingInterval, setBillingInterval] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
@@ -13,7 +13,7 @@ export function UpgradeButton({ locale, planCode, planName, yearlyPrice }: { loc
     startTransition(async () => {
       const result = await requestPlanChangeAction({ targetPlanCode: planCode, billingInterval });
       setMessage(result.success
-        ? (locale === 'ar' ? 'تم إرسال طلب الترقية. سيتواصل معك فريق وصلة.' : 'Upgrade request sent. The WASLA team will contact you.')
+        ? (locale === 'ar' ? 'تم تجهيز طلب الباقة. أكمل السداد من قسم الدفع.' : 'Plan requested. Continue in the payment section.')
         : result.error);
     });
   }
@@ -32,7 +32,7 @@ export function UpgradeButton({ locale, planCode, planName, yearlyPrice }: { loc
       >
         {isPending
           ? (locale === 'ar' ? 'جارٍ الإرسال…' : 'Sending…')
-          : (locale === 'ar' ? `اطلب الترقية إلى ${planName}` : `Request ${planName} upgrade`)}
+          : renewal ? (locale === 'ar' ? `تجديد ${planName}` : `Renew ${planName}`) : (locale === 'ar' ? `اطلب الترقية إلى ${planName}` : `Request ${planName} upgrade`)}
       </button>
       {message && <p role="status" className="mt-3 text-sm text-[var(--muted-foreground)]">{message}</p>}
     </div>

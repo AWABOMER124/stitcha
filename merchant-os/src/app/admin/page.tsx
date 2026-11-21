@@ -27,7 +27,7 @@ type Activity = {
     orderNumber: string;
     status: string;
     total: number;
-    merchant: { name: string } | null;
+    merchant: { name: string; currency: string } | null;
   }>;
   recentMerchants: Array<{
     id: string;
@@ -216,7 +216,7 @@ export default async function AdminDashboardPage() {
                     #{order.orderNumber} · {order.merchant?.name ?? "—"}
                   </p>
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    {Number(order.total).toLocaleString()} SDG
+                    {Number(order.total).toLocaleString()} {order.merchant?.currency ?? "SDG"}
                   </p>
                 </div>
                 <span className="rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-bold">

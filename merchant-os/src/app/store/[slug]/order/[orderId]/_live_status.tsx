@@ -8,6 +8,7 @@ import { useLocale } from '@/lib/i18n/context';
 const STATUS_ORDER = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'];
 
 export interface LiveOrder {
+  currency: string;
   orderNumber: string;
   status: OrderStatus;
   createdAt: Date;
@@ -83,14 +84,14 @@ export function LiveOrderStatus({ slug, orderId, initialOrder }: { slug: string;
             return (
               <div key={i} className="px-4 py-3 flex justify-between text-sm">
                 <span className="text-stone-800 font-medium">{snap?.name ?? t.unknownProduct} × {item.quantity}</span>
-                <span className="text-stone-600">{Number(item.total).toLocaleString()} SDG</span>
+                <span className="text-stone-600">{Number(item.total).toLocaleString()} {initialOrder.currency}</span>
               </div>
             );
           })}
         </div>
         <div className="px-4 py-3 bg-stone-50 border-t border-stone-100 flex justify-between font-bold">
           <span>{t.total}</span>
-          <span className="text-red-700">{Number(initialOrder.total).toLocaleString()} SDG</span>
+          <span className="text-red-700">{Number(initialOrder.total).toLocaleString()} {initialOrder.currency}</span>
         </div>
       </div>
 

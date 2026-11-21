@@ -37,7 +37,7 @@ def atomic_json(path, data):
             os.unlink(temporary)
 
 
-def render_routing(hosts, active, previous=None, entrypoint="websecure", tls=True):
+def render_routing(hosts, active, previous=None, entrypoint="websecure", tls=True, financial=None):
     if not hosts or any(not re.fullmatch(r"[a-z0-9.-]+", h) for h in hosts):
         raise ValueError("Invalid platform hosts")
     rule = " || ".join("Host(`" + host + "`)" for host in hosts)
@@ -47,6 +47,8 @@ def render_routing(hosts, active, previous=None, entrypoint="websecure", tls=Tru
     slots = {"active": active}
     if previous and previous["release"] != active["release"]:
         slots["previous"] = previous
+    if financial and financial['release'] != active['release']:
+        slots['financial'] = financial
     for name, slot in slots.items():
         if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", slot["release"]):
             raise ValueError("Invalid release identity")
@@ -57,6 +59,8 @@ def render_routing(hosts, active, previous=None, entrypoint="websecure", tls=Tru
             "servers": [{"url": slot["url"]}], "passHostHeader": True,
             "healthCheck": {"path": "/api/health", "interval": "5s", "timeout": "3s"},
         }}
+        if name == 'financial':
+            continue
         router = {"rule": "(" + rule + ")", "entryPoints": [entrypoint],
                   "service": service, "priority": 10000,
                   "middlewares": ["wasla-release-platform-host"]}
@@ -73,10 +77,12 @@ def render_routing(hosts, active, previous=None, entrypoint="websecure", tls=Tru
     # Browser version hints must not select an older implementation of money
     # collection, provider callbacks, or business-market account creation.
     critical = "wasla-release-critical"
-    http["middlewares"][critical] = {"headers": {"customResponseHeaders": {"X-Wasla-API-Release": active["release"]}}}
+    financial = financial or active
+    service = 'wasla-release-active' if financial['release'] == active['release'] else 'wasla-release-financial'
+    http["middlewares"][critical] = {"headers": {"customResponseHeaders": {"X-Wasla-API-Release": financial["release"]}}}
     http["routers"][critical] = {
-        "rule": "(" + rule + ") && (PathPrefix(`/api/subscriptions/`) || PathPrefix(`/api/stripe/`) || Path(`/api/auth/register`))",
-        "entryPoints": [entrypoint], "service": "wasla-release-active", "priority": 10020,
+        "rule": "(" + rule + ") && (PathPrefix(`/api/subscriptions/`) || PathPrefix(`/api/stripe/`) || PathPrefix(`/api/paymob/`) || PathPrefix(`/api/partner/`) || Path(`/api/auth/register`) || PathRegexp(`^/api/store/[^/]+/orders(/|$)`) || PathRegexp(`^/store/[^/]+/(checkout|order/[^/]+)(/|$)`) || PathPrefix(`/dashboard/subscription`) || PathPrefix(`/dashboard/orders`) || PathPrefix(`/dashboard/delivery/`) || PathPrefix(`/dashboard/storefront/payments`) || PathPrefix(`/dashboard/finance/online-settlements`) || PathPrefix(`/admin/settings/payments`) || PathPrefix(`/admin/online-settlements`))",
+        "entryPoints": [entrypoint], "service": service, "priority": 10020,
         "middlewares": ["wasla-release-platform-host", critical],
     }
     if tls:
@@ -146,8 +152,14 @@ class Controller:
             self.verify_public(target["release"])
             return {"changed": False, "release": target["release"]}
         previous = old["active"]
+        financial = None
+        pin = self.config.get('financial_pin')
+        if pin:
+            financial = self.validate(pin['slot'])
+            if any(financial[key] != pin[key] for key in ('image_id', 'release')):
+                raise ValueError('Pinned financial release changed; refusing incompatible routing')
         config = render_routing(self.config["hosts"], target, previous,
-                                self.config.get("entrypoint", "websecure"), self.config.get("tls", True))
+                                self.config.get("entrypoint", "websecure"), self.config.get("tls", True), financial)
         old_routing = json.loads(self.routing_path.read_text()) if self.routing_path.exists() else render_routing(self.config["hosts"], None)
         # Journal first. An operator can restore the exact old routing even if
         # the process/host stops between the two atomic filesystem writes.

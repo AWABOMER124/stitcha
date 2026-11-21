@@ -9,7 +9,7 @@ import { normalizeStorefrontTheme, type StorefrontSection } from '@/lib/storefro
 type Modifier = { id: string; name: string; required: boolean; minSelections: number; maxSelections: number; options: { name: string; price: number }[] };
 export type Product = { id: string; name: string; slug: string; description: string | null; images: string[]; price: number; compareAtPrice?: number | null; isFeatured: boolean; categoryId: string; itemType?: 'PRODUCT' | 'SERVICE'; serviceProfile?: { durationMinutes: number; bookingRequired: boolean; fulfillmentType: string } | null; category: { id: string; name: string; slug: string }; modifiers: Modifier[] };
 export type Category = { id: string; name: string; slug: string; _count: { products: number } };
-export type Merchant = { id: string; name: string; slug: string; description: string | null; logo: string | null; coverImage: string | null; storefrontSettings: { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null };
+export type Merchant = { currency?: string; id: string; name: string; slug: string; description: string | null; logo: string | null; coverImage: string | null; storefrontSettings: { theme: unknown; bannerImage: string | null; welcomeText: string | null; isOpen: boolean; minimumOrderAmount: number | string; deliveryEnabled: boolean; pickupEnabled: boolean; socialLinks: unknown } | null };
 
 type CartItem = { productId: string; name: string; basePrice: number; quantity: number; selectedModifiers: { groupName: string; optionName: string; price: number }[]; notes: string; totalPrice: number };
 type StoreChatMessage = { id: string; content: string; isFromCustomer: boolean; senderName: string | null; sentAt: string; readAt?: string | null };
@@ -23,6 +23,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
   const router = useRouter();
   const { dict, dir, locale } = useLocale();
   const t = dict.storefrontPublic;
+  const currency = merchant.currency || 'SDG';
   const settings = merchant.storefrontSettings;
   const rawTheme = (settings?.theme ?? {}) as Record<string, unknown>;
   const theme = normalizeStorefrontTheme(rawTheme, merchant.name);
@@ -225,7 +226,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
           : <span className="text-4xl opacity-40">{product.category.name.includes('مشروب') ? '🥤' : product.category.name.includes('حلو') ? '🍰' : '🛍️'}</span>}
         {product.isFeatured && <span className="absolute start-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black" style={{ color: primary }}>★ مميز</span>}
       </div>
-      <div className="p-3"><p className="font-semibold text-stone-900 text-sm leading-tight">{product.name}</p>{isService && <p className="mt-1 text-[10px] font-bold" style={{ color: primary }}>🗓️ {product.serviceProfile?.bookingRequired ? `${product.serviceProfile.durationMinutes} دقيقة · احجز الآن` : 'اطلب الخدمة'}</p>}{product.description && <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{product.description}</p>}<div className="mt-2 flex items-center justify-between"><span className="text-sm font-bold" style={{ color: primary }}>{Number(product.price).toLocaleString()} SDG</span>{product.compareAtPrice && <span className="text-xs text-stone-400 line-through">{Number(product.compareAtPrice).toLocaleString()}</span>}<span className="rounded-full px-2 py-1 text-[10px] font-bold text-white" style={{ background: primary }}>{isService ? 'احجز' : '+'}</span></div></div>
+      <div className="p-3"><p className="font-semibold text-stone-900 text-sm leading-tight">{product.name}</p>{isService && <p className="mt-1 text-[10px] font-bold" style={{ color: primary }}>🗓️ {product.serviceProfile?.bookingRequired ? `${product.serviceProfile.durationMinutes} دقيقة · احجز الآن` : 'اطلب الخدمة'}</p>}{product.description && <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{product.description}</p>}<div className="mt-2 flex items-center justify-between"><span className="text-sm font-bold" style={{ color: primary }}>{Number(product.price).toLocaleString()} {currency}</span>{product.compareAtPrice && <span className="text-xs text-stone-400 line-through">{Number(product.compareAtPrice).toLocaleString()}</span>}<span className="rounded-full px-2 py-1 text-[10px] font-bold text-white" style={{ background: primary }}>{isService ? 'احجز' : '+'}</span></div></div>
     </button>;
   }
 
@@ -354,7 +355,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
       {cartCount > 0 && !cartOpen && (
         <div className="fixed bottom-6 inset-x-0 px-4 z-40" dir={dir}>
           <button onClick={() => setCartOpen(true)} className="w-full max-w-sm mx-auto flex items-center justify-between rounded-2xl px-5 py-3.5 text-white shadow-xl" style={{ background: primary }}>
-            <span className="font-bold text-base">{cartTotal.toLocaleString()} SDG</span>
+            <span className="font-bold text-base">{cartTotal.toLocaleString()} {currency}</span>
             <span className="font-medium">{t.viewCart} ({cartCount})</span>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
           </button>
@@ -376,7 +377,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
             <div className="p-5">
               <h3 className="text-xl font-bold text-stone-900">{selectedProduct.name}</h3>
               {selectedProduct.description && <p className="mt-1 text-sm text-stone-500">{selectedProduct.description}</p>}
-              <p className="mt-2 text-xl font-bold" style={{ color: primary }}>{Number(selectedProduct.price).toLocaleString()} SDG</p>
+              <p className="mt-2 text-xl font-bold" style={{ color: primary }}>{Number(selectedProduct.price).toLocaleString()} {currency}</p>
 
               {/* Modifiers */}
               {selectedProduct.modifiers.map(mod => (
@@ -393,7 +394,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
                         <button key={opt.name} onClick={() => toggleModOption(mod.id, opt.name, mod.maxSelections)} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all text-sm ${selected ? 'border-[var(--sp)] bg-[color-mix(in_srgb,var(--sp)_8%,white)]' : 'border-stone-100 hover:border-stone-200'}`}>
                           <span className="font-medium text-stone-800">{opt.name}</span>
                           <div className="flex items-center gap-3">
-                            {opt.price > 0 && <span className="text-stone-500">+{opt.price} SDG</span>}
+                            {opt.price > 0 && <span className="text-stone-500">+{opt.price} {currency}</span>}
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selected ? 'border-[var(--sp)] bg-[var(--sp)]' : 'border-stone-300'}`}>
                               {selected && <span className="text-white text-xs">✓</span>}
                             </div>
@@ -419,7 +420,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
                   <button onClick={() => setItemQty(q => q + 1)} className="w-8 h-8 flex items-center justify-center text-xl font-bold" style={{ color: primary }}>+</button>
                 </div>
                 <button onClick={addToCart} disabled={!isOpen} className="flex-1 py-3 rounded-xl text-white font-bold text-base disabled:opacity-50 transition-all active:scale-95" style={{ background: primary }}>
-                  {isOpen ? `${t.addToCart} — ${calcItemTotal(selectedProduct.price, selectedProduct.modifiers.flatMap(m => (modSelections[m.id] ?? []).map(n => m.options.find(o => o.name === n)!)), itemQty).toLocaleString()} SDG` : t.storeClosed}
+                  {isOpen ? `${t.addToCart} — ${calcItemTotal(selectedProduct.price, selectedProduct.modifiers.flatMap(m => (modSelections[m.id] ?? []).map(n => m.options.find(o => o.name === n)!)), itemQty).toLocaleString()} ${currency}` : t.storeClosed}
                 </button>
               </div>
             </div>
@@ -445,7 +446,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
                       <p className="font-semibold text-stone-900 text-sm">{item.name}</p>
                       {item.selectedModifiers.length > 0 && <p className="text-xs text-stone-400 mt-0.5">{item.selectedModifiers.map(m => m.optionName).join('، ')}</p>}
                       {item.notes && <p className="text-xs text-stone-400 italic">{item.notes}</p>}
-                      <p className="text-sm font-bold mt-1" style={{ color: primary }}>{item.totalPrice.toLocaleString()} SDG</p>
+                      <p className="text-sm font-bold mt-1" style={{ color: primary }}>{item.totalPrice.toLocaleString()} {currency}</p>
                     </div>
                     <div className="flex items-center gap-2 bg-stone-100 rounded-xl px-2 py-1 h-fit self-center">
                       <button onClick={() => updateQty(idx, -1)} className="w-6 h-6 flex items-center justify-center text-stone-500 font-bold text-lg">−</button>
@@ -459,7 +460,7 @@ export function StoreClient({ merchant, categories, products }: { merchant: Merc
             {cart.length > 0 && (
               <div className="px-5 py-4 border-t border-stone-100 space-y-3">
                 {minOrder > 0 && cartTotal < minOrder && <p className="text-xs text-amber-600 text-center bg-amber-50 rounded-lg py-2">{t.minOrderNote.replace('{min}', String(minOrder)).replace('{remaining}', (minOrder - cartTotal).toLocaleString())}</p>}
-                <div className="flex justify-between text-stone-600 text-sm"><span>{t.total}</span><span className="font-bold text-stone-900">{cartTotal.toLocaleString()} SDG</span></div>
+                <div className="flex justify-between text-stone-600 text-sm"><span>{t.total}</span><span className="font-bold text-stone-900">{cartTotal.toLocaleString()} {currency}</span></div>
                 <button disabled={!canCheckout || !isOpen} onClick={() => { setCartOpen(false); router.push(`/store/${merchant.slug}/checkout?cart=${encodeURIComponent(JSON.stringify(cart))}`); }} className="w-full py-3.5 rounded-2xl text-white font-bold text-base disabled:opacity-50 transition-all active:scale-95" style={{ background: primary }}>
                   {!isOpen ? t.storeClosed : t.checkoutButton}
                 </button>

@@ -50,6 +50,26 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(self.control.state()["active"]["slot"], "blue")
         self.assertEqual(json.loads((self.root / "state.json.journal").read_text())["phase"], "rolled-back")
 
+    def test_ui_rollback_preserves_the_verified_financial_implementation(self):
+        self.control.promote('blue')
+        slot = self.config['slots']['green']
+        self.config['financial_pin'] = {'slot': 'green', 'release': slot['release'], 'image_id': slot['image_id']}
+        self.control.promote('green')
+        self.control.rollback()
+        routing = json.loads((self.root / 'routing.yml').read_text())['http']
+        self.assertEqual(self.control.state()['active']['slot'], 'blue')
+        self.assertEqual(routing['routers']['wasla-release-critical']['service'], 'wasla-release-financial')
+        self.assertNotIn('wasla-release-financial', routing['routers'])
+        self.assertEqual(routing['services']['wasla-release-financial']['loadBalancer']['servers'][0]['url'], 'http://green:3000')
+        self.assertEqual(routing['middlewares']['wasla-release-critical']['headers']['customResponseHeaders']['X-Wasla-API-Release'], 'release-green')
+        self.assertIn('/api/paymob/', routing['routers']['wasla-release-critical']['rule'])
+
+    def test_refuses_a_changed_financial_pin_even_if_the_candidate_is_healthy(self):
+        slot = self.config['slots']['green']
+        self.config['financial_pin'] = {'slot': 'green', 'release': 'replaced-release', 'image_id': slot['image_id']}
+        with self.assertRaises(ValueError):
+            self.control.promote('blue')
+
     def test_rejects_mutable_or_changed_image(self):
         self.config["slots"]["green"]["image_id"] = "platform:latest"
         with self.assertRaises(ValueError):

@@ -1,4 +1,4 @@
-import { isQiadIntegration } from './partner-protocol';
+import { isQiadIntegration, qiadPhone } from './partner-protocol';
 import { hasCoordinates } from './delivery-coverage';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
@@ -27,6 +27,7 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
     if (shipment.status !== 'REQUESTED' || shipment.order.status === 'DELIVERED') throw new BusinessRuleError('Shipment cannot be dispatched');
     const config = shipment.partner.providerConfig;
     if (!shipment.partner.isActive || shipment.partner.status !== 'ACTIVE' || shipment.partner.appStatus !== 'PUBLISHED' || !config?.isActive) throw new BusinessRuleError('Partner integration is inactive');
+    if ((config.market ?? 'SD') !== (shipment.order.merchant.subscriptionMarket ?? 'SD') || config.market === 'SA' && shipment.currency !== 'SAR') throw new BusinessRuleError('Shipment market mismatch');
     if (config.providerKey === 'TEST_SIMULATOR') {
       const providerReference = `TEST-${shipment.id}`;
       await tx.platformShipment.update({ where: { id: shipment.id }, data: { providerReference } });
@@ -39,6 +40,7 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
     const pickup = shipment.order.branch ?? await tx.branch.findFirst({ where: { merchantId: shipment.order.merchantId, isMain: true, isActive: true } });
     if (!pickup) throw new BusinessRuleError('Pickup branch is required');
     const appMode = config.integrationMode === 'APP_V1';
+    const saudi = config.market === 'SA';
     if (!appMode && (!hasCoordinates(pickup) || !hasCoordinates(shipment.order.delivery))) throw new BusinessRuleError('Pickup and dropoff coordinates required by this provider');
     const deliveryAddress = getOrderDeliveryAddress(shipment.order);
     if (!hasCompleteDeliveryAddress(deliveryAddress)) throw new BusinessRuleError("أكمل المدينة والحي والعنوان التفصيلي قبل إصدار بوليصة الشحن.");
@@ -47,20 +49,21 @@ export async function dispatchShipmentToPartner(shipmentId: string) {
       partner: { id: shipment.partnerId, clientId: config.clientId ?? null },
       installation: { id: connection.id, merchantId: connection.merchantId },
       store: { id: shipment.order.merchant.id, name: shipment.order.merchant.name, slug: shipment.order.merchant.slug,
-        phone: shipment.order.merchant.phone, email: shipment.order.merchant.email, currency: shipment.order.merchant.currency },
+        phone: shipment.order.merchant.phone, email: shipment.order.merchant.email, currency: shipment.order.merchant.currency, ...(saudi ? { country: 'SA' } : {}) },
       shipment: { id: shipment.id, trackingCode: shipment.trackingCode, orderId: shipment.order.id, orderNumber: shipment.order.orderNumber,
         status: shipment.status, createdAt: shipment.createdAt.toISOString() },
-      sender: { branchId: pickup.id, name: pickup.name, phone: pickup.phone ?? shipment.order.merchant.phone,
+      sender: { branchId: pickup.id, name: pickup.name, ...(saudi ? { country: 'SA' } : {}), phone: saudi && isQiadIntegration(config.outboundWebhookUrl) ? qiadPhone(pickup.phone ?? shipment.order.merchant.phone, config.market) : pickup.phone ?? shipment.order.merchant.phone,
         email: pickup.email ?? shipment.order.merchant.email, address: pickup.address?.trim() || shipment.order.merchant.address?.trim(),
         location: hasCoordinates(pickup) ? { lat: pickup.lat, lng: pickup.lng } : null },
       recipient: { customerId: shipment.order.customerId, name: shipment.order.customerName ?? shipment.order.customer.name,
-        phone: shipment.order.customerPhone ?? shipment.order.customer.phone, email: shipment.order.customer.email,
+        phone: saudi && isQiadIntegration(config.outboundWebhookUrl) ? qiadPhone(shipment.order.customerPhone ?? shipment.order.customer.phone, config.market) : shipment.order.customerPhone ?? shipment.order.customer.phone, email: shipment.order.customer.email, ...(saudi ? { country: 'SA' } : {}),
         ...deliveryAddress,
         location: hasCoordinates(shipment.order.delivery) ? { lat: shipment.order.delivery?.lat ?? null, lng: shipment.order.delivery?.lng ?? null } : null },
       payment: { method: shipment.order.paymentMethod, status: shipment.order.payment?.status ?? null,
         codAmount: shipment.order.paymentMethod === 'CASH' ? Number(shipment.order.total) : 0, currency: shipment.currency },
       amounts: { subtotal: Number(shipment.order.subtotal), discount: Number(shipment.order.discount), tax: Number(shipment.order.tax),
-        deliveryFee: Number(shipment.fee), orderTotal: Number(shipment.order.total), currency: shipment.currency },
+        deliveryFee: Number(shipment.fee), ...(saudi ? { collectionFee: Number(shipment.collectionFee), feePayer: shipment.feePayer, pricingPolicy: shipment.pricingPolicy,
+        customerDeliveryFee: Number(shipment.order.deliveryFee) } : {}), orderTotal: Number(shipment.order.total), currency: shipment.currency },
       packages: [{ reference: shipment.order.orderNumber, items: shipment.order.items.map(item => {
         const snapshot = item.productSnapshot as { name?: unknown; sku?: unknown; image?: unknown } | null;
         return { productId: item.productId, name: typeof snapshot?.name === 'string' ? snapshot.name : 'Item',

@@ -17,11 +17,12 @@ export default async function OrderPage({ params }: { params: Promise<{ slug: st
   return (
     <div dir={dir} className="min-h-screen bg-stone-50 px-4 py-8">
       <div className="max-w-lg mx-auto">
-        {order ? (
+        {order && order.merchant.slug === slug ? (
           <LiveOrderStatus
             slug={slug}
             orderId={orderId}
             initialOrder={{
+              currency: order.merchant.currency,
               orderNumber: order.orderNumber,
               status: order.status,
               createdAt: order.createdAt,

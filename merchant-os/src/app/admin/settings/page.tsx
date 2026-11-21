@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import Link from 'next/link';
 import { dictionaries, DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from '@/lib/i18n/translations';
 import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-permissions';
 
@@ -23,6 +24,7 @@ export default async function AdminSettingsPage() {
         <SettingRow label={t.environment} value="Production" />
       </div>
 
+      <Link href="/admin/settings/payments" className="block rounded-xl border border-[var(--border)] bg-[var(--card)] p-6"><strong>بوابات الدفع</strong><p className="mt-2 text-sm text-[var(--muted-foreground)]">إعداد Paymob للسعودية ومراجعة جاهزية الدفع حسب سوق المتجر.</p></Link>
       <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center">
         <p className="text-sm text-[var(--muted-foreground)]">
           {t.advancedNote} <code className="bg-[var(--muted)] px-1.5 py-0.5 rounded text-xs">.env</code>
