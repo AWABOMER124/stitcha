@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { requestPlanChangeAction } from '@/modules/merchant-subscriptions/actions';
+import { beginSubscriptionCheckoutAction } from '@/modules/merchant-subscriptions/actions';
 
 export function UpgradeButton({ locale, planCode, planName, yearlyPrice, renewal = false }: { locale: 'ar' | 'en'; planCode: string; planName: string; yearlyPrice?: number | null; renewal?: boolean }) {
   const [isPending, startTransition] = useTransition();
@@ -11,10 +11,8 @@ export function UpgradeButton({ locale, planCode, planName, yearlyPrice, renewal
   function requestUpgrade() {
     setMessage(null);
     startTransition(async () => {
-      const result = await requestPlanChangeAction({ targetPlanCode: planCode, billingInterval });
-      setMessage(result.success
-        ? (locale === 'ar' ? 'تم تجهيز طلب الباقة. أكمل السداد من قسم الدفع.' : 'Plan requested. Continue in the payment section.')
-        : result.error);
+      const result = await beginSubscriptionCheckoutAction({ targetPlanCode: planCode, billingInterval });
+      if (!result.success) setMessage(result.error);
     });
   }
 
@@ -26,13 +24,14 @@ export function UpgradeButton({ locale, planCode, planName, yearlyPrice, renewal
       </select>}
       <button
         type="button"
+        aria-label={locale === 'ar' ? `${renewal ? 'جدّد الاشتراك' : 'اشترك الآن'} — ${planName}` : `${renewal ? 'Renew' : 'Subscribe now'} — ${planName}`}
         onClick={requestUpgrade}
         disabled={isPending}
         className="min-h-11 w-full rounded-xl bg-[var(--primary)] px-5 py-3 font-bold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isPending
-          ? (locale === 'ar' ? 'جارٍ الإرسال…' : 'Sending…')
-          : renewal ? (locale === 'ar' ? `تجديد ${planName}` : `Renew ${planName}`) : (locale === 'ar' ? `اطلب الترقية إلى ${planName}` : `Request ${planName} upgrade`)}
+          ? (locale === 'ar' ? 'جارٍ فتح إتمام الدفع…' : 'Opening checkout…')
+          : renewal ? (locale === 'ar' ? 'جدّد الاشتراك' : 'Renew subscription') : (locale === 'ar' ? 'اشترك الآن' : 'Subscribe now')}
       </button>
       {message && <p role="status" className="mt-3 text-sm text-[var(--muted-foreground)]">{message}</p>}
     </div>

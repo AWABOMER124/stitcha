@@ -96,6 +96,7 @@ export async function refreshMerchantStripeAccount(merchantId: string) {
 }
 
 export async function createSubscriptionStripeCheckout(input: {
+  planChangeRequestId?: string;
   merchantId: string;
   customerEmail?: string | null;
   origin: string;
@@ -104,7 +105,7 @@ export async function createSubscriptionStripeCheckout(input: {
   if (paymentProviderForMarket(merchant.subscriptionMarket) !== 'STRIPE') throw new BusinessRuleError('اشتراكات السعودية تستخدم Paymob.');
   const [request, current] = await Promise.all([
     prisma.merchantPlanChangeRequest.findFirst({
-      where: { merchantId: input.merchantId, status: { in: ['PENDING', 'CONTACTED'] } },
+      where: { id: input.planChangeRequestId, merchantId: input.merchantId, status: { in: ['PENDING', 'CONTACTED'] } },
       include: { targetPlan: true },
       orderBy: { createdAt: 'desc' },
     }),

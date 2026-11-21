@@ -92,9 +92,9 @@ export async function updatePlatformPaymentAccount(id: string, input: PlatformPa
   } });
 }
 
-export async function getManualPaymentQuote(merchantId: string) {
+export async function getManualPaymentQuote(merchantId: string, planChangeRequestId?: string) {
   const [request, settings] = await Promise.all([
-    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { code: true, name: true, monthlyPrice: true, yearlyPrice: true, currency: true } }, }, orderBy: { createdAt: 'desc' } }),
+    prisma.merchantPlanChangeRequest.findFirst({ where: { id: planChangeRequestId, merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { code: true, name: true, monthlyPrice: true, yearlyPrice: true, currency: true } }, }, orderBy: { createdAt: 'desc' } }),
     getPlatformBillingSettings(),
   ]);
   if (!request) return null;
@@ -112,11 +112,11 @@ export async function listMerchantPayments(merchantId: string) {
 }
 
 export async function submitManualSubscriptionPayment(merchantId: string, input: {
-  paymentAccountId: string; transactionRef: string; senderName?: string; transferredAt?: Date;
+  planChangeRequestId?: string; paymentAccountId: string; transactionRef: string; senderName?: string; transferredAt?: Date;
 }, evidence: PrivateEvidence) {
   const [account, changeRequest, currentPayment, settings, stripeSubscription] = await Promise.all([
     prisma.platformPaymentAccount.findFirst({ where: { id: input.paymentAccountId, isActive: true } }),
-    prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { monthlyPrice: true, yearlyPrice: true, currency: true } } }, orderBy: { createdAt: 'desc' } }),
+    prisma.merchantPlanChangeRequest.findFirst({ where: { id: input.planChangeRequestId, merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { monthlyPrice: true, yearlyPrice: true, currency: true } } }, orderBy: { createdAt: 'desc' } }),
     prisma.merchantSubscriptionPayment.findFirst({ where: { merchantId, status: { in: ['PENDING', 'VERIFIED'] } } }),
     getPlatformBillingSettings(),
     prisma.merchantSubscription.findFirst({ where: { merchantId, billingProvider: 'stripe', externalSubscriptionId: { not: null }, status: { not: 'CANCELLED' } }, select: { id: true } }),

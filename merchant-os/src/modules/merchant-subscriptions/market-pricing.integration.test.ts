@@ -20,6 +20,17 @@ async function merchant(market?: string) {
 afterAll(async () => { await prisma.merchant.deleteMany({ where: { id: { in: merchants } } }); });
 
 describe('Saudi catalog and actual billing records', () => {
+  it('pays the selected quote even after a newer selection, and rejects another merchant quote', async () => {
+    const id = await merchant();
+    const selected = await requestPlanChange(id, 'GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
+    await requestPlanChange(id, 'PRO', undefined, 'MONTHLY', { notifyPlatform: false });
+    gateway.createCheckoutSession.mockClear().mockResolvedValue({ sessionId: 'synthetic-selected', checkoutUrl: 'https://synthetic.example/checkout' });
+    await createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' });
+    expect(gateway.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ internalReference: selected.id, amount: Number(selected.quotedAmount), metadata: expect.objectContaining({ plan_change_request_id: selected.id, merchant_id: id }) }));
+    gateway.createCheckoutSession.mockClear();
+    await expect(createSubscriptionStripeCheckout({ merchantId: await merchant(), planChangeRequestId: selected.id, origin: 'https://synthetic.example' })).rejects.toThrow('paid plan');
+    expect(gateway.createCheckoutSession).not.toHaveBeenCalled();
+  });
   it('isolates approved Saudi prices and quotas from the existing Sudan catalog', async () => {
     const sa = await listPublicPlans('SA');
     expect(sa.filter(p => p.code !== 'FREE').map(p => [p.code, p.monthlyPrice, p.yearlyPrice, p.currency])).toEqual([

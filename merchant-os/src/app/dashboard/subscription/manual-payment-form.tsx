@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 export interface ManualPaymentAccountOption { id: string; channel: string; label: string; accountName: string; accountNumber: string; instructions: string | null; monthlyAmount: number; currency: string }
 export interface ManualPaymentQuote { planCode: string; planName: string; planCurrency: string; planMonthlyPrice: number; usdToSdgRate: number; amount: number; currency: string }
 
-export function ManualPaymentForm({ accounts, quote, locale }: { accounts: ManualPaymentAccountOption[]; quote: ManualPaymentQuote | null; locale: 'ar' | 'en' }) {
+export function ManualPaymentForm({ accounts, quote, locale, planChangeRequestId }: { planChangeRequestId?: string; accounts: ManualPaymentAccountOption[]; quote: ManualPaymentQuote | null; locale: 'ar' | 'en' }) {
   const router = useRouter();
   const ar = locale === 'ar';
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
@@ -28,6 +28,7 @@ export function ManualPaymentForm({ accounts, quote, locale }: { accounts: Manua
   if (accounts.length === 0) return <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{ar ? 'لم تُضف وصلة حسابات التحويل بعد. يمكنك إرسال طلب الترقية وسيظهر خيار السداد عند تفعيله.' : 'WASLA transfer accounts have not been configured yet.'}</p>;
 
   return <form onSubmit={submit} className="space-y-4">
+    {planChangeRequestId && <input type="hidden" name="planChangeRequestId" value={planChangeRequestId}/> }
     <div className="grid gap-3 sm:grid-cols-2">{accounts.map(account => <button key={account.id} type="button" onClick={() => setAccountId(account.id)} className={`rounded-xl border p-4 text-start ${accountId === account.id ? 'border-[var(--primary)] bg-[var(--primary)]/5' : 'border-[var(--border)]'}`}><strong className="block">{account.label}</strong><span className="mt-1 block text-sm text-[var(--muted-foreground)]">{account.accountName}</span><span className="block font-mono text-sm">{account.accountNumber}</span></button>)}</div>
     <input type="hidden" name="paymentAccountId" value={accountId}/>
     {selected && quote && <div className="rounded-xl bg-[var(--muted)] p-4 text-sm"><p>{ar ? 'المبلغ المطلوب' : 'Amount due'}: <strong>{quote.amount.toLocaleString()} {quote.currency}</strong></p><p className="mt-1 text-xs text-[var(--muted-foreground)]">{quote.planName} · {quote.planMonthlyPrice.toLocaleString()} {quote.planCurrency}{quote.planCurrency === 'USD' && ` × ${quote.usdToSdgRate.toLocaleString()} SDG/USD`}</p>{selected.instructions && <p className="mt-1 text-[var(--muted-foreground)]">{selected.instructions}</p>}</div>}

@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+import Link from 'next/link';
 import { getMerchantSubscriptionMarket } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
@@ -9,11 +11,8 @@ import {
   listPublicPlans,
 } from '@/modules/merchant-subscriptions';
 import { UpgradeButton } from './upgrade-button';
-import { ManualPaymentForm } from './manual-payment-form';
-import { getManualPaymentQuote, listActivePaymentAccounts, listMerchantPayments } from '@/modules/subscription-payments/subscription-payments.service';
+import { listMerchantPayments } from '@/modules/subscription-payments/subscription-payments.service';
 import { getMerchantAiUsageSummary } from '@/modules/ai-usage';
-import { getMerchantPaymentGatewayStatus } from '@/modules/paymob-payments/market-payments.service';
-import { StripeCheckoutButton } from './stripe-checkout-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,18 +36,13 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   if (!session?.user?.merchantId) redirect('/login');
   const locale = (await cookies()).get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'ar';
   const market = await getMerchantSubscriptionMarket(session.user.merchantId);
-  const [current, plans, pending, paymentAccounts, payments, aiUsage, paymentQuote] = await Promise.all([
+  const [current, plans, pending, payments] = await Promise.all([
     getMerchantPlanSnapshot(session.user.merchantId),
     listPublicPlans(market),
     getPendingPlanChangeRequest(session.user.merchantId),
-    listActivePaymentAccounts(),
     listMerchantPayments(session.user.merchantId),
-    getMerchantAiUsageSummary(session.user.merchantId),
-    getManualPaymentQuote(session.user.merchantId),
   ]);
   const ar = locale === 'ar';
-  const gateway = await getMerchantPaymentGatewayStatus(session.user.merchantId);
-  const gatewayName = gateway.provider === 'PAYMOB' ? 'Paymob' : 'Stripe';
   const query = await searchParams;
   const stripeResult = query.stripe;
 
@@ -79,42 +73,19 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         {pending && (
           <p role="status" className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">
             {ar
-              ? `طلب الترقية إلى ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} قيد المراجعة.`
-              : `Your ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} upgrade request is under review.`}
+              ? `اختيارك لباقة ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} محفوظ. أكمل الدفع لتفعيل الاشتراك.`
+              : `Your ${displayPlanName(pending.targetPlan.code, pending.targetPlan.name, ar)} selection is saved. Continue to checkout.`}
             {pending.quotedAmount != null && <span className="mt-2 block">{pending.quotedAmount.toLocaleString()} {pending.quotedCurrency} / {pending.billingInterval === 'YEARLY' ? (ar ? 'سنة' : 'year') : (ar ? 'شهر' : 'month')}</span>}
+            <Link href={`/dashboard/subscription/checkout?request=${encodeURIComponent(pending.id)}`} className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-[var(--primary)] px-4 text-white">{ar ? 'إتمام الاشتراك' : 'Continue to checkout'}</Link>
           </p>
         )}
-      </section>
-
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5" aria-labelledby="ai-usage-title">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 id="ai-usage-title" className="text-lg font-black text-[var(--foreground)]">{ar ? 'استخدام الذكاء الاصطناعي' : 'AI usage'}</h2>
-            <p className="mt-1 text-sm text-[var(--muted-foreground)]">{ar ? 'الحصص الشهرية تتجدد تلقائياً، والتوليد المجاني يُمنح مرة واحدة.' : 'Monthly allowances reset automatically; the free generation is available once.'}</p>
-          </div>
-          <span className="text-xs font-semibold text-[var(--muted-foreground)]">{aiUsage.find(item => item.period === 'MONTHLY')?.periodKey}</span>
-        </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          {aiUsage.filter(item => item.limit !== 0).map(item => {
-            const consumed = item.usedUnits + item.reservedUnits;
-            const percent = item.limit === -1 ? 0 : Math.min(100, Math.round((consumed / item.limit) * 100));
-            return <div key={item.key} className="rounded-xl border border-[var(--border)] p-4">
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <strong>{ar ? item.labelAr : item.labelEn}</strong>
-                <span className="text-[var(--muted-foreground)]">{item.usedUnits} / {item.limit === -1 ? (ar ? 'غير محدود' : 'Unlimited') : item.limit}</span>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--muted)]"><div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${percent}%` }} /></div>
-              {item.reservedUnits > 0 && <p className="mt-2 text-xs text-amber-700">{ar ? `${item.reservedUnits} قيد التنفيذ` : `${item.reservedUnits} in progress`}</p>}
-            </div>;
-          })}
-        </div>
       </section>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => {
           const selected = plan.code === current.code;
           return (
-            <section key={plan.code} className={`rounded-2xl border bg-[var(--card)] p-6 ${plan.code === 'PRO' ? 'border-[var(--primary)] shadow-sm' : 'border-[var(--border)]'}`}>
+            <section key={plan.code} className={`flex flex-col rounded-2xl border bg-[var(--card)] p-6 ${plan.code.replace(/^SA_/, '') === 'PRO' ? 'border-[var(--primary)] shadow-sm' : 'border-[var(--border)]'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-black text-[var(--foreground)]">{displayPlanName(plan.code, plan.name, ar)}</h2>
@@ -134,13 +105,13 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                   </li>
                 ))}
               </ul>
-              {plan.code !== 'FREE' && (!selected || market === 'SA') && !pending && <UpgradeButton renewal={selected} locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} yearlyPrice={plan.code.startsWith('SA_') ? plan.yearlyPrice : null} />}
+              <div className="mt-auto">{plan.code !== 'FREE' && (!selected || market === 'SA') ? <UpgradeButton renewal={selected} locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} yearlyPrice={plan.code.startsWith('SA_') ? plan.yearlyPrice : null} /> : <span className="flex min-h-11 items-center justify-center rounded-xl bg-[var(--muted)] p-3 text-sm font-bold">{selected ? (ar ? 'باقتك الحالية' : 'Your current plan') : (ar ? 'الباقة المجانية' : 'Free plan')}</span>}</div>
             </section>
           );
         })}
       </div>
 
-      {pending && !payments.some(payment => payment.planChangeRequestId === pending.id && (payment.status === 'PENDING' || payment.status === 'VERIFIED')) && <section className="grid gap-5 lg:grid-cols-2"><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? `سداد الاشتراك عبر ${gatewayName}` : `Pay with ${gatewayName}`}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? `تُفعّل الباقة بعد تأكيد ${gatewayName}.${gateway.provider === 'PAYMOB' ? ' السداد لفترة الاشتراك المحددة دون خصم تجديد تلقائي.' : ''}` : `Your plan activates after ${gatewayName} confirms payment.`}</p>{gateway.enabled && gateway.configured ? <StripeCheckoutButton locale={locale} provider={gateway.provider}/> : <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">{ar ? (gateway.provider === 'PAYMOB' ? 'الدفع عبر Paymob بانتظار تفعيل مفاتيح التشغيل للسعودية.' : 'الدفع الإلكتروني غير مفعّل حاليًا. استخدم التحويل اليدوي.') : 'Online checkout is not enabled yet.'}</p>}</article>{paymentQuote && <article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} quote={paymentQuote} locale={locale}/></article>}</section>}
+      <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-[var(--muted)]" aria-label={ar ? 'تحميل الاستخدام' : 'Loading usage'}/>}><AiUsageSection merchantId={session.user.merchantId} ar={ar}/></Suspense>
 
       {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount?.label ?? (payment.provider.startsWith('paymob') ? 'Paymob' : 'Stripe')} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
 
@@ -166,4 +137,31 @@ function displayPlanName(code: string, fallback: string, ar: boolean): string {
   if (code === 'PRO') return ar ? 'احترافي' : 'Pro';
   if (code === 'BUSINESS') return ar ? 'أعمال' : 'Business';
   return fallback;
+}
+
+async function AiUsageSection({ merchantId, ar }: { merchantId: string; ar: boolean }) {
+  const aiUsage = await getMerchantAiUsageSummary(merchantId);
+  return (<section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5" aria-labelledby="ai-usage-title">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 id="ai-usage-title" className="text-lg font-black text-[var(--foreground)]">{ar ? 'استخدام الذكاء الاصطناعي' : 'AI usage'}</h2>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">{ar ? 'الحصص الشهرية تتجدد تلقائياً، والتوليد المجاني يُمنح مرة واحدة.' : 'Monthly allowances reset automatically; the free generation is available once.'}</p>
+          </div>
+          <span className="text-xs font-semibold text-[var(--muted-foreground)]">{aiUsage.find(item => item.period === 'MONTHLY')?.periodKey}</span>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {aiUsage.filter(item => item.limit !== 0).map(item => {
+            const consumed = item.usedUnits + item.reservedUnits;
+            const percent = item.limit === -1 ? 0 : Math.min(100, Math.round((consumed / item.limit) * 100));
+            return <div key={item.key} className="rounded-xl border border-[var(--border)] p-4">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <strong>{ar ? item.labelAr : item.labelEn}</strong>
+                <span className="text-[var(--muted-foreground)]">{item.usedUnits} / {item.limit === -1 ? (ar ? 'غير محدود' : 'Unlimited') : item.limit}</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--muted)]"><div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${percent}%` }} /></div>
+              {item.reservedUnits > 0 && <p className="mt-2 text-xs text-amber-700">{ar ? `${item.reservedUnits} قيد التنفيذ` : `${item.reservedUnits} in progress`}</p>}
+            </div>;
+          })}
+        </div>
+      </section>);
 }

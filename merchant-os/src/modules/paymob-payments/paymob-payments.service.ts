@@ -13,9 +13,9 @@ import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referr
 import { recordOnlinePaymentEntry } from '@/modules/online-settlements/online-settlements.service';
 import { paymobPhone } from '@/services/payment-gateways/paymob.gateway';
 
-export async function createPaymobSubscriptionCheckout(input: { merchantId: string; origin: string }) {
+export async function createPaymobSubscriptionCheckout(input: { planChangeRequestId?: string; merchantId: string; origin: string }) {
   const merchant = await requireSaudiMerchant(input.merchantId);
-  const request = await prisma.merchantPlanChangeRequest.findFirst({ where: { merchantId: merchant.id, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: true }, orderBy: { createdAt: 'desc' } });
+  const request = await prisma.merchantPlanChangeRequest.findFirst({ where: { id: input.planChangeRequestId, merchantId: merchant.id, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: true }, orderBy: { createdAt: 'desc' } });
   if (!request) throw new ValidationError('اختر الباقة قبل بدء الدفع.');
   const [current, other] = await Promise.all([
     prisma.merchantSubscription.findUnique({ where: { merchantId: merchant.id } }),

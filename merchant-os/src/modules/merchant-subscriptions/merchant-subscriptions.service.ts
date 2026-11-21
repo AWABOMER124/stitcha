@@ -107,6 +107,7 @@ export async function requestPlanChange(
   targetPlanCode: string,
   note?: string,
   billingInterval: PlanInterval = 'MONTHLY',
+  options: { notifyPlatform?: boolean } = {},
 ) {
   const [merchant, targetPlan, current] = await Promise.all([
     prisma.merchant.findUnique({ where: { id: merchantId }, select: { name: true, subscriptionMarket: true } }),
@@ -158,7 +159,7 @@ export async function requestPlanChange(
     event: 'upgrade_clicked', merchantId, targetPlanCode: targetPlan.code, requestId: request.id,
   });
 
-  await platformNotifications.sendNotification({
+  if (options.notifyPlatform !== false) await platformNotifications.sendNotification({
     type: 'SYSTEM',
     title: 'Merchant plan upgrade request',
     body: `${merchant.name} requested the ${targetPlan.name} plan.`,
