@@ -32,8 +32,10 @@ export async function createReturnShipment(merchantId: string, orderId: string, 
     if (!hasCompleteDeliveryAddress(address)) throw new BusinessRuleError('أكمل عنوان استلام الرجيع من العميل قبل الإنشاء.');
     const pickup = { name: original.order.customerName ?? original.order.customer.name, phone: original.order.customerPhone ?? original.order.customer.phone, ...address, location: null };
     const destination = { name: data.customerName, phone: data.customerPhone, state: data.customerState!, city: data.customerCity!, district: data.customerDistrict!, address: data.customerAddress, addressDescription: data.customerAddressDescription ?? null, location: null };
-    if (!providerAddress(original.partner.providerConfig,destination)) throw new BusinessRuleError('عنوان استلام المتجر للرجيع خارج تغطية الشركة: الخرطوم وأم درمان وبحري.');
-    const row = await tx.platformReturnShipment.create({ data: { originalShipmentId: original.id, trackingCode: `WSLR-${nanoid(10).toUpperCase()}`, reason: data.reason, pickup, destination } });
+    if (!providerAddress(original.partner.providerConfig,destination)) throw new BusinessRuleError('عنوان استلام المتجر للرجيع خارج تغطية الشركة.');
+    const saudi=original.partner.providerConfig.market==='SA';
+    const row = await tx.platformReturnShipment.create({ data: { originalShipmentId: original.id, trackingCode: `WSLR-${nanoid(10).toUpperCase()}`, reason: data.reason, pickup, destination, currency: original.currency,
+      ...(saudi?{fee:20,feePayer:'MERCHANT'}:{}) } });
     await enqueueJob({ topic: 'delivery.partner.return.dispatch', payload: { returnId: row.id }, idempotencyKey: `delivery:return:${row.id}`, maxAttempts: 8 }, tx);
     return row;
   });
@@ -54,6 +56,7 @@ export async function dispatchReturnShipment(returnId: string) {
       shipment: { id: row.id, kind: 'RETURN', parentShipmentId: original.id, parentProviderReference: original.providerReference, trackingCode: row.trackingCode, orderId: original.orderId, orderNumber: original.order.orderNumber, status: row.status },
       sender: row.pickup, recipient: row.destination,
       payment: { method: 'NONE', status: 'NOT_REQUIRED', codAmount: 0, currency: original.currency },
+      ...(config.market === 'SA' ? { amounts: { deliveryFee: Number(row.fee), collectionFee: 0, feePayer: row.feePayer, currency: row.currency } } : {}),
       packages: [{ reference: original.order.orderNumber, items: original.order.items.map(item => ({ productId: item.productId, quantity: item.quantity, sku: (item.productSnapshot as { sku?: string })?.sku ?? item.productId, name: (item.productSnapshot as { name?: string })?.name ?? 'صنف' })) }],
       notes: row.reason,
     };

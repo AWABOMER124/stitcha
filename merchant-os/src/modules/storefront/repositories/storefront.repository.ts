@@ -10,7 +10,7 @@ export async function getMerchantBySlug(slug: string) {
     where: { slug, isActive: true, status: 'ACTIVE' },
     select: {
       id: true, name: true, slug: true, description: true, logo: true,
-      coverImage: true, phone: true, businessType: true,
+      coverImage: true, phone: true, businessType: true, currency: true, subscriptionMarket: true,
       storefrontSettings: true,
       storePaymentAccounts: {
         where: { isActive: true },

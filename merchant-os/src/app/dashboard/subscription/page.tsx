@@ -12,7 +12,7 @@ import { UpgradeButton } from './upgrade-button';
 import { ManualPaymentForm } from './manual-payment-form';
 import { getManualPaymentQuote, listActivePaymentAccounts, listMerchantPayments } from '@/modules/subscription-payments/subscription-payments.service';
 import { getMerchantAiUsageSummary } from '@/modules/ai-usage';
-import { getStripeStatus } from '@/modules/stripe-payments/stripe-payments.service';
+import { getMerchantPaymentGatewayStatus } from '@/modules/paymob-payments/market-payments.service';
 import { StripeCheckoutButton } from './stripe-checkout-button';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +32,7 @@ const FEATURES = [
   ['whatsappAiConversationsMonthly', 'ردود واتساب الذكية شهرياً', 'Monthly WhatsApp AI replies'],
 ] as const;
 
-export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ stripe?: string }> }) {
+export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ stripe?: string; paymob?: string }> }) {
   const session = await auth();
   if (!session?.user?.merchantId) redirect('/login');
   const locale = (await cookies()).get(LOCALE_COOKIE)?.value === 'en' ? 'en' : 'ar';
@@ -47,8 +47,10 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
     getManualPaymentQuote(session.user.merchantId),
   ]);
   const ar = locale === 'ar';
-  const stripe = getStripeStatus();
-  const stripeResult = (await searchParams).stripe;
+  const gateway = await getMerchantPaymentGatewayStatus(session.user.merchantId);
+  const gatewayName = gateway.provider === 'PAYMOB' ? 'Paymob' : 'Stripe';
+  const query = await searchParams;
+  const stripeResult = query.stripe;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -59,6 +61,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         </p>
       </header>
 
+      {query.paymob === 'returned' && <p role="status" className="rounded-xl bg-blue-50 p-4 text-sm font-semibold text-blue-900">{ar ? 'تجري مطابقة نتيجة الدفع مع Paymob. تُحدّث الباقة بعد التأكيد، وليس بمجرد العودة من شاشة الدفع.' : 'Verifying your payment with Paymob. Your plan updates after confirmation.'}</p>}
       {stripeResult === 'success' && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{ar ? 'اكتمل الدفع في Stripe. قد يستغرق تحديث الباقة بضع ثوانٍ؛ حدّث الصفحة إذا لم تظهر فوراً.' : 'Stripe payment completed. The plan may take a few seconds to update.'}</p>}
       {stripeResult === 'cancelled' && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900">{ar ? 'تم إلغاء الدفع ولم يتم تغيير باقتك.' : 'Payment was cancelled and your plan was not changed.'}</p>}
 
@@ -67,6 +70,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <div>
             <p id="current-plan-title" className="text-sm text-[var(--muted-foreground)]">{ar ? 'باقتك الحالية' : 'Current plan'}</p>
             <p className="mt-1 text-xl font-black text-[var(--foreground)]">{displayPlanName(current.code, current.name, ar)}</p>
+            {current.billingProvider === 'paymob' && current.currentPeriodEndsAt && <p className="mt-2 text-sm text-[var(--muted-foreground)]">{ar ? 'مدفوعة مقدمًا حتى ' : 'Prepaid until '}{new Date(current.currentPeriodEndsAt).toLocaleDateString(ar ? 'ar-SA' : 'en-GB')} · {ar ? 'دون خصم تجديد تلقائي' : 'No automatic renewal charge'}</p>}
           </div>
           <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-800">
             {current.isGrandfathered ? (ar ? 'محفوظة دون رسوم مؤقتاً' : 'Grandfathered at no charge') : (ar ? 'نشطة' : 'Active')}
@@ -130,15 +134,15 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                   </li>
                 ))}
               </ul>
-              {plan.code !== 'FREE' && !selected && !pending && <UpgradeButton locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} yearlyPrice={plan.code.startsWith('SA_') ? plan.yearlyPrice : null} />}
+              {plan.code !== 'FREE' && (!selected || market === 'SA') && !pending && <UpgradeButton renewal={selected} locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} yearlyPrice={plan.code.startsWith('SA_') ? plan.yearlyPrice : null} />}
             </section>
           );
         })}
       </div>
 
-      {pending && !payments.some(payment => payment.status === 'PENDING' || payment.status === 'VERIFIED') && <section className="grid gap-5 lg:grid-cols-2"><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'الدفع الفوري عبر Stripe' : 'Instant Stripe payment'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'ادفع بالبطاقة وتُفعّل الباقة آلياً بعد تأكيد Stripe.' : 'Pay by card and activate automatically after Stripe confirmation.'}</p>{stripe.enabled && stripe.configured ? <StripeCheckoutButton locale={locale}/> : <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">{ar ? 'Stripe غير مفعّل حالياً. استخدم التحويل اليدوي.' : 'Stripe is not enabled yet. Use manual transfer.'}</p>}</article>{paymentQuote && <article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} quote={paymentQuote} locale={locale}/></article>}</section>}
+      {pending && !payments.some(payment => payment.planChangeRequestId === pending.id && (payment.status === 'PENDING' || payment.status === 'VERIFIED')) && <section className="grid gap-5 lg:grid-cols-2"><article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? `سداد الاشتراك عبر ${gatewayName}` : `Pay with ${gatewayName}`}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? `تُفعّل الباقة بعد تأكيد ${gatewayName}.${gateway.provider === 'PAYMOB' ? ' السداد لفترة الاشتراك المحددة دون خصم تجديد تلقائي.' : ''}` : `Your plan activates after ${gatewayName} confirms payment.`}</p>{gateway.enabled && gateway.configured ? <StripeCheckoutButton locale={locale} provider={gateway.provider}/> : <p className="rounded-xl bg-slate-100 p-4 text-sm text-slate-700">{ar ? (gateway.provider === 'PAYMOB' ? 'الدفع عبر Paymob بانتظار تفعيل مفاتيح التشغيل للسعودية.' : 'الدفع الإلكتروني غير مفعّل حاليًا. استخدم التحويل اليدوي.') : 'Online checkout is not enabled yet.'}</p>}</article>{paymentQuote && <article className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-1 text-lg font-black">{ar ? 'سداد الاشتراك بالتحويل' : 'Pay by transfer'}</h2><p className="mb-5 text-sm text-[var(--muted-foreground)]">{ar ? 'اختر بنكك أو ماي كاشي وارفع إشعار التحويل للمراجعة.' : 'Choose an account and upload your transfer receipt for review.'}</p><ManualPaymentForm accounts={paymentAccounts} quote={paymentQuote} locale={locale}/></article>}</section>}
 
-      {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount?.label ?? 'Stripe'} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
+      {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount?.label ?? (payment.provider.startsWith('paymob') ? 'Paymob' : 'Stripe')} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
 
       <p className="text-xs leading-6 text-[var(--muted-foreground)]">
         {ar

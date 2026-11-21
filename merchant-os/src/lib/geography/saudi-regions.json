@@ -1,0 +1,368 @@
+[
+  {
+    "id": "SA-RIYADH",
+    "name": "الرياض",
+    "cities": [
+      {
+        "id": "SA-RIYADH-RUH",
+        "name": "الرياض"
+      },
+      {
+        "id": "SA-RIYADH-KHJ",
+        "name": "الخرج"
+      },
+      {
+        "id": "SA-RIYADH-DRY",
+        "name": "الدرعية"
+      },
+      {
+        "id": "SA-RIYADH-DWD",
+        "name": "الدوادمي"
+      },
+      {
+        "id": "SA-RIYADH-MJM",
+        "name": "المجمعة"
+      },
+      {
+        "id": "SA-RIYADH-ZLF",
+        "name": "الزلفي"
+      },
+      {
+        "id": "SA-RIYADH-SHQ",
+        "name": "شقراء"
+      },
+      {
+        "id": "SA-RIYADH-WDS",
+        "name": "وادي الدواسر"
+      },
+      {
+        "id": "SA-RIYADH-AFI",
+        "name": "عفيف"
+      },
+      {
+        "id": "SA-RIYADH-QWY",
+        "name": "القويعية"
+      }
+    ]
+  },
+  {
+    "id": "SA-MAKKAH",
+    "name": "مكة المكرمة",
+    "cities": [
+      {
+        "id": "SA-MAKKAH-MAK",
+        "name": "مكة المكرمة"
+      },
+      {
+        "id": "SA-MAKKAH-JED",
+        "name": "جدة"
+      },
+      {
+        "id": "SA-MAKKAH-TIF",
+        "name": "الطائف"
+      },
+      {
+        "id": "SA-MAKKAH-RAB",
+        "name": "رابغ"
+      },
+      {
+        "id": "SA-MAKKAH-QNF",
+        "name": "القنفذة"
+      },
+      {
+        "id": "SA-MAKKAH-BAH",
+        "name": "بحرة"
+      },
+      {
+        "id": "SA-MAKKAH-KHL",
+        "name": "خليص"
+      },
+      {
+        "id": "SA-MAKKAH-LTH",
+        "name": "الليث"
+      }
+    ]
+  },
+  {
+    "id": "SA-MADINAH",
+    "name": "المدينة المنورة",
+    "cities": [
+      {
+        "id": "SA-MADINAH-MED",
+        "name": "المدينة المنورة"
+      },
+      {
+        "id": "SA-MADINAH-YNB",
+        "name": "ينبع"
+      },
+      {
+        "id": "SA-MADINAH-ULA",
+        "name": "العلا"
+      },
+      {
+        "id": "SA-MADINAH-MHD",
+        "name": "مهد الذهب"
+      },
+      {
+        "id": "SA-MADINAH-BDR",
+        "name": "بدر"
+      }
+    ]
+  },
+  {
+    "id": "SA-QASSIM",
+    "name": "القصيم",
+    "cities": [
+      {
+        "id": "SA-QASSIM-BUR",
+        "name": "بريدة"
+      },
+      {
+        "id": "SA-QASSIM-UNZ",
+        "name": "عنيزة"
+      },
+      {
+        "id": "SA-QASSIM-RAS",
+        "name": "الرس"
+      },
+      {
+        "id": "SA-QASSIM-BUK",
+        "name": "البكيرية"
+      },
+      {
+        "id": "SA-QASSIM-MTH",
+        "name": "المذنب"
+      }
+    ]
+  },
+  {
+    "id": "SA-EASTERN",
+    "name": "المنطقة الشرقية",
+    "cities": [
+      {
+        "id": "SA-EASTERN-DMM",
+        "name": "الدمام"
+      },
+      {
+        "id": "SA-EASTERN-KHO",
+        "name": "الخبر"
+      },
+      {
+        "id": "SA-EASTERN-DHA",
+        "name": "الظهران"
+      },
+      {
+        "id": "SA-EASTERN-JUB",
+        "name": "الجبيل"
+      },
+      {
+        "id": "SA-EASTERN-HOF",
+        "name": "الأحساء"
+      },
+      {
+        "id": "SA-EASTERN-QAT",
+        "name": "القطيف"
+      },
+      {
+        "id": "SA-EASTERN-RTA",
+        "name": "رأس تنورة"
+      },
+      {
+        "id": "SA-EASTERN-KHF",
+        "name": "الخفجي"
+      },
+      {
+        "id": "SA-EASTERN-HBT",
+        "name": "حفر الباطن"
+      },
+      {
+        "id": "SA-EASTERN-ABQ",
+        "name": "بقيق"
+      }
+    ]
+  },
+  {
+    "id": "SA-ASIR",
+    "name": "عسير",
+    "cities": [
+      {
+        "id": "SA-ASIR-AHB",
+        "name": "أبها"
+      },
+      {
+        "id": "SA-ASIR-KMX",
+        "name": "خميس مشيط"
+      },
+      {
+        "id": "SA-ASIR-BHH",
+        "name": "بيشة"
+      },
+      {
+        "id": "SA-ASIR-MHL",
+        "name": "محايل عسير"
+      },
+      {
+        "id": "SA-ASIR-SRA",
+        "name": "سراة عبيدة"
+      },
+      {
+        "id": "SA-ASIR-AHR",
+        "name": "أحد رفيدة"
+      }
+    ]
+  },
+  {
+    "id": "SA-TABUK",
+    "name": "تبوك",
+    "cities": [
+      {
+        "id": "SA-TABUK-TUU",
+        "name": "تبوك"
+      },
+      {
+        "id": "SA-TABUK-DUB",
+        "name": "ضباء"
+      },
+      {
+        "id": "SA-TABUK-UML",
+        "name": "أملج"
+      },
+      {
+        "id": "SA-TABUK-TAY",
+        "name": "تيماء"
+      },
+      {
+        "id": "SA-TABUK-HQL",
+        "name": "حقل"
+      }
+    ]
+  },
+  {
+    "id": "SA-HAIL",
+    "name": "حائل",
+    "cities": [
+      {
+        "id": "SA-HAIL-HAS",
+        "name": "حائل"
+      },
+      {
+        "id": "SA-HAIL-BAQ",
+        "name": "بقعاء"
+      },
+      {
+        "id": "SA-HAIL-GHZ",
+        "name": "الغزالة"
+      }
+    ]
+  },
+  {
+    "id": "SA-NORTHERN",
+    "name": "الحدود الشمالية",
+    "cities": [
+      {
+        "id": "SA-NORTHERN-RAE",
+        "name": "عرعر"
+      },
+      {
+        "id": "SA-NORTHERN-RAF",
+        "name": "رفحاء"
+      },
+      {
+        "id": "SA-NORTHERN-TUI",
+        "name": "طريف"
+      }
+    ]
+  },
+  {
+    "id": "SA-JAZAN",
+    "name": "جازان",
+    "cities": [
+      {
+        "id": "SA-JAZAN-GIZ",
+        "name": "جازان"
+      },
+      {
+        "id": "SA-JAZAN-SAB",
+        "name": "صبيا"
+      },
+      {
+        "id": "SA-JAZAN-ARI",
+        "name": "أبو عريش"
+      },
+      {
+        "id": "SA-JAZAN-SAM",
+        "name": "صامطة"
+      },
+      {
+        "id": "SA-JAZAN-FAR",
+        "name": "فرسان"
+      },
+      {
+        "id": "SA-JAZAN-BSH",
+        "name": "بيش"
+      }
+    ]
+  },
+  {
+    "id": "SA-NAJRAN",
+    "name": "نجران",
+    "cities": [
+      {
+        "id": "SA-NAJRAN-EAM",
+        "name": "نجران"
+      },
+      {
+        "id": "SA-NAJRAN-SHW",
+        "name": "شرورة"
+      },
+      {
+        "id": "SA-NAJRAN-HBN",
+        "name": "حبونا"
+      }
+    ]
+  },
+  {
+    "id": "SA-BAHA",
+    "name": "الباحة",
+    "cities": [
+      {
+        "id": "SA-BAHA-ABT",
+        "name": "الباحة"
+      },
+      {
+        "id": "SA-BAHA-BJR",
+        "name": "بلجرشي"
+      },
+      {
+        "id": "SA-BAHA-MDQ",
+        "name": "المندق"
+      },
+      {
+        "id": "SA-BAHA-MKH",
+        "name": "المخواة"
+      }
+    ]
+  },
+  {
+    "id": "SA-JOUF",
+    "name": "الجوف",
+    "cities": [
+      {
+        "id": "SA-JOUF-AJF",
+        "name": "سكاكا"
+      },
+      {
+        "id": "SA-JOUF-URY",
+        "name": "القريات"
+      },
+      {
+        "id": "SA-JOUF-DMJ",
+        "name": "دومة الجندل"
+      },
+      {
+        "id": "SA-JOUF-TBR",
+        "name": "طبرجل"
+      }
+    ]
+  }
+]

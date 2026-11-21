@@ -39,6 +39,10 @@ describe('delivery partner HTTP contract', () => {
     const body = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
     expect(body.sender.location).toBeNull();
     expect(body.recipient).toMatchObject({ city: 'بورتسودان', district: 'ديم عرب', address: 'شارع الاختبار، مبنى 7', location: null });
+    // Existing signed Sudan events must retain their canonical payload on retry.
+    expect(body.store).not.toHaveProperty('country');
+    expect(body.sender).not.toHaveProperty('country');
+    expect(body.amounts).toEqual({ subtotal: 850, discount: 0, tax: 0, deliveryFee: 150, orderTotal: 1000, currency: 'SDG' });
   });
   it('preserves the coordinate requirement for legacy carriers', async () => {
     const legacy = { ...shipment, order: { ...shipment.order, delivery: { ...shipment.order.delivery, lat: null, lng: null } } };

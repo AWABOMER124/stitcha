@@ -8,6 +8,7 @@ import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referr
 import { getPlatformBillingSettings } from '@/modules/subscription-payments/subscription-payments.service';
 import { recordOnlinePaymentEntry, recordRefundEntry } from '@/modules/online-settlements/online-settlements.service';
 import { planRequestQuote } from '@/modules/merchant-subscriptions/market-pricing';
+import { paymentProviderForMarket } from '@/services/payment-gateways/market-policy';
 
 const PROVIDER = 'stripe';
 
@@ -99,6 +100,8 @@ export async function createSubscriptionStripeCheckout(input: {
   customerEmail?: string | null;
   origin: string;
 }) {
+  const merchant = await prisma.merchant.findUniqueOrThrow({ where: { id: input.merchantId }, select: { subscriptionMarket: true } });
+  if (paymentProviderForMarket(merchant.subscriptionMarket) !== 'STRIPE') throw new BusinessRuleError('اشتراكات السعودية تستخدم Paymob.');
   const [request, current] = await Promise.all([
     prisma.merchantPlanChangeRequest.findFirst({
       where: { merchantId: input.merchantId, status: { in: ['PENDING', 'CONTACTED'] } },
@@ -139,6 +142,8 @@ export async function createSubscriptionStripeCheckout(input: {
 }
 
 export async function createOrderStripeCheckout(input: { orderId: string; merchantId: string; origin: string }) {
+  const market = await prisma.merchant.findUniqueOrThrow({ where: { id: input.merchantId }, select: { subscriptionMarket: true } });
+  if (paymentProviderForMarket(market.subscriptionMarket) !== 'STRIPE') throw new BusinessRuleError('مدفوعات المتاجر السعودية تستخدم Paymob.');
   if (!(await isMerchantEligibleForCentralStripe(input.merchantId))) {
     throw new BusinessRuleError('Online payments require approved merchant identity and payout details');
   }

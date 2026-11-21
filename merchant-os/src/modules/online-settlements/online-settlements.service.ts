@@ -3,6 +3,9 @@ import prisma from '@/lib/db/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
 
 export type OnlinePaymentSettlementInput = {
+  provider?: 'stripe' | 'paymob';
+  feeReconciled?: boolean;
+  payoutBlocked?: boolean;
   merchantId: string;
   orderId: string;
   paymentId: string;
@@ -31,9 +34,12 @@ export async function recordOnlinePaymentEntry(
       orderId: input.orderId,
       paymentId: input.paymentId,
       type: 'ONLINE_PAYMENT',
-      status: input.holdDays === 0 ? 'AVAILABLE' : 'HELD',
+      status: input.holdDays === 0 && input.feeReconciled !== false && !input.payoutBlocked ? 'AVAILABLE' : 'HELD',
       grossAmount: roundMoney(input.grossAmount),
       processingFee: roundMoney(input.processingFee),
+      provider: input.provider ?? 'stripe',
+      feeReconciled: input.feeReconciled ?? true,
+      payoutBlocked: input.payoutBlocked ?? false,
       platformFee: roundMoney(input.platformFee),
       netAmount,
       currency: input.currency.toUpperCase(),
@@ -91,12 +97,12 @@ export async function recordRefundEntry(input: {
 
 export async function generateWeeklyOnlineSettlements(now = new Date()) {
   await prisma.merchantSettlementEntry.updateMany({
-    where: { status: 'HELD', availableAt: { lte: now } },
+    where: { status: 'HELD', availableAt: { lte: now }, feeReconciled: true, payoutBlocked: false },
     data: { status: 'AVAILABLE' },
   });
   const { periodFrom, periodTo } = previousWeekRange(now);
   const entries = await prisma.merchantSettlementEntry.findMany({
-    where: { status: 'AVAILABLE', settlementBatchId: null, availableAt: { lt: periodTo } },
+    where: { status: 'AVAILABLE', settlementBatchId: null, availableAt: { lt: periodTo }, feeReconciled: true, payoutBlocked: false },
     orderBy: { createdAt: 'asc' },
   });
   const groups = new Map<string, typeof entries>();
@@ -106,6 +112,8 @@ export async function generateWeeklyOnlineSettlements(now = new Date()) {
   }
   let created = 0;
   for (const group of groups.values()) {
+    // Refund debt carries forward until offset by a positive receivable.
+    if (sum(group, 'netAmount') <= 0) continue;
     const merchantId = group[0]!.merchantId;
     const currency = group[0]!.currency;
     try {

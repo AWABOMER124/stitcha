@@ -1,4 +1,5 @@
 import { SUDAN_STATES, getSudanDistricts } from './sudan';
+import { SAUDI_REGIONS, saudiRegionForCity } from './saudi';
 
 export function normalizePlace(value: string | null | undefined) {
   return (value ?? '').normalize('NFKC').replace(/[\u064b-\u065f\u0670\u0640]/g, '')
@@ -11,20 +12,21 @@ export function stateForCity(city: string | null | undefined): string | null {
   return matches.length === 1 ? matches[0].name : null;
 }
 
-export function resolveRegionalCoverage(input: Record<string, unknown>) {
+export function resolveRegionalCoverage(input: Record<string, unknown>, country = 'SD') {
   const read = (key: string) => typeof input[key] === 'string' ? input[key].trim() : '';
   const valid = (value: string) => value.length >= 2 && value.length <= 120 && !/[\u0000-\u001f\u007f]/.test(value);
-  const state = SUDAN_STATES.find(item => item.id === read('stateId'));
+  const state = (country === 'SA' ? SAUDI_REGIONS : SUDAN_STATES).find(item => item.id === read('stateId'));
   if (!state) return null;
   const allCities = read('cityId') === 'all';
   const cityEntry = state.cities.find(item => item.id === read('cityId'));
   const city = allCities ? null : cityEntry?.name ?? (read('cityId') === 'custom' && valid(read('city')) ? read('city') : null);
   if (!allCities && !city) return null;
   // A listed city cannot be reassigned to a different state through manual input.
-  if (city && stateForCity(city) && stateForCity(city) !== state.name) return null;
+  const knownState = country === 'SA' ? saudiRegionForCity(city) : stateForCity(city);
+  if (city && knownState && knownState !== state.name) return null;
   const allDistricts = allCities || read('districtId') === 'all';
   if (allCities && read('districtId') && read('districtId') !== 'all') return null;
-  const districtEntry = cityEntry ? getSudanDistricts(cityEntry.id).find(item => item.id === read('districtId')) : null;
+  const districtEntry = cityEntry && country !== 'SA' ? getSudanDistricts(cityEntry.id).find(item => item.id === read('districtId')) : null;
   const district = allDistricts ? null : districtEntry?.name ?? (read('districtId') === 'custom' && valid(read('district')) ? read('district') : null);
   if (!allDistricts && !district) return null;
   const description = read('description').replace(/\r\n?/g, '\n');

@@ -5,7 +5,7 @@ import {
   toggleMerchantPaymentAccountAction,
 } from '@/modules/store-payments/actions';
 import { listMerchantPaymentAccounts } from '@/modules/store-payments/store-payments.service';
-import { getStripeStatus, isMerchantEligibleForCentralStripe } from '@/modules/stripe-payments/stripe-payments.service';
+import { getMerchantOnlinePaymentStatus } from '@/modules/paymob-payments/market-payments.service';
 import { getPlatformBillingSettings } from '@/modules/subscription-payments/subscription-payments.service';
 
 export const dynamic = 'force-dynamic';
@@ -14,18 +14,18 @@ export default async function StorePaymentSettingsPage() {
   const session = await auth();
   const merchantId = session?.user?.merchantId;
   if (!merchantId) redirect('/login');
-  const [accounts, billing, merchantEligible] = await Promise.all([listMerchantPaymentAccounts(merchantId), getPlatformBillingSettings(), isMerchantEligibleForCentralStripe(merchantId)]);
-  const stripe = getStripeStatus();
-  const onlineReady = stripe.enabled && stripe.configured && merchantEligible;
+  const [accounts, billing, gateway] = await Promise.all([listMerchantPaymentAccounts(merchantId), getPlatformBillingSettings(), getMerchantOnlinePaymentStatus(merchantId)]);
+  const merchantEligible = gateway.eligible;
+  const onlineReady = gateway.ready;
 
   return <div className="max-w-4xl space-y-6 p-6">
     <header><h1 className="text-2xl font-bold">طرق دفع المتجر</h1><p className="mt-1 text-sm text-[var(--muted-foreground)]">أضف حسابات بنكك أو ماي كاشي التي تظهر لعملائك عند إتمام الطلب.</p></header>
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><h2 className="font-bold">الدفع الإلكتروني عبر وصلة</h2><p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">لا تحتاج إلى ربط حساب Stripe خاص. وصلة تحصّل مدفوعات عملائك بأمان ثم تحوّل صافي مستحقاتك أسبوعياً بعد الرسوم والاستردادات.</p></div>
-        <span className={`rounded-full px-3 py-1 text-xs font-bold ${onlineReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{onlineReady ? 'مفعّل على المتجر' : 'يتطلب توثيق الهوية وبيانات السداد'}</span>
+        <div><h2 className="font-bold">الدفع الإلكتروني عبر {gateway.provider === 'PAYMOB' ? 'Paymob' : 'Stripe'}</h2><p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">وصلة تحصّل مدفوعات عملائك ثم تحوّل صافي مستحقاتك بعد مطابقة رسوم المعالجة والاستردادات. {gateway.provider === 'PAYMOB' && 'التحصيل باسم مؤسسة فهد لاين، وتُخصم رسوم معالجة البطاقات الفعلية من مستحقاتك.'}</p></div>
+        <span className={`rounded-full px-3 py-1 text-xs font-bold ${onlineReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{onlineReady ? 'مفعّل على المتجر' : !gateway.enabled || !gateway.configured ? 'بانتظار تفعيل بوابة الدفع' : 'يتطلب توثيق الهوية وبيانات السداد'}</span>
       </div>
-      <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2"><div><dt className="text-[var(--muted-foreground)]">عمولة وصلة</dt><dd>{billing.onlinePaymentCommissionRate}% من العملية</dd></div><div><dt className="text-[var(--muted-foreground)]">فترة الحجز</dt><dd>{billing.onlineSettlementHoldDays} أيام قبل دخول الدفعة في التسوية</dd></div></dl>
+      <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2"><div><dt className="text-[var(--muted-foreground)]">عمولة وصلة</dt><dd>{gateway.market === 'SA' ? 0 : billing.onlinePaymentCommissionRate}% من العملية</dd></div><div><dt className="text-[var(--muted-foreground)]">فترة الحجز</dt><dd>{billing.onlineSettlementHoldDays} أيام، وبعد مطابقة رسوم المعالجة</dd></div></dl>
       <a href="/dashboard/finance/online-settlements" className="mt-4 inline-flex rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-bold">عرض رصيدي والتسويات</a>
       {!merchantEligible && <a href="/dashboard/verification" className="ms-2 mt-4 inline-flex rounded-lg bg-amber-100 px-4 py-2 text-sm font-bold text-amber-900">إكمال التوثيق وبيانات السداد</a>}
     </section>

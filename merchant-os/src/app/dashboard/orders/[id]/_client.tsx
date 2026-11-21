@@ -91,9 +91,13 @@ function StatusTimeline({
 export function OrderDetailClient({
   order: initialOrder,
   platformDeliveryEnabled,
+  country = 'SD',
+  currency = 'SDG',
 }: {
   order: ActiveOrder;
   platformDeliveryEnabled: boolean;
+  country?: string;
+  currency?: string;
 }) {
   const { dict, locale } = useLocale();
   const t = dict.orderDetailPage;
@@ -360,7 +364,7 @@ export function OrderDetailClient({
               value={order.customerAddress ?? ""}
               onChange={() => setAddressEditVersion(version => version + 1)}
             />
-            <DeliveryAddressFields locale={locale} initialState={order.delivery?.state ?? ''} initialCity={order.delivery?.city ?? ''} initialDistrict={order.delivery?.area ?? ''} initialDescription={order.delivery?.notes ?? ''} required={order.deliveryMethod !== 'PICKUP' && !order.platformShipment} onLocationChange={() => setAddressEditVersion(version => version + 1)} />
+            <DeliveryAddressFields country={country} locale={locale} initialState={order.delivery?.state ?? ''} initialCity={order.delivery?.city ?? ''} initialDistrict={order.delivery?.area ?? ''} initialDescription={order.delivery?.notes ?? ''} required={order.deliveryMethod !== 'PICKUP' && !order.platformShipment} onLocationChange={() => setAddressEditVersion(version => version + 1)} />
             <div className="grid gap-3 sm:grid-cols-2" key={String(addressEditVersion)}>
               <EditField name="deliveryLat" type="number" label={locale === 'ar' ? 'خط عرض التوصيل (اختياري)' : 'Delivery latitude'} value={addressEditVersion > 0 ? '' : String(order.delivery?.lat ?? '')} />
               <EditField name="deliveryLng" type="number" label={locale === 'ar' ? 'خط طول التوصيل (اختياري)' : 'Delivery longitude'} value={addressEditVersion > 0 ? '' : String(order.delivery?.lng ?? '')} />
@@ -448,7 +452,7 @@ export function OrderDetailClient({
                       ×{item.quantity}
                     </span>
                     <span className="font-semibold text-[var(--foreground)] tabular-nums">
-                      {Number(item.unitPrice).toLocaleString()} SDG
+                      {Number(item.unitPrice).toLocaleString()} {currency}
                     </span>
                   </div>
                 </div>
@@ -468,7 +472,7 @@ export function OrderDetailClient({
                       {label}
                     </span>
                     <span className="tabular-nums text-[var(--foreground)]">
-                      {value.toLocaleString()} SDG
+                      {value.toLocaleString()} {currency}
                     </span>
                   </div>
                 ) : null,
@@ -476,7 +480,7 @@ export function OrderDetailClient({
               <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-black">
                 <span className="text-[var(--foreground)]">{t.total}</span>
                 <span className="text-[var(--primary)] tabular-nums">
-                  {Number(order.total).toLocaleString()} SDG
+                  {Number(order.total).toLocaleString()} {currency}
                 </span>
               </div>
             </div>
@@ -683,14 +687,15 @@ export function OrderDetailClient({
                     ? "أكمل المدينة والحي والعنوان التفصيلي لطلب عرض توصيل. الموقع على الخريطة اختياري."
                     : "Complete the city, district and delivery address. Map location is optional."}
                 </p>
-              ) : order.paymentMethod !== "CASH" ? (
+              ) : order.paymentMethod !== "CASH" && !(country === 'SA' && order.payment?.status === 'COMPLETED') ? (
                 <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                   {locale === "ar"
-                    ? "المرحلة التجريبية للتوصيل تدعم الدفع عند الاستلام فقط."
-                    : "The delivery pilot currently supports cash on delivery only."}
+                    ? "أكمل الدفع قبل الشحن، أو اختر الدفع عند الاستلام."
+                    : "Complete payment before shipping, or use cash on delivery."}
                 </p>
               ) : (
                 <div className="space-y-3">
+                  {country === 'SA' && <p className="rounded-lg bg-blue-50 p-3 text-xs leading-6 text-blue-950">{locale === 'ar' ? 'الشحن 20 ريال على المتجر، والتحصيل النقدي 2% من قيمة البضاعة بعد الخصم فقط. اختيار الشركة لا يغيّر إجمالي فاتورة العميل.' : 'Shipping costs the store SAR 20; COD adds 2% of discounted goods only. Selecting a carrier does not change the customer invoice.'}</p>}
                   <button
                     type="button"
                     onClick={requestDeliveryQuotes}

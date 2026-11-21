@@ -1,6 +1,7 @@
 import { isQiadIntegration, qiadPhone } from './partner-protocol';
 import { providerAddress } from './provider-coverage';
 import { coverageSpecificity } from '@/lib/geography/regional-coverage';
+import { saudiShippingCharges } from './saudi-shipping-policy';
 import { nanoid } from "nanoid";
 import prisma from "@/lib/db/prisma";
 import { BusinessRuleError } from "@/lib/errors";
@@ -16,6 +17,7 @@ export async function quotePlatformDelivery(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
+      merchant: { select: { subscriptionMarket: true, currency: true } },
       delivery: true,
       branch: true,
       platformShipment: { select: { id: true } },
@@ -48,7 +50,7 @@ export async function quotePlatformDelivery(orderId: string) {
         isActive: true,
         appStatus: "PUBLISHED",
         ...(order.paymentMethod === 'CASH' ? { supportsCod: true } : {}),
-        providerConfig: { isActive: true },
+        providerConfig: { isActive: true, market: order.merchant?.subscriptionMarket ?? 'SD' },
         merchantConnections: {
           some: { merchantId: order.merchantId, isActive: true, revokedAt: null, providerSyncStatus: { in: ['READY', 'NOT_REQUIRED'] } },
         },
@@ -70,6 +72,7 @@ export async function quotePlatformDelivery(orderId: string) {
       const scopedAddress = providerAddress(rule.partner.providerConfig,address);
       if (!scopedAddress || !coversDelivery(area, order.delivery, scopedAddress)) return [];
       const quote = calculateDeliveryPrice(rule, tripDistanceKm);
+      if (order.merchant?.subscriptionMarket === 'SA' && (order.merchant.currency !== 'SAR' || quote?.currency !== 'SAR' || quote.amount !== 20)) return [];
       return quote ? [{ rule, quote }] : [];
     })
     .sort((a, b) => coverageSpecificity(b.rule.serviceArea!) - coverageSpecificity(a.rule.serviceArea!)
@@ -120,6 +123,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
       include: {
         order: {
           include: {
+            merchant: { select: { subscriptionMarket: true, currency: true } },
             payment: true,
             customer: true,
             delivery: true,
@@ -139,9 +143,10 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
         "This delivery partner does not support cash collection",
       );
     }
-    if (quote.order.paymentMethod !== "CASH") {
+    const saudi = quote.order.merchant?.subscriptionMarket === 'SA';
+    if (quote.order.paymentMethod !== "CASH" && !(saudi && quote.order.payment?.status === 'COMPLETED')) {
       throw new BusinessRuleError(
-        "Platform delivery currently supports cash on delivery only",
+        "يلزم إكمال الدفع قبل طلب الشحن، أو اختيار الدفع عند الاستلام.",
       );
     }
     if (quote.order.platformShipment)
@@ -153,8 +158,10 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     await tx.$queryRaw`SELECT id FROM delivery_partners WHERE id = ${quote.partnerId} FOR SHARE`;
     const partner = await tx.deliveryPartner.findUniqueOrThrow({ where: { id: quote.partnerId }, include: { providerConfig: true } });
     const connection = await tx.merchantDeliveryPartner.findUnique({ where: { merchantId_partnerId: { merchantId: quote.order.merchantId, partnerId: quote.partnerId } } });
-    if (!partner.isActive || partner.status !== 'ACTIVE' || partner.appStatus !== 'PUBLISHED' || !partner.supportsCod || !connection?.isActive || connection.revokedAt) throw new BusinessRuleError('Partner is no longer eligible');
+    if (!partner.isActive || partner.status !== 'ACTIVE' || partner.appStatus !== 'PUBLISHED' || (quote.order.paymentMethod === 'CASH' && !partner.supportsCod) || !connection?.isActive || connection.revokedAt) throw new BusinessRuleError('Partner is no longer eligible');
     const config = partner.providerConfig;
+    if ((config?.market ?? 'SD') !== (quote.order.merchant?.subscriptionMarket ?? 'SD')) throw new BusinessRuleError('شركة الشحن لا تطابق سوق المتجر.');
+    if (saudi && (quote.order.merchant.currency !== 'SAR' || quote.currency !== 'SAR' || Number(quote.fee) !== 20)) throw new BusinessRuleError('تسعيرة الشحن السعودي تحتاج مراجعة.');
     if (isQiadIntegration(config?.outboundWebhookUrl) && connection?.providerSyncStatus!=='READY') throw new BusinessRuleError('انتظر اكتمال ربط المتجر بشركة الشحن.');
     if (!config?.isActive || !['PARTNER_HTTP_V1', 'TEST_SIMULATOR'].includes(config.providerKey)) throw new BusinessRuleError('Partner integration is inactive');
     if (config.providerKey === 'PARTNER_HTTP_V1') {
@@ -178,8 +185,8 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
       if (!pickupAddress) throw new BusinessRuleError('أكمل عنوان استلام الشحنة في إعدادات الفرع قبل اختيار شركة الشحن.');
       if (isQiadIntegration(config.outboundWebhookUrl)) {
         const phone=origin.phone || (await tx.merchant.findUniqueOrThrow({where:{id:quote.order.merchantId},select:{phone:true}})).phone;
-        if(!qiadPhone(phone))throw new BusinessRuleError('أكمل رقم اتصال صحيحًا للفرع قبل اختيار شركة الشحن.');
-        if(!qiadPhone(quote.order.customerPhone||quote.order.customer?.phone))throw new BusinessRuleError('راجع رقم هاتف العميل قبل اختيار شركة الشحن.');
+        if(!qiadPhone(phone, config.market))throw new BusinessRuleError('أكمل رقم اتصال صحيحًا للفرع قبل اختيار شركة الشحن.');
+        if(!qiadPhone(quote.order.customerPhone||quote.order.customer?.phone, config.market))throw new BusinessRuleError('راجع رقم هاتف العميل قبل اختيار شركة الشحن.');
       }
     }
     const address = getOrderDeliveryAddress(quote.order);
@@ -206,7 +213,9 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
     });
 
     const fee = Number(quote.fee);
+    const saudiCharges = saudi ? saudiShippingCharges({ subtotal: Number(quote.order.subtotal), discount: Number(quote.order.discount), cash: quote.order.paymentMethod === 'CASH' }) : null;
     const total =
+      saudi ? Number(quote.order.total) :
       Number(quote.order.subtotal) -
       Number(quote.order.discount) +
       Number(quote.order.tax) +
@@ -215,10 +224,10 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
       where: { id: orderId },
       data: {
         deliveryMethod: "WASLAK_DELIVERY",
-        deliveryFee: fee,
+        deliveryFee: saudi ? quote.order.deliveryFee : fee,
         total,
-        delivery: { update: { type: "WASLAK_DELIVERY", fee } },
-        ...(quote.order.payment
+        delivery: { update: { type: "WASLAK_DELIVERY", fee: saudi ? quote.order.deliveryFee : fee } },
+        ...(!saudi && quote.order.payment
           ? { payment: { update: { amount: total } } }
           : {}),
       },
@@ -231,6 +240,7 @@ export async function acceptDeliveryQuote(orderId: string, quoteId: string) {
         installationId: connection.id,
         trackingCode: `WSL-${nanoid(10).toUpperCase()}`,
         fee,
+        ...(saudiCharges ? { collectionFee: saudiCharges.collectionFee, feePayer: saudiCharges.feePayer, pricingPolicy: saudiCharges.pricingPolicy } : {}),
         currency: quote.currency,
         events: { create: { status: "REQUESTED", actorType: "SYSTEM" } },
       },

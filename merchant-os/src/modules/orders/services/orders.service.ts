@@ -289,7 +289,7 @@ export async function editOrder(
       include: {
         platformShipment: { select: { id: true } },
         delivery: true,
-        payment: { select: { id: true } },
+        payment: { select: { id: true, method: true, status: true } },
       },
     });
     if (!current) throw new NotFoundError("Order", id);
@@ -309,6 +309,7 @@ export async function editOrder(
     const lng = data.deliveryLng ?? (geographyChanged ? null : current.delivery?.lng ?? null);
     const coordinatesChanged = (current.delivery?.lat ?? null) !== lat || (current.delivery?.lng ?? null) !== lng;
     const financialChanged = Number(current.deliveryFee) !== data.deliveryFee;
+    if (financialChanged && (current.payment?.method === 'ONLINE' || current.payment?.status === 'COMPLETED')) throw new BusinessRuleError('لا يمكن تعديل قيمة طلب بدأ دفعه إلكترونيًا أو اكتمل سداده.');
     if (
       current.platformShipment &&
       (financialChanged || addressChanged || coordinatesChanged)

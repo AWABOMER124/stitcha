@@ -787,6 +787,7 @@ model DeliveryPartnerProviderConfig {
   id           String   @id @default(cuid())
   partnerId    String   @unique
   providerKey  String
+  market       String   @default("SD")
   apiBaseUrl   String?
   credentials  String?
   webhookToken String   @unique @default(cuid())
@@ -929,6 +930,9 @@ model PlatformShipment {
   providerReference String?
   status            PlatformShipmentStatus @default(REQUESTED)
   fee               Decimal                @db.Decimal(10, 2)
+  collectionFee     Decimal                @default(0) @db.Decimal(10, 2)
+  feePayer          String                 @default("CUSTOMER")
+  pricingPolicy     String?
   currency          String                 @default("SDG")
   assignedAt        DateTime?
   pickedUpAt        DateTime?
@@ -960,6 +964,9 @@ model PlatformReturnShipment {
   providerReference String?
   status PlatformShipmentStatus @default(REQUESTED)
   reason String
+  fee Decimal @default(0) @db.Decimal(10, 2)
+  currency String @default("SDG")
+  feePayer String @default("CARRIER_QUOTE")
   pickup Json
   destination Json
   createdAt DateTime @default(now())
@@ -1981,6 +1988,52 @@ model BillingWebhookEvent {
   @@map("billing_webhook_events")
 }
 
+/// Platform-owned Saudi gateway. Private credentials are encrypted at rest.
+model PaymobSettings {
+  id                 String   @id @default("SA")
+  enabled            Boolean  @default(false)
+  mode               String   @default("TEST")
+  publicKey          String?
+  secretKeyEncrypted String?
+  apiKeyEncrypted    String?
+  hmacEncrypted      String?
+  integrationIds     Json     @default("[]")
+  updatedById        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("paymob_settings")
+}
+
+/// One durable intention per order/plan request; UNKNOWN prevents blind retry.
+/// No card details are stored.
+model OnlineCheckoutAttempt {
+  id                      String   @id @default(cuid())
+  provider                String
+  merchantId              String
+  purpose                 String
+  referenceId             String
+  amountMinor             BigInt
+  currency                String
+  mode                    String
+  status                  String   @default("CREATING")
+  providerIntentionId     String?  @unique
+  providerOrderId         String?  @unique
+  providerTransactionId   String?  @unique
+  checkoutSecretEncrypted String?
+  integrationIds          Json
+  expiresAt               DateTime
+  completedAt             DateTime?
+  refundedMinor           BigInt   @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([provider, purpose, referenceId])
+  @@index([merchantId, createdAt])
+  @@index([provider, status, createdAt])
+  @@map("online_checkout_attempts")
+}
+
 /// Merchant-initiated plan change request. This provides a safe internal
 /// review path before external recurring billing is connected.
 model MerchantPlanChangeRequest {
@@ -2534,6 +2587,7 @@ enum ManualPaymentReviewStatus {
   VERIFIED
   REJECTED
   CANCELLED
+  REFUNDED
 }
 
 /// Platform-wide delivery-perk subscription for a Flutter-app CustomerAccount
@@ -2833,6 +2887,8 @@ model MerchantSettlementEntry {
   status            MerchantSettlementEntryStatus @default(HELD)
   grossAmount       Decimal                       @db.Decimal(14, 2)
   processingFee     Decimal                       @default(0) @db.Decimal(14, 2)
+  feeReconciled     Boolean                       @default(true)
+  payoutBlocked     Boolean                       @default(false)
   platformFee       Decimal                       @default(0) @db.Decimal(14, 2)
   netAmount         Decimal                       @db.Decimal(14, 2)
   currency          String

@@ -15,6 +15,8 @@ export interface MerchantPlanSnapshot {
   status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'GRACE_PERIOD' | 'CANCELLED';
   billingInterval: 'MONTHLY' | 'YEARLY' | 'CUSTOM';
   trialEndsAt: Date | null;
+  billingProvider?: string | null;
+  currentPeriodEndsAt?: Date | null;
   isGrandfathered: boolean;
   entitlements: MerchantEntitlements;
 }
@@ -42,6 +44,8 @@ export async function getMerchantPlanSnapshot(
     status: subscription.status,
     billingInterval: subscription.billingInterval ?? 'MONTHLY',
     trialEndsAt: subscription.trialEndsAt ?? null,
+    billingProvider: subscription.billingProvider,
+    currentPeriodEndsAt: subscription.currentPeriodEndsAt,
     isGrandfathered: subscription.isGrandfathered,
     entitlements: mergeEntitlements(subscription.plan.entitlements, subscription.entitlementOverrides),
   };
@@ -121,7 +125,7 @@ export async function requestPlanChange(
     throw new BusinessRuleError('اختر باقة من سوق نشاط متجرك');
   }
   const quote = planRequestQuote({ targetPlan, billingInterval });
-  if (current?.plan.code === targetPlan.code && current.status === 'ACTIVE') {
+  if (current?.plan.code === targetPlan.code && isEffective(current, new Date()) && !(merchant.subscriptionMarket === 'SA' && current.billingProvider === 'paymob')) {
     throw new ConflictError('This plan is already active');
   }
 
@@ -130,7 +134,10 @@ export async function requestPlanChange(
     where: { requestKey },
     include: { targetPlan: { select: { code: true, name: true } } },
   });
-  if (existing) return existing;
+  if (existing) {
+    if (merchant.subscriptionMarket !== 'SA' || ['PENDING', 'CONTACTED'].includes(existing.status)) return existing;
+    await prisma.merchantPlanChangeRequest.updateMany({ where: { id: existing.id, requestKey, status: { notIn: ['PENDING', 'CONTACTED'] } }, data: { requestKey: null } });
+  }
 
   let request;
   try {
@@ -169,10 +176,12 @@ function isEffective(
     status: 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'GRACE_PERIOD' | 'CANCELLED';
     graceEndsAt: Date | null;
     trialEndsAt: Date | null;
+    billingProvider?: string | null;
+    currentPeriodEndsAt?: Date | null;
   },
   now: Date,
 ): boolean {
-  if (subscription.status === 'ACTIVE') return true;
+  if (subscription.status === 'ACTIVE') return subscription.billingProvider !== 'paymob' || Boolean(subscription.currentPeriodEndsAt && subscription.currentPeriodEndsAt > now);
   if (subscription.status === 'TRIALING') {
     return subscription.trialEndsAt !== null && subscription.trialEndsAt > now;
   }

@@ -49,8 +49,9 @@ describe('Saudi catalog and actual billing records', () => {
     await prisma.merchantPlan.update({ where: { code: 'SA_PRO' }, data: { yearlyPrice: 1200 } });
     try {
       gateway.createCheckoutSession.mockResolvedValue({ sessionId: `cs_${suffix}`, checkoutUrl: 'https://checkout.stripe.com/synthetic' });
-      await createSubscriptionStripeCheckout({ merchantId: id, origin: 'https://synthetic.example' });
-      expect(gateway.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ amount: 990, currency: 'SAR', recurringInterval: 'year' }));
+      await expect(createSubscriptionStripeCheckout({ merchantId: id, origin: 'https://synthetic.example' })).rejects.toThrow('Paymob');
+      expect(gateway.createCheckoutSession).not.toHaveBeenCalled();
+      // A session created before the market cutover must still reconcile safely.
       gateway.retrieveSubscription.mockResolvedValue({ status: 'active', currentPeriodStart: new Date('2026-11-19T00:00:00Z'), currentPeriodEnd: new Date('2027-11-19T00:00:00Z'), cancelAtPeriodEnd: false });
       const event = { id: `evt_${suffix}`, type: 'checkout.session.completed', data: { object: { id: `cs_${suffix}`, subscription: `sub_${suffix}`, payment_status: 'paid', amount_total: 9900, currency: 'sar', metadata: { kind: 'SUBSCRIPTION', merchant_id: id, plan_change_request_id: request.id } } } };
       gateway.constructWebhookEvent.mockImplementation(() => event);
