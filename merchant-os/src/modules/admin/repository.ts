@@ -220,7 +220,7 @@ export async function getRecentActivity() {
     prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
-      include: { merchant: { select: { name: true } } },
+      include: { merchant: { select: { name: true, currency: true } } },
     }),
     prisma.merchant.findMany({
       take: 5,
