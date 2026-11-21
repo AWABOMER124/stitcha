@@ -20,6 +20,14 @@ async function merchant(market?: string) {
 afterAll(async () => { await prisma.merchant.deleteMany({ where: { id: { in: merchants } } }); });
 
 describe('Saudi catalog and actual billing records', () => {
+  it('does not send a historical Saudi quote to Stripe after a market change', async () => {
+    const id = await merchant('SA');
+    const selected = await requestPlanChange(id, 'SA_GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
+    await prisma.merchant.update({ where: { id }, data: { subscriptionMarket: 'SD' } });
+    gateway.createCheckoutSession.mockClear();
+    await expect(createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' })).rejects.toThrow('business market');
+    expect(gateway.createCheckoutSession).not.toHaveBeenCalled();
+  });
   it('pays the selected quote even after a newer selection, and rejects another merchant quote', async () => {
     const id = await merchant();
     const selected = await requestPlanChange(id, 'GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
