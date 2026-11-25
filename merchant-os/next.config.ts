@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   deploymentId: process.env.APP_RELEASE && process.env.APP_RELEASE !== 'unknown' ? process.env.APP_RELEASE : undefined,
+  // Keep the initial Flight build ID and navigation deployment header equal.
+  generateBuildId: async () => process.env.APP_RELEASE && process.env.APP_RELEASE !== 'unknown' ? process.env.APP_RELEASE : null,
   env: { NEXT_PUBLIC_DEPLOYMENT_RELEASE: process.env.APP_RELEASE ?? 'unknown' },
   poweredByHeader: false,
   async headers() {

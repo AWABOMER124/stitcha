@@ -26,3 +26,9 @@ Keep the deployment guard and financial route protections enabled. This change d
 - No real subscription purchase or charge is needed for these checks. Use an isolated database and synthetic accounts; do not configure real provider secrets in the test environment.
 
 No database migration is required. Deploy through the protected immutable-image release workflow, validate the candidate, then switch traffic and retain the previous image for rollback. Record actual browser measurements and release IDs in the private deployment evidence.
+
+## Navigation identity regression
+
+A production-image browser trace exposed a second cause of full page loads: initial Flight data used a generated build ID while navigation responses identified the same image with APP_RELEASE. Next.js correctly treated those different identifiers as version skew and fell back to document navigation.
+
+The build now explicitly generates its build ID from APP_RELEASE, matching deploymentId. The Docker build assertion refuses an image whose `.next/BUILD_ID` differs from its declared release. Development/unnamed builds keep the framework default. This preserves version-skew checks, the deployment notice and action replay protection. Acceptance must inspect network request types: successful HTTP responses alone do not prove client navigation; ordinary dashboard links must not generate Document requests.
