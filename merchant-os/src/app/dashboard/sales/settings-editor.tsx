@@ -25,7 +25,7 @@ export function SalesSettingsEditor({ settings, staff }: { settings: SalesSettin
       if (result.success) router.refresh();
     });
   }
-  return <form action={save} className="space-y-6 rounded-2xl border bg-[var(--card)] p-4 sm:p-6">
+  return <form action={save} data-action-guard="off" className="space-y-6 rounded-2xl border bg-[var(--card)] p-4 sm:p-6">
     <div><h2 className="text-xl font-black">تحكم يناسب طريقة بيعك</h2><p className="mt-2 text-sm text-[var(--muted-foreground)]">سياسة الأسعار ورسائل واتساب وصلاحيات الفريق. الإعدادات لمالك المتجر.</p></div>
     <div className="flex flex-wrap gap-5 text-sm font-bold">{[['enabled', 'تفعيل المبيعات الخاصة'], ['allowCod', 'إتاحة الدفع عند الاستلام'], ['allowPickup', 'إتاحة الاستلام من المتجر']].map(([key, title]) => <label key={key} className="flex min-h-11 items-center gap-2"><input type="checkbox" name={key} defaultChecked={Boolean(settings[key as keyof SalesSettings])} />{title}</label>)}</div>
     <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-bold">حد خصم الموظفين الافتراضي ٪<input name="discount" className={inputClass} type="number" min={0} max={100} step="0.01" defaultValue={settings.staffDiscountPercent} required /></label>

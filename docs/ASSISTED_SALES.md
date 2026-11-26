@@ -39,6 +39,8 @@ The employee flow is deliberately short: customer, products and agreed price, sa
 
 Actual components were exercised with synthetic data at 320×640, 360×800, 390×844, 430×932, 844×390 and 1440×1000, including product selection, negotiated total, delivery changes, preserved optional fields, settings and immediate sharing. A reduced 390×500 viewport checked that the focused price remains above the action bar. These browser simulations do not prove behavior of every physical mobile keyboard or that an installed WhatsApp app opens successfully.
 
+Quote and settings forms save directly through their explicit save buttons. They opt out of the dashboard's generic submit-confirmation replay, which otherwise consumes the first submission. Destructive quote cancellation and COD conversion retain their separate confirmations. Server validation and role/price checks still run on every save.
+
 ## Release and verification
 
 The schema change is additive: three tables, indexes, plan entitlement updates and an order amount guard. It does not change subscription prices, gateway secrets, merchant identity decisions or carrier configuration. Apply it once through the explicit migration process before the candidate receives traffic; web instances do not migrate on startup.

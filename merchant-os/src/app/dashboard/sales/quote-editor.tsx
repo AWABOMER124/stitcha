@@ -39,7 +39,7 @@ export function QuoteEditor({ context, quote, onClose, onSaved }: { context: Sal
       else { router.refresh(); onSaved(result.data); }
     });
   }
-  return <form ref={formRef} action={submit} onFocusCapture={event => {
+  return <form ref={formRef} action={submit} data-action-guard="off" onFocusCapture={event => {
     const field = event.target;
     if (field instanceof HTMLElement && field.matches('input, select, textarea')) {
       requestAnimationFrame(() => { if (field.isConnected) field.scrollIntoView({ block: 'center', inline: 'nearest' }); });
