@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
+import { recordAssistedSalePayment } from '@/modules/assisted-sales/payment-events';
 import { BusinessRuleError, ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
 import { createStripeGatewayFromEnv } from '@/services/payment-gateways';
 import { evaluateMerchantReferralInTransaction } from '@/modules/merchant-referrals/merchant-referrals.service';
@@ -143,7 +144,7 @@ export async function createSubscriptionStripeCheckout(input: {
   });
 }
 
-export async function createOrderStripeCheckout(input: { orderId: string; merchantId: string; origin: string }) {
+export async function createOrderStripeCheckout(input: { orderId: string; merchantId: string; origin: string; returnPath?: string }) {
   const market = await prisma.merchant.findUniqueOrThrow({ where: { id: input.merchantId }, select: { subscriptionMarket: true } });
   if (paymentProviderForMarket(market.subscriptionMarket) !== 'STRIPE') throw new BusinessRuleError('مدفوعات المتاجر السعودية تستخدم Paymob.');
   if (!(await isMerchantEligibleForCentralStripe(input.merchantId))) {
@@ -168,8 +169,8 @@ export async function createOrderStripeCheckout(input: { orderId: string; mercha
     itemName: `Order ${order.orderNumber} — ${order.merchant.name}`,
     amount: chargeAmount,
     currency: chargeCurrency,
-    successUrl: `${input.origin}/store/${order.merchant.slug}/order/${order.id}?payment=success`,
-    cancelUrl: `${input.origin}/store/${order.merchant.slug}/checkout?payment=cancelled`,
+    successUrl: input.returnPath ? `${input.origin}${input.returnPath}` : `${input.origin}/store/${order.merchant.slug}/order/${order.id}?payment=success`,
+    cancelUrl: input.returnPath ? `${input.origin}${input.returnPath}` : `${input.origin}/store/${order.merchant.slug}/checkout?payment=cancelled`,
     metadata: { kind: 'ORDER', order_id: order.id, merchant_id: input.merchantId },
   });
   await prisma.payment.update({
@@ -352,6 +353,7 @@ async function completeOrderPayment(object: Record<string, unknown>, metadata: R
         metadata: { ...quote, provider: PROVIDER, checkoutSessionId: sessionId, paymentIntentId: paymentIntent ?? null },
       },
     });
+    await recordAssistedSalePayment(tx, orderId);
     const storeAmount = typeof quote.storeAmount === 'number' ? quote.storeAmount : Number(order.payment.amount);
     const storeCurrency = typeof quote.storeCurrency === 'string' ? quote.storeCurrency.toUpperCase() : order.merchant.currency.toUpperCase();
     const exchangeRate = typeof quote.usdToSdgRate === 'number' ? quote.usdToSdgRate : null;

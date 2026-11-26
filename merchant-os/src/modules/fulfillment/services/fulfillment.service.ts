@@ -35,6 +35,9 @@ export async function advanceStatus(
   if (newStatus === 'ACCEPTED' && order.paymentMethod === 'MANUAL_TRANSFER' && order.payment?.status !== 'COMPLETED') {
     throw new Error('يجب مطابقة إشعار التحويل قبل قبول الطلب');
   }
+  if (!['CANCELLED', 'REJECTED'].includes(newStatus) && order.paymentMethod === 'ONLINE' && order.payment?.status !== 'COMPLETED') {
+    throw new Error('انتظر تأكيد الدفع الإلكتروني قبل تجهيز الطلب');
+  }
 
   return repo.advanceOrderStatus(merchantId, orderId, newStatus, note, changedById);
 }

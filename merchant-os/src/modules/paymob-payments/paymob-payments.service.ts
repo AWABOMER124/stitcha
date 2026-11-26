@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Prisma, OnlineCheckoutAttempt } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
+import { recordAssistedSalePayment } from '@/modules/assisted-sales/payment-events';
 import { decryptSecret, encryptSecret } from '@/lib/crypto/secret';
 import { BusinessRuleError, ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
 import { getPaymobGateway } from './paymob-settings.service';
@@ -30,7 +31,7 @@ export async function createPaymobSubscriptionCheckout(input: { planChangeReques
     returnPath: '/dashboard/subscription?paymob=returned' });
 }
 
-export async function createPaymobOrderCheckout(input: { merchantId: string; orderId: string; origin: string }) {
+export async function createPaymobOrderCheckout(input: { merchantId: string; orderId: string; origin: string; returnPath?: string }) {
   await requireSaudiMerchant(input.merchantId);
   if (!await isMerchantEligibleForCentralStripe(input.merchantId)) throw new BusinessRuleError('أكمل التوثيق وبيانات استلام المستحقات لتفعيل الدفع الإلكتروني.');
   const order = await prisma.order.findFirst({ where: { id: input.orderId, merchantId: input.merchantId }, include: { merchant: true, customer: true, payment: true } });
@@ -39,7 +40,7 @@ export async function createPaymobOrderCheckout(input: { merchantId: string; ord
   if (order.merchant.currency !== 'SAR') throw new ValidationError('المتجر السعودي يحتاج تسعير الطلب بالريال السعودي للدفع عبر Paymob.');
   return createIntention({ merchantId: input.merchantId, purpose: 'ORDER', referenceId: order.id, amountMinor: sarMinor(Number(order.payment.amount)),
     itemName: `طلب ${order.orderNumber} — ${order.merchant.name}`, name: order.customerName || order.customer.name,
-    phone: order.customerPhone || order.customer.phone, origin: input.origin, returnPath: `/store/${order.merchant.slug}/order/${order.id}?paymob=returned` });
+      phone: order.customerPhone || order.customer.phone, origin: input.origin, returnPath: input.returnPath ?? `/store/${order.merchant.slug}/order/${order.id}?paymob=returned` });
 }
 
 async function requireSaudiMerchant(id: string) {
@@ -187,6 +188,7 @@ async function completeOrder(tx: Prisma.TransactionClient, attempt: OnlineChecko
   if (order.payment.status !== 'PENDING') throw new ConflictError('Order payment already resolved');
   await tx.payment.update({ where: { id: order.payment.id }, data: { status: 'COMPLETED', paidAt: new Date(), transactionRef: `paymob:${transactionId}`, metadata: {
     provider: 'paymob', attemptId: attempt.id, transactionId, amountMinor: Number(attempt.amountMinor), currency: 'SAR', processingFeeStatus: 'AWAITING_RECONCILIATION', fulfillmentBlocked: ['CANCELLED', 'REJECTED'].includes(order.status) } } });
+  await recordAssistedSalePayment(tx, order.id);
   if (attempt.mode === 'TEST') return;
   await recordOnlinePaymentEntry(tx, { provider: 'paymob', feeReconciled: false, payoutBlocked: ['CANCELLED', 'REJECTED'].includes(order.status), merchantId: attempt.merchantId, orderId: order.id, paymentId: order.payment.id,
     providerReference: `paymob:payment:${transactionId}`, grossAmount: Number(attempt.amountMinor) / 100, processingFee: 0, platformFee: 0, currency: 'SAR', holdDays,

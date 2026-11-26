@@ -32,6 +32,7 @@ const fakeOrder = {
   id: 'order_1',
   orderNumber: 'ORD-1',
   total: 60,
+  paymentMethod: 'CASH',
   customerName: 'Zubair',
   customerPhone: '0911111111',
   customerAddress: 'Omdurman',
@@ -41,6 +42,19 @@ const fakeOrder = {
 
 describe('createShipmentForOrder', () => {
   beforeEach(resetMocks);
+
+  it('never requests COD for an online-paid order and blocks unpaid online shipping', async () => {
+    prismaMock.deliveryProviderConfig.findUnique.mockResolvedValue({ providerKey: 'MANUAL_LOG', isActive: true, apiBaseUrl: null, credentials: null });
+    const createShipment = vi.fn().mockResolvedValue({ providerReference: 'PAID-1' });
+    registryMock.getAdapter.mockReturnValue({ createShipment });
+    prismaMock.order.findUniqueOrThrow.mockResolvedValueOnce({ ...fakeOrder, paymentMethod: 'ONLINE', payment: { status: 'COMPLETED' } });
+    await createShipmentForOrder('company_1', 'order_1');
+    expect(createShipment).toHaveBeenCalledWith(expect.objectContaining({ codAmount: 0 }), expect.anything());
+    createShipment.mockClear();
+    prismaMock.order.findUniqueOrThrow.mockResolvedValueOnce({ ...fakeOrder, paymentMethod: 'ONLINE', payment: { status: 'PENDING' } });
+    await expect(createShipmentForOrder('company_1', 'order_1')).rejects.toThrow('تأكيد الدفع');
+    expect(createShipment).not.toHaveBeenCalled();
+  });
 
   it('returns null when the company has no provider config', async () => {
     prismaMock.deliveryProviderConfig.findUnique.mockResolvedValue(null);

@@ -3,6 +3,7 @@ export const GROWTH_PLAN_CODE = 'GROWTH';
 export const PRO_PLAN_CODE = 'PRO';
 
 export interface MerchantEntitlements {
+  assistedSales: boolean;
   maxActiveProducts: number;
   maxCategories: number;
   maxStaffUsers: number;
@@ -24,6 +25,7 @@ export interface MerchantEntitlements {
 }
 
 export const FREE_ENTITLEMENTS: MerchantEntitlements = Object.freeze({
+  assistedSales: false,
   maxActiveProducts: 20,
   maxCategories: 10,
   maxStaffUsers: 1,
@@ -50,6 +52,7 @@ export function parseEntitlements(value: unknown): MerchantEntitlements {
   }
   const raw = value as Record<string, unknown>;
   return {
+    assistedSales: raw.assistedSales === true,
     maxActiveProducts: limit(raw.maxActiveProducts, FREE_ENTITLEMENTS.maxActiveProducts),
     maxCategories: limit(raw.maxCategories, FREE_ENTITLEMENTS.maxCategories),
     maxStaffUsers: limit(raw.maxStaffUsers, FREE_ENTITLEMENTS.maxStaffUsers),

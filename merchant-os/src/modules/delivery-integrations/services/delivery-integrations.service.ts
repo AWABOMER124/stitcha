@@ -20,6 +20,8 @@ async function buildShipmentInput(orderId: string): Promise<CreateShipmentInput>
       id: true,
       orderNumber: true,
       total: true,
+      paymentMethod: true,
+      payment: { select: { status: true } },
       customerName: true,
       customerPhone: true,
       customerAddress: true,
@@ -27,6 +29,8 @@ async function buildShipmentInput(orderId: string): Promise<CreateShipmentInput>
       branch: { select: { name: true, address: true, phone: true, lat: true, lng: true } },
     },
   });
+
+  if (order.paymentMethod === 'ONLINE' && order.payment?.status !== 'COMPLETED') throw new ValidationError('يجب تأكيد الدفع الإلكتروني قبل إنشاء الشحنة.');
 
   const pickup = order.branch
     ? {
@@ -51,7 +55,7 @@ async function buildShipmentInput(orderId: string): Promise<CreateShipmentInput>
       phone: order.customerPhone ?? '',
       address: order.customerAddress ?? '',
     },
-    codAmount: Number(order.total),
+    codAmount: order.paymentMethod === 'CASH' ? Number(order.total) : 0,
     currency: order.merchant.currency,
   };
 }

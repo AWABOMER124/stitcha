@@ -11,6 +11,7 @@ const limitLabels: Partial<Record<keyof MerchantEntitlements, string>> = {
   aiStoreEditsMonthly: 'تعديلات المتجر AI', aiMerchantChatsMonthly: 'محادثات المساعد', aiImageEnhancementsMonthly: 'تحسين الصور', whatsappAiConversationsMonthly: 'ردود واتساب AI',
 };
 const flagLabels: Partial<Record<keyof MerchantEntitlements, string>> = {
+  assistedSales: 'المبيعات الخاصة وروابط الدفع',
   customDomain: 'دومين خاص', removeBranding: 'إزالة علامة وصلة', advancedAnalytics: 'تحليلات متقدمة', crmAutomation: 'أتمتة CRM',
   dataExport: 'تصدير البيانات', apiAccess: 'API', whatsappAiAgent: 'وكيل واتساب AI',
 };

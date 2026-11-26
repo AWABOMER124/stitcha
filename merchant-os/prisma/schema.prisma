@@ -1114,6 +1114,8 @@ model DistributorUser {
 
 /// A merchant (business) is the primary tenant boundary
 model Merchant {
+  salesSettings SalesSettings?
+  salesQuotes SalesQuote[]
   id          String  @id @default(cuid())
   name        String
   slug        String  @unique
@@ -2645,6 +2647,7 @@ model CustomerAddress {
 
 /// The central order entity — scoped to a merchant
 model Order {
+  salesQuote SalesQuote?
   id          String  @id @default(cuid())
   merchantId  String
   orderNumber String
@@ -2700,6 +2703,59 @@ model Order {
   @@index([createdAt])
   @@index([orderNumber])
   @@map("orders")
+}
+
+/// Merchant-controlled assisted selling policy. Prices in quotes are final inclusive prices.
+model SalesSettings {
+  merchantId String @id
+  config Json
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  @@map("sales_settings")
+}
+
+model SalesQuote {
+  id String @id @default(cuid())
+  merchantId String
+  createdById String
+  approvedById String?
+  token String @unique
+  status String @default("OPEN")
+  version Int @default(1)
+  customerName String
+  customerPhone String
+  currency String
+  items Json
+  subtotal Decimal @db.Decimal(10, 2)
+  deliveryFee Decimal @db.Decimal(10, 2)
+  total Decimal @db.Decimal(10, 2)
+  discountPercent Decimal @db.Decimal(5, 2)
+  paymentMethod PaymentMethod @default(ONLINE)
+  deliveryMethod DeliveryMethod @default(MERCHANT_DELIVERY)
+  notes String?
+  terms String?
+  expiresAt DateTime
+  orderId String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  events SalesQuoteEvent[]
+  @@index([merchantId, createdById, createdAt])
+  @@index([merchantId, status, expiresAt])
+  @@map("sales_quotes")
+}
+
+model SalesQuoteEvent {
+  id String @id @default(cuid())
+  quoteId String
+  actorId String?
+  type String
+  details Json?
+  createdAt DateTime @default(now())
+  quote SalesQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  @@index([quoteId, createdAt])
+  @@map("sales_quote_events")
 }
 
 /// Line item within an order — stores a snapshot of the product at order time

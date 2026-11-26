@@ -92,6 +92,7 @@ function features(e: MerchantEntitlements, ar: boolean) {
     ar ? `${limit(e.maxActiveProducts)} منتج و${limit(e.maxCategories)} تصنيف` : `${limit(e.maxActiveProducts)} products, ${limit(e.maxCategories)} categories`,
     ar ? `${limit(e.maxStaffUsers)} حساب فريق و${limit(e.maxBranches)} فرع` : `${limit(e.maxStaffUsers)} staff seats, ${limit(e.maxBranches)} branches`,
     ar ? 'الطلبات والعملاء والفواتير' : 'Orders, customers and invoices',
+    ...(e.assistedSales ? [ar ? 'مبيعات الفريق بأسعار خاصة وروابط دفع' : 'Team sales, negotiated prices and payment links'] : []),
     ...(e.aiStoreGenerationsLifetime > 0 ? [ar ? `${e.aiStoreGenerationsLifetime} مسودة متجر ذكية عند البداية` : `${e.aiStoreGenerationsLifetime} starter AI store draft`] : []),
     ...(e.aiStoreGenerationsMonthly > 0 ? [ar ? `${limit(e.aiStoreGenerationsMonthly)} توليد متجر شهرياً` : `${limit(e.aiStoreGenerationsMonthly)} AI store generations / month`] : []),
     ...(e.aiStoreEditsMonthly > 0 ? [ar ? `${limit(e.aiStoreEditsMonthly)} تعديل ذكي شهرياً` : `${limit(e.aiStoreEditsMonthly)} AI edits / month`] : []),

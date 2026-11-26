@@ -56,6 +56,11 @@ export async function advanceOrderStatus(
   changedById?: string,
 ) {
   return prisma.$transaction(async (tx) => {
+    if (!['CANCELLED', 'REJECTED'].includes(status)) {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} AND "merchantId" = ${merchantId} FOR UPDATE`;
+      const current = await tx.order.findUniqueOrThrow({ where: { id: orderId, merchantId }, select: { paymentMethod: true, payment: { select: { status: true } } } });
+      if (current.paymentMethod === 'ONLINE' && current.payment?.status !== 'COMPLETED') throw new Error('انتظر تأكيد الدفع الإلكتروني قبل تجهيز الطلب');
+    }
     const order = await tx.order.update({
       where: { id: orderId, merchantId },
       data: {
