@@ -19,7 +19,7 @@ export async function getMerchantOnlinePaymentStatus(merchantId: string) {
   return { ...gateway, eligible, ready: gateway.enabled && gateway.configured && eligible && (gateway.provider !== 'PAYMOB' || gateway.currency === 'SAR') };
 }
 
-export async function createMarketOrderCheckout(input: { merchantId: string; orderId: string; origin: string }) {
+export async function createMarketOrderCheckout(input: { merchantId: string; orderId: string; origin: string; returnPath?: string }) {
   const status = await getMerchantOnlinePaymentStatus(input.merchantId);
   if (!status.ready) throw new BusinessRuleError('الدفع الإلكتروني غير متاح لهذا المتجر حاليًا.');
   return status.provider === 'PAYMOB' ? createPaymobOrderCheckout(input) : createOrderStripeCheckout(input);

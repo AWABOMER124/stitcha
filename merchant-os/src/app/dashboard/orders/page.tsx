@@ -138,7 +138,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">{t.title}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">{t.subtitle}</p>
         </div>
-        <Link href="/dashboard/orders/new" className="rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-bold text-white">+ إنشاء طلب</Link>
+        <div className="flex flex-wrap gap-2"><Link href="/dashboard/sales" className="rounded-xl border px-4 py-2.5 text-sm font-bold">المبيعات الخاصة</Link><Link href="/dashboard/orders/new" className="rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-bold text-white">+ إنشاء طلب</Link></div>
       </div>
 
       <Suspense fallback={<div className="h-10 animate-pulse rounded-lg bg-[var(--muted)]" />}>

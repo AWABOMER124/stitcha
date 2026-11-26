@@ -12,6 +12,7 @@ const limitLabels: Record<(typeof PLAN_LIMIT_FIELDS)[number], string> = {
   aiImageEnhancementsMonthly: 'تحسين الصور / شهر', whatsappAiConversationsMonthly: 'محادثات واتساب AI / شهر',
 };
 const flagLabels: Record<(typeof PLAN_BOOLEAN_FIELDS)[number], string> = {
+  assistedSales: 'المبيعات الخاصة وروابط الدفع',
   customDomain: 'دومين خاص', removeBranding: 'إزالة علامة وصلة', advancedAnalytics: 'تحليلات متقدمة',
   crmAutomation: 'أتمتة CRM', dataExport: 'تصدير البيانات', apiAccess: 'الوصول إلى API', whatsappAiAgent: 'وكيل واتساب AI',
 };

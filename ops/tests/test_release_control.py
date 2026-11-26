@@ -63,6 +63,8 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(routing['services']['wasla-release-financial']['loadBalancer']['servers'][0]['url'], 'http://green:3000')
         self.assertEqual(routing['middlewares']['wasla-release-critical']['headers']['customResponseHeaders']['X-Wasla-API-Release'], 'release-green')
         self.assertIn('/api/paymob/', routing['routers']['wasla-release-critical']['rule'])
+        for path in ['/api/sales/', '/pay/', '/dashboard/sales']:
+            self.assertIn(path, routing['routers']['wasla-release-critical']['rule'])
 
     def test_refuses_a_changed_financial_pin_even_if_the_candidate_is_healthy(self):
         slot = self.config['slots']['green']

@@ -97,6 +97,7 @@ export async function create(
     subtotal: number;
     deliveryFee: number;
     total: number;
+    currency?: string;
     deliveryMethod: string;
     paymentMethod: string;
     notes?: string;
@@ -132,9 +133,10 @@ export async function create(
       proofSha256: string;
     };
     affiliateToken?: string;
-  }
+  },
+  db?: Prisma.TransactionClient,
 ) {
-  const order = await prisma.$transaction(async (tx) => {
+  const run = async (tx: Prisma.TransactionClient) => {
     const customer = await tx.customer.findFirst({
       where: { id: data.customerId, merchantId },
       select: { id: true },
@@ -277,14 +279,15 @@ export async function create(
         channel: 'IN_APP',
         recipient: merchantId,
         title: 'طلب جديد',
-        body: `طلب ${createdOrder.orderNumber} بقيمة ${data.total.toLocaleString()} SDG`,
+        body: `طلب ${createdOrder.orderNumber} بقيمة ${data.total.toLocaleString()} ${data.currency ?? 'SDG'}`,
         metadata: { kind: 'ORDER', orderId: createdOrder.id },
         idempotencyKey: `order:new:${createdOrder.id}`,
       },
     });
 
     return createdOrder;
-  });
+  };
+  const order = db ? await run(db) : await prisma.$transaction(run);
   return serializePrismaObject(order);
 }
 
@@ -298,6 +301,16 @@ export async function updateStatus(
   expectedStatus?: OrderStatus,
 ) {
   return prisma.$transaction(async (tx) => {
+    // Assisted orders cannot enter preparation before provider-confirmed payment.
+    // Keep cancellation available; a late payment is reconciled by the gateway flow.
+    if (!['NEW', 'CANCELLED', 'REJECTED'].includes(status)) {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id} AND "merchantId" = ${merchantId} FOR UPDATE`;
+      const sale = await tx.salesQuote.findFirst({ where: { orderId: id, merchantId }, select: { id: true } });
+      if (sale) {
+        const payment = await tx.payment.findUnique({ where: { orderId: id } });
+        if (payment?.method === 'ONLINE' && payment.status !== 'COMPLETED') throw new BusinessRuleError('الطلب بانتظار تأكيد الدفع الإلكتروني.');
+      }
+    }
     const result = await tx.order.updateMany({
       where: { id, merchantId, ...(expectedStatus && { status: expectedStatus }) },
       data: {

@@ -32,7 +32,11 @@ const nextConfig: NextConfig = {
         { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=()' },
         { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
       ],
-    }];
+    }, { source: '/pay/:path*', headers: [
+      { key: 'Referrer-Policy', value: 'no-referrer' },
+      { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+      { key: 'Cache-Control', value: 'private, no-store' },
+    ] }];
   },
   // Keep CI and small production builders stable instead of spawning one
   // prerender worker per detected CPU core.

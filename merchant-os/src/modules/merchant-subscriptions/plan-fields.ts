@@ -7,6 +7,7 @@ export const PLAN_LIMIT_FIELDS = [
 ] as const satisfies readonly (keyof MerchantEntitlements)[];
 
 export const PLAN_BOOLEAN_FIELDS = [
+  'assistedSales',
   'customDomain', 'removeBranding', 'advancedAnalytics', 'crmAutomation',
   'dataExport', 'apiAccess', 'whatsappAiAgent',
 ] as const satisfies readonly (keyof MerchantEntitlements)[];

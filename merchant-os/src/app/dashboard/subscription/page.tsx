@@ -17,6 +17,7 @@ import { getMerchantAiUsageSummary } from '@/modules/ai-usage';
 export const dynamic = 'force-dynamic';
 
 const FEATURES = [
+  ['assistedSales', 'المبيعات الخاصة وروابط الدفع', 'Assisted sales and payment links'],
   ['maxActiveProducts', 'المنتجات النشطة', 'Active products'],
   ['maxCategories', 'التصنيفات', 'Categories'],
   ['maxStaffUsers', 'حسابات الفريق', 'Staff seats'],

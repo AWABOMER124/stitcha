@@ -288,6 +288,7 @@ export async function editOrder(
       where: { id, merchantId },
       include: {
         platformShipment: { select: { id: true } },
+        salesQuote: { select: { id: true } },
         delivery: true,
         payment: { select: { id: true, method: true, status: true } },
       },
@@ -309,6 +310,7 @@ export async function editOrder(
     const lng = data.deliveryLng ?? (geographyChanged ? null : current.delivery?.lng ?? null);
     const coordinatesChanged = (current.delivery?.lat ?? null) !== lat || (current.delivery?.lng ?? null) !== lng;
     const financialChanged = Number(current.deliveryFee) !== data.deliveryFee;
+    if (financialChanged && current.salesQuote) throw new BusinessRuleError('قيمة طلب المبيعات الخاصة مثبتة؛ لا يمكن تغيير السعر أو رسوم الشحن بعد إتمام العرض.');
     if (financialChanged && (current.payment?.method === 'ONLINE' || current.payment?.status === 'COMPLETED')) throw new BusinessRuleError('لا يمكن تعديل قيمة طلب بدأ دفعه إلكترونيًا أو اكتمل سداده.');
     if (
       current.platformShipment &&
