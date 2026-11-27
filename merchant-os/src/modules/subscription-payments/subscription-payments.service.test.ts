@@ -6,7 +6,7 @@ const txMock = {
   merchantSubscriptionPayment: { findUnique: vi.fn(), updateMany: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
   merchantSubscription: { upsert: vi.fn(), findUnique: vi.fn() },
   merchantSubscriptionEvent: { create: vi.fn() },
-  merchantPlanChangeRequest: { update: vi.fn(), findUnique: vi.fn() },
+  merchantPlanChangeRequest: { update: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
   merchantReferral: { findUnique: vi.fn() },
   marketerMerchantReferral: { findUnique: vi.fn() },
 };
@@ -41,6 +41,7 @@ describe('manual subscription payments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     txMock.$queryRaw.mockResolvedValue([]);
+    txMock.merchantPlanChangeRequest.findFirst.mockResolvedValue({ id: 'request_1', status: 'PENDING' });
     txMock.onlineCheckoutAttempt.findFirst.mockResolvedValue(null);
     txMock.merchantSubscriptionPayment.findFirst.mockResolvedValue(null);
     txMock.merchantSubscriptionPayment.create.mockImplementation(args => prismaMock.merchantSubscriptionPayment.create(args));

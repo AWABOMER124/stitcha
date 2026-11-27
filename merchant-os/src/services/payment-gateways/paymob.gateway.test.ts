@@ -26,8 +26,10 @@ describe('Paymob gateway', () => {
   });
   it('distinguishes an explicit creation rejection from an ambiguous transport error', async () => {
     const input = { reference: 'synthetic-attempt', amountMinor: 4900, itemName: 'Synthetic', phone: '+966500000000', firstName: 'Synthetic', lastName: 'Buyer', notificationUrl: 'https://synthetic.example/webhook', returnUrl: 'https://synthetic.example/return' };
-    const rejected = new PaymobGateway(config, vi.fn().mockResolvedValue(new Response('{}', { status: 422 })));
-    await expect(rejected.createIntention(input)).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'PaymobCreationRejected' }) });
+    for (const status of [400, 401, 403, 404, 422]) {
+      const rejected = new PaymobGateway(config, vi.fn().mockResolvedValue(new Response('{}', { status })));
+      await expect(rejected.createIntention(input)).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'PaymobCreationRejected' }) });
+    }
     const interrupted = new PaymobGateway(config, vi.fn().mockRejectedValue(new TypeError('synthetic connection loss')));
     await expect(interrupted.createIntention(input)).rejects.toBeInstanceOf(TypeError);
   });
