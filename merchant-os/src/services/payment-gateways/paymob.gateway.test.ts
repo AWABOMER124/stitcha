@@ -17,6 +17,20 @@ describe('Saudi gateway routing', () => {
 });
 
 describe('Paymob gateway', () => {
+  it('uses authenticated order inquiry without treating not-found as a payment failure', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ token: 'synthetic-inquiry-token' }), { status: 201 })).mockResolvedValueOnce(new Response(JSON.stringify({ detail: 'Not found' }), { status: 404 }));
+    expect(await new PaymobGateway(config, fetcher).inquireOrder({ merchantOrderId: 'synthetic-attempt' })).toBeNull();
+    const [, input] = fetcher.mock.calls[1];
+    expect(JSON.parse(input.body)).toMatchObject({ auth_token: 'synthetic-inquiry-token', merchant_order_id: 'synthetic-attempt' });
+    expect(input.redirect).toBe('error');
+  });
+  it('distinguishes an explicit creation rejection from an ambiguous transport error', async () => {
+    const input = { reference: 'synthetic-attempt', amountMinor: 4900, itemName: 'Synthetic', phone: '+966500000000', firstName: 'Synthetic', lastName: 'Buyer', notificationUrl: 'https://synthetic.example/webhook', returnUrl: 'https://synthetic.example/return' };
+    const rejected = new PaymobGateway(config, vi.fn().mockResolvedValue(new Response('{}', { status: 422 })));
+    await expect(rejected.createIntention(input)).rejects.toMatchObject({ constructor: expect.objectContaining({ name: 'PaymobCreationRejected' }) });
+    const interrupted = new PaymobGateway(config, vi.fn().mockRejectedValue(new TypeError('synthetic connection loss')));
+    await expect(interrupted.createIntention(input)).rejects.toBeInstanceOf(TypeError);
+  });
   it('preserves international phone numbers and normalizes Saudi local numbers once', () => {
     for (const value of ['0500000000', '500000000', '966500000000', '+966500000000', '00966500000000']) expect(paymobPhone(value)).toBe('+966500000000');
     expect(paymobPhone('+249900000000')).toBe('+249900000000');

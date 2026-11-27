@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 
-export function StripeCheckoutButton({ locale, planChangeRequestId }: { planChangeRequestId?: string; locale: 'ar' | 'en' }) {
+export function StripeCheckoutButton({ locale, planChangeRequestId, onUncertain }: { planChangeRequestId?: string; locale: 'ar' | 'en'; onUncertain?: () => void }) {
   const ar = locale === 'ar';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -20,6 +20,7 @@ export function StripeCheckoutButton({ locale, planChangeRequestId }: { planChan
         setError(response.status === 429
           ? (ar ? 'محاولات كثيرة خلال وقت قصير. انتظر قليلًا ثم حاول مجددًا.' : 'Too many attempts. Please wait before trying again.')
           : (ar ? 'تعذر تجهيز صفحة الدفع الآن. اختيار الباقة محفوظ؛ راجع حالة الاشتراك قبل المحاولة مجددًا.' : 'Checkout is unavailable. Your plan selection is saved; check your subscription status before trying again.'));
+        onUncertain?.();
         inFlight.current = false;
         setBusy(false);
         return;
@@ -29,6 +30,7 @@ export function StripeCheckoutButton({ locale, planChangeRequestId }: { planChan
       // A dropped response is not proof that checkout creation failed. Never
       // retry this payment mutation automatically or expose transport errors.
       setError(ar ? 'انقطع الاتصال أثناء تجهيز الدفع. اختيارك محفوظ؛ راجع حالة الاشتراك قبل إعادة المحاولة.' : 'The connection was interrupted. Your selection is saved; check your subscription status before trying again.');
+      onUncertain?.();
       inFlight.current = false;
       setBusy(false);
     }

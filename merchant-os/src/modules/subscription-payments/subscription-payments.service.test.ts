@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const txMock = {
-  merchantSubscriptionPayment: { findUnique: vi.fn(), updateMany: vi.fn() },
-  merchantSubscription: { upsert: vi.fn() },
+  $queryRaw: vi.fn(),
+  onlineCheckoutAttempt: { findFirst: vi.fn() },
+  merchantSubscriptionPayment: { findUnique: vi.fn(), updateMany: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
+  merchantSubscription: { upsert: vi.fn(), findUnique: vi.fn() },
   merchantSubscriptionEvent: { create: vi.fn() },
-  merchantPlanChangeRequest: { update: vi.fn() },
+  merchantPlanChangeRequest: { update: vi.fn(), findUnique: vi.fn() },
   merchantReferral: { findUnique: vi.fn() },
   marketerMerchantReferral: { findUnique: vi.fn() },
 };
@@ -38,6 +40,12 @@ const evidence = {
 describe('manual subscription payments', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    txMock.$queryRaw.mockResolvedValue([]);
+    txMock.onlineCheckoutAttempt.findFirst.mockResolvedValue(null);
+    txMock.merchantSubscriptionPayment.findFirst.mockResolvedValue(null);
+    txMock.merchantSubscriptionPayment.create.mockImplementation(args => prismaMock.merchantSubscriptionPayment.create(args));
+    txMock.merchantPlanChangeRequest.findUnique.mockResolvedValue({ status: 'PENDING', billingInterval: 'MONTHLY' });
+    txMock.merchantSubscription.findUnique.mockResolvedValue(null);
     txMock.merchantReferral.findUnique.mockResolvedValue(null);
     txMock.marketerMerchantReferral.findUnique.mockResolvedValue(null);
     prismaMock.platformBillingSettings.findUnique.mockResolvedValue({ usdToSdgRate: 5_000, updatedAt: new Date() });
@@ -100,5 +108,34 @@ describe('manual subscription payments', () => {
     txMock.merchantSubscriptionPayment.findUnique.mockResolvedValue({ id: 'payment_1', provider: 'manual', status: 'PENDING' });
     await expect(reviewSubscriptionPayment('payment_1', 'owner_1', 'REJECT', ' ')).rejects.toThrow('Rejection reason is required');
     expect(txMock.merchantSubscriptionPayment.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('accepts a native SAR quote and refuses an account with another currency', async () => {
+    prismaMock.platformPaymentAccount.findFirst.mockResolvedValue({ id: 'sar-account', currency: 'SAR', channel: 'OTHER' });
+    prismaMock.merchantPlanChangeRequest.findFirst.mockResolvedValue({ id: 'sa-request', targetPlanId: 'sa-growth', billingInterval: 'YEARLY', quotedAmount: 490, quotedCurrency: 'SAR', targetPlan: { monthlyPrice: 49, yearlyPrice: 490, currency: 'SAR' } });
+    prismaMock.merchantSubscriptionPayment.findFirst.mockResolvedValue(null);
+    prismaMock.merchantSubscriptionPayment.create.mockResolvedValue({ id: 'sar-payment', status: 'PENDING' });
+    await submitManualSubscriptionPayment('merchant-sa', { planChangeRequestId: 'sa-request', paymentAccountId: 'sar-account', transactionRef: 'TRANSFER-2026' }, evidence);
+    expect(prismaMock.merchantSubscriptionPayment.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ amount: 490, currency: 'SAR' }) }));
+    prismaMock.platformPaymentAccount.findFirst.mockResolvedValue({ id: 'sd-account', currency: 'SDG', channel: 'BANKAK' });
+    await expect(submitManualSubscriptionPayment('merchant-sa', { planChangeRequestId: 'sa-request', paymentAccountId: 'sd-account', transactionRef: 'TRANSFER-2027' }, evidence)).rejects.toThrow('عملة');
+  });
+
+  it('blocks a transfer while an online checkout remains payable', async () => {
+    prismaMock.platformPaymentAccount.findFirst.mockResolvedValue({ id: 'account_1', currency: 'SDG', channel: 'BANKAK' });
+    prismaMock.merchantPlanChangeRequest.findFirst.mockResolvedValue({ id: 'request_1', targetPlanId: 'plan_pro', targetPlan: { monthlyPrice: 5, currency: 'USD' } });
+    prismaMock.merchantSubscriptionPayment.findFirst.mockResolvedValue(null);
+    txMock.onlineCheckoutAttempt.findFirst.mockResolvedValue({ id: 'existing-checkout', status: 'READY' });
+    await expect(submitManualSubscriptionPayment('merchant_1', { paymentAccountId: 'account_1', transactionRef: 'TEST-TRANSFER' }, evidence)).rejects.toThrow('قيد المتابعة');
+    expect(privateStorageMock.delete).toHaveBeenCalledOnce();
+  });
+
+  it('uses the quoted annual interval on admin approval', async () => {
+    txMock.merchantSubscriptionPayment.findUnique.mockResolvedValue({ id: 'annual-payment', merchantId: 'merchant-sa', targetPlanId: 'sa-pro', planChangeRequestId: 'annual-request', provider: 'manual', status: 'PENDING', amount: 990, currency: 'SAR' });
+    txMock.merchantPlanChangeRequest.findUnique.mockResolvedValue({ status: 'PENDING', billingInterval: 'YEARLY' });
+    txMock.merchantSubscriptionPayment.updateMany.mockResolvedValue({ count: 1 });
+    txMock.merchantSubscription.upsert.mockResolvedValue({ id: 'annual-subscription' });
+    await reviewSubscriptionPayment('annual-payment', 'admin', 'VERIFY');
+    expect(txMock.merchantSubscription.upsert).toHaveBeenCalledWith(expect.objectContaining({ update: expect.objectContaining({ billingInterval: 'YEARLY', currencyOverride: 'SAR', priceOverride: 990 }) }));
   });
 });
