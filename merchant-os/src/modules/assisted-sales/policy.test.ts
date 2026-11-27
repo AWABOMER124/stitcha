@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SALES_SETTINGS, salesSettingsSchema, quoteInputSchema, priceQuote, quoteState, renderSalesMessage } from './policy';
+import { DEFAULT_SALES_SETTINGS, salesSettingsSchema, quoteInputSchema, checkoutInputSchema, priceQuote, quoteState, renderSalesMessage } from './policy';
 
 describe('assisted sales policy', () => {
+  it('validates recipient details and requires paired finite delivery coordinates', () => {
+    expect(checkoutInputSchema.parse({ customerName: ' محمد أحمد ', customerPhone: '+966 500-000-000', lat: 24.7, lng: 46.6 })).toMatchObject({ customerName: 'محمد أحمد', customerPhone: '+966500000000', lat: 24.7, lng: 46.6 });
+    for (const value of [{ lat: 24.7 }, { lng: 46.6 }, { lat: 91, lng: 46.6 }, { lat: 24.7, lng: Infinity }, { customerPhone: '123' }]) expect(checkoutInputSchema.safeParse(value).success).toBe(false);
+    expect(checkoutInputSchema.safeParse({ city: 'الرياض', district: 'النرجس', address: 'شارع تجريبي' }).success).toBe(true);
+  });
   const line = { productId: 'cm00000000000000000000001', name: 'منتج', sku: null, quantity: 2, unitPrice: 300, listPrice: 350, total: 600 };
   it('uses the negotiated price and adds shipping exactly once', () => {
     expect(priceQuote([line], 25)).toEqual({ subtotal: 600, total: 625, discountPercent: 14.29 });

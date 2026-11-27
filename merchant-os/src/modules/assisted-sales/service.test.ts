@@ -96,6 +96,11 @@ describe('sales access and price approvals', () => {
 
 describe('guest checkout and order identity', () => {
   const address = { city: 'الرياض', district: 'النرجس', address: 'شارع الاختبار مبنى ١' };
+  it('saves recipient corrections and the complete delivery point without changing the quote amount', async () => {
+    await checkoutQuote(baseQuote.token, { ...address, customerName: 'مستلم الطلب', customerPhone: '+966 511-111-111', state: 'منطقة الرياض', description: 'الدور الثاني', lat: 24.7, lng: 46.6 }, 'https://store.example');
+    expect(m.db.customer.findFirst).toHaveBeenCalledWith({ where: { merchantId: auth.merchantId, phone: '+966511111111' } });
+    expect(m.createOrder).toHaveBeenCalledWith(auth.merchantId, expect.objectContaining({ customerName: 'مستلم الطلب', customerPhone: '+966511111111', customerState: 'منطقة الرياض', customerCity: 'الرياض', customerDistrict: 'النرجس', customerAddress: address.address, customerAddressDescription: 'الدور الثاني', deliveryLat: 24.7, deliveryLng: 46.6, total: 625 }), m.db);
+  });
   it('creates an order with the server-locked amount and returns the gateway URL', async () => {
     expect(await checkoutQuote(baseQuote.token, { ...address, total: 1 }, 'https://store.example')).toEqual({ checkoutUrl: 'https://gateway.example/checkout' });
     expect(m.createOrder).toHaveBeenCalledWith(auth.merchantId, expect.objectContaining({ total: 625, paymentMethod: 'ONLINE', items: [expect.objectContaining({ unitPrice: 300, quantity: 2 })] }), m.db);

@@ -43,6 +43,14 @@ Quote and settings forms save directly through their explicit save buttons. They
 
 ## Release and verification
 
+### Recipient details and delivery pin
+
+The public `/pay/[token]` link lets the recipient review or correct the full name and international phone number before the order is created. Delivery fields include region/state, city, district, street/building and optional arrival instructions. These values and optional latitude/longitude are passed to the existing order repository, which persists the address in the delivery record. Price, shipping charge, products and currency remain locked to the seller's quote. Existing customer records are not renamed by a guest; recipient details are stored on the order. Once an order exists, revisiting the link resumes that order and cannot replace its contact details or delivery pin.
+
+Location access starts only after the recipient presses the location button. The browser requests GPS permission and makes a client-side, no-credentials/no-referrer call to BigDataCloud's free reverse-geocode endpoint, as disclosed beside the button. Only coordinates are sent to that service, with the visitor's IP implicit in the connection; the private sale token, recipient name and phone are not sent. Region/city/locality can populate blank fields only. This provider returns locality information, not a guaranteed street/building address; missing district or street information must be entered and reviewed manually. No IP-based location fallback is accepted as the delivery pin. GPS denial keeps manual entry available; reverse-geocoding failure retains the pin while asking for manual address entry. The pin has a Google Maps review link and a removal action. No new API key or schema migration is required.
+
+Provider reference: https://www.bigdatacloud.com/docs/free-api/free-reverse-geocode-to-city-api . Regression tests validate finite paired coordinates and contact normalization, assert order-repository forwarding, and check real database persistence with immutable details on retry. Run these and mobile/desktop browser acceptance before promotion; implementation in source alone does not mean this addition is live.
+
 The schema change is additive: three tables, indexes, plan entitlement updates and an order amount guard. It does not change subscription prices, gateway secrets, merchant identity decisions or carrier configuration. Apply it once through the explicit migration process before the candidate receives traffic; web instances do not migrate on startup.
 
 Keep assisted sales pages, checkout APIs and fulfillment on the compatible financial implementation when routing older browser versions. Preserve the previous immutable web image and the existing authentication/encryption keys. Rolling back the UI must not restore a database snapshot or discard newer orders. The financial pin must continue serving the implementation that understands assisted orders and their payment links.

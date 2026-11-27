@@ -63,6 +63,19 @@ describe('database-backed assisted checkout', () => {
       paymentMethod: 'ONLINE', deliveryMethod: 'MERCHANT_DELIVERY', expiryHours: 48 }, quote.id, quote.version);
     await expect(checkoutQuote(quote.token, address, 'https://synthetic.example')).rejects.toThrow();
   });
+  it('persists the recipient, full address and pin, and ignores edits after order creation', async () => {
+    const quote = await offer();
+    const details = { ...address, customerName: 'Synthetic recipient', customerPhone: '+966511111111', state: 'الرياض', description: 'معلم تجريبي', lat: 24.7, lng: 46.6 };
+    await checkoutQuote(quote.token, details, 'https://synthetic.example');
+    await checkoutQuote(quote.token, { ...details, customerName: 'Changed', lat: 25, lng: 47 }, 'https://synthetic.example');
+    const saved = await prisma.salesQuote.findUniqueOrThrow({ where: { id: quote.id }, include: { order: { include: { delivery: true, customer: true } } } });
+    expect(saved.order).toMatchObject({ customerName: details.customerName, customerPhone: details.customerPhone, customerAddress: details.address });
+    expect(saved.order?.delivery).toMatchObject({ state: details.state, city: details.city, area: details.district, notes: details.description });
+    expect(Number(saved.order?.delivery?.lat)).toBe(24.7);
+    expect(Number(saved.order?.delivery?.lng)).toBe(46.6);
+    expect(saved.order?.customer.phone).toBe(details.customerPhone);
+    expect(Number(saved.order?.total)).toBe(625);
+  });
   it('rejects expired offers without changing stock', async () => {
     const quote = await offer();
     await prisma.salesQuote.update({ where: { id: quote.id }, data: { expiresAt: new Date(0) } });
