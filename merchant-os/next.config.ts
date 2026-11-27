@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
       headers: [
         { key: 'Content-Security-Policy', value: contentSecurityPolicy },
         { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        // QUIC retries were observed dropping route/payment fetches on affected networks.
+        { key: 'Alt-Svc', value: 'clear' },
         { key: 'X-Content-Type-Options', value: 'nosniff' },
         { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
         { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=()' },

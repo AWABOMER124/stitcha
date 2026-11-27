@@ -72,7 +72,7 @@ def render_routing(hosts, active, previous=None, entrypoint="websecure", tls=Tru
             router["tls"] = {"certResolver": "letsencrypt"}
         http["routers"][service] = router
     http["middlewares"] = {"wasla-release-platform-host": {
-        "headers": {"customRequestHeaders": {"X-Forwarded-Host": hosts[0]}}
+        "headers": {"customRequestHeaders": {"X-Forwarded-Host": hosts[0]}, "customResponseHeaders": {"Alt-Svc": "clear"}}
     }}
     # Browser version hints must not select an older implementation of money
     # collection, provider callbacks, or business-market account creation.

@@ -4,6 +4,8 @@ import { paymentProviderForMarket } from '@/services/payment-gateways/market-pol
 import { createOrderStripeCheckout, createSubscriptionStripeCheckout, getStripeStatus, isMerchantEligibleForCentralStripe } from '@/modules/stripe-payments/stripe-payments.service';
 import { getPaymobSettingsSummary } from './paymob-settings.service';
 import { createPaymobOrderCheckout, createPaymobSubscriptionCheckout } from './paymob-payments.service';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
+import { FREE_PLAN_CODE } from '@/modules/merchant-subscriptions/entitlements';
 
 export async function getMerchantPaymentGatewayStatus(merchantId: string) {
   const merchant = await prisma.merchant.findUniqueOrThrow({ where: { id: merchantId }, select: { subscriptionMarket: true, currency: true } });
@@ -15,8 +17,9 @@ export async function getMerchantPaymentGatewayStatus(merchantId: string) {
 }
 
 export async function getMerchantOnlinePaymentStatus(merchantId: string) {
-  const [gateway, eligible] = await Promise.all([getMerchantPaymentGatewayStatus(merchantId), isMerchantEligibleForCentralStripe(merchantId)]);
-  return { ...gateway, eligible, ready: gateway.enabled && gateway.configured && eligible && (gateway.provider !== 'PAYMOB' || gateway.currency === 'SAR') };
+  const [gateway, eligible, plan] = await Promise.all([getMerchantPaymentGatewayStatus(merchantId), isMerchantEligibleForCentralStripe(merchantId), getMerchantPlanSnapshot(merchantId)]);
+  const planEligible = plan.code !== FREE_PLAN_CODE;
+  return { ...gateway, eligible, planEligible, ready: planEligible && gateway.enabled && gateway.configured && eligible && (gateway.provider !== 'PAYMOB' || gateway.currency === 'SAR') };
 }
 
 export async function createMarketOrderCheckout(input: { merchantId: string; orderId: string; origin: string; returnPath?: string }) {

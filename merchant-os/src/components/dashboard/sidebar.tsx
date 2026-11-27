@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { NavigationPending } from '@/components/shared/navigation-pending';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale } from "@/lib/i18n/context";
@@ -150,6 +151,7 @@ export function DashboardSidebar({
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    prefetch={false}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
                       isActive
                         ? "bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] font-medium shadow-sm"
@@ -157,7 +159,7 @@ export function DashboardSidebar({
                     }`}
                   >
                     <span className="text-base">{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span>{item.label}</span><NavigationPending />
                   </Link>
                 </li>
               );

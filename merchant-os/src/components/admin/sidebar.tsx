@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { NavigationPending } from '@/components/shared/navigation-pending';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -112,6 +113,7 @@ export function AdminSidebar({ role }: { role: UserRole }) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    prefetch={false}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
                       isActive
                         ? 'bg-[var(--primary)] text-white font-medium shadow-sm'
@@ -119,7 +121,7 @@ export function AdminSidebar({ role }: { role: UserRole }) {
                     }`}
                   >
                     <span className="text-base">{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span>{item.label}</span><NavigationPending />
                   </Link>
                 </li>
               );

@@ -75,7 +75,7 @@ export function MarketPricing({ selection, plans, locale, href, hint }: {
               <h3 className={`text-lg font-extrabold ${featured ? 'text-emerald-300' : 'text-[#087d82] dark:text-emerald-300'}`}>{free ? (ar ? 'الأساسية' : 'Basic') : ar ? plan.name : plan.code.replace('SA_', '')}</h3>
               <div className="mt-6 min-h-24"><p className="flex flex-wrap items-baseline gap-2"><span className="text-4xl font-black tracking-tight">{free ? (ar ? 'مجاناً' : 'Free') : number(amount)}</span>{!free && <span className="text-sm opacity-70">{currency} / {yearly ? (ar ? 'سنة' : 'year') : (ar ? 'شهر' : 'month')}</span>}</p><p className="mt-3 text-xs opacity-65">{free ? (ar ? 'ابدأ بدون بطاقة بنكية' : 'No bank card required') : saving > 0 ? (ar ? `توفّر ${number(saving)} ${currency} سنوياً` : `Save ${number(saving)} ${currency} yearly`) : (ar ? 'اشتراك شهري مرن' : 'Flexible monthly billing')}</p></div>
               <Link href={href} className={`mt-3 rounded-xl px-4 py-3.5 text-center text-sm font-extrabold transition ${featured ? 'bg-[#13C4A3] text-[#05252b] hover:bg-emerald-300' : 'bg-[#eaf5f2] text-[#087d82] hover:bg-emerald-100 dark:bg-white/10 dark:text-emerald-300'}`}>{free ? (ar ? 'ابدأ مجاناً' : 'Start free') : (ar ? 'اختر الباقة' : 'Choose plan')}</Link>
-              <ul className="mt-7 space-y-4 border-t border-current/10 pt-6">{features(plan.entitlements, ar).map(item => <li key={item} className="flex gap-2.5 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-[#13C4A3]"/>{item}</li>)}</ul>
+              <ul className="mt-7 space-y-4 border-t border-current/10 pt-6">{features(plan.entitlements, ar, plan.code).map(item => <li key={item} className="flex gap-2.5 text-sm leading-6"><Check className="mt-1 h-4 w-4 shrink-0 text-[#13C4A3]"/>{item}</li>)}</ul>
             </article>;
           })}
         </div>
@@ -86,12 +86,13 @@ export function MarketPricing({ selection, plans, locale, href, hint }: {
   </section>;
 }
 
-function features(e: MerchantEntitlements, ar: boolean) {
+function features(e: MerchantEntitlements, ar: boolean, code: string) {
   const limit = (value: number) => value === -1 ? (ar ? 'غير محدود' : 'Unlimited') : new Intl.NumberFormat(ar ? 'ar-SA' : 'en').format(value);
   return [
     ar ? `${limit(e.maxActiveProducts)} منتج و${limit(e.maxCategories)} تصنيف` : `${limit(e.maxActiveProducts)} products, ${limit(e.maxCategories)} categories`,
     ar ? `${limit(e.maxStaffUsers)} حساب فريق و${limit(e.maxBranches)} فرع` : `${limit(e.maxStaffUsers)} staff seats, ${limit(e.maxBranches)} branches`,
     ar ? 'الطلبات والعملاء والفواتير' : 'Orders, customers and invoices',
+    ...(code !== 'FREE' ? [ar ? 'استقبال الدفع الإلكتروني بعد استكمال التوثيق' : 'Accept online payments after verification'] : []),
     ...(e.assistedSales ? [ar ? 'مبيعات الفريق بأسعار خاصة وروابط دفع' : 'Team sales, negotiated prices and payment links'] : []),
     ...(e.aiStoreGenerationsLifetime > 0 ? [ar ? `${e.aiStoreGenerationsLifetime} مسودة متجر ذكية عند البداية` : `${e.aiStoreGenerationsLifetime} starter AI store draft`] : []),
     ...(e.aiStoreGenerationsMonthly > 0 ? [ar ? `${limit(e.aiStoreGenerationsMonthly)} توليد متجر شهرياً` : `${limit(e.aiStoreGenerationsMonthly)} AI store generations / month`] : []),

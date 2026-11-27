@@ -14,7 +14,7 @@ import { evaluateMarketerReferralInTransaction } from '@/modules/marketer-referr
 import { recordOnlinePaymentEntry } from '@/modules/online-settlements/online-settlements.service';
 import { paymobPhone } from '@/services/payment-gateways/paymob.gateway';
 
-export async function createPaymobSubscriptionCheckout(input: { planChangeRequestId?: string; merchantId: string; origin: string }) {
+export async function createPaymobSubscriptionCheckout(input: { planChangeRequestId?: string; merchantId: string; customerEmail?: string | null; origin: string }) {
   const merchant = await requireSaudiMerchant(input.merchantId);
   const request = await prisma.merchantPlanChangeRequest.findFirst({ where: { id: input.planChangeRequestId, merchantId: merchant.id, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: true }, orderBy: { createdAt: 'desc' } });
   if (!request) throw new ValidationError('اختر الباقة قبل بدء الدفع.');
@@ -27,7 +27,7 @@ export async function createPaymobSubscriptionCheckout(input: { planChangeReques
   const quote = planRequestQuote(request);
   if (quote.currency !== 'SAR' || !request.targetPlan.code.startsWith('SA_')) throw new ValidationError('الباقة لا تطابق سوق السعودية.');
   return createIntention({ merchantId: merchant.id, purpose: 'SUBSCRIPTION', referenceId: request.id, amountMinor: sarMinor(quote.amount),
-    itemName: `WASLA ${request.targetPlan.name}`, name: merchant.name, phone: merchant.phone, origin: input.origin,
+    itemName: `WASLA ${request.targetPlan.name}`, name: merchant.name, phone: merchant.phone, email: input.customerEmail ?? undefined, origin: input.origin,
     returnPath: '/dashboard/subscription?paymob=returned' });
 }
 
@@ -40,7 +40,7 @@ export async function createPaymobOrderCheckout(input: { merchantId: string; ord
   if (order.merchant.currency !== 'SAR') throw new ValidationError('المتجر السعودي يحتاج تسعير الطلب بالريال السعودي للدفع عبر Paymob.');
   return createIntention({ merchantId: input.merchantId, purpose: 'ORDER', referenceId: order.id, amountMinor: sarMinor(Number(order.payment.amount)),
     itemName: `طلب ${order.orderNumber} — ${order.merchant.name}`, name: order.customerName || order.customer.name,
-      phone: order.customerPhone || order.customer.phone, origin: input.origin, returnPath: input.returnPath ?? `/store/${order.merchant.slug}/order/${order.id}?paymob=returned` });
+      phone: order.customerPhone || order.customer.phone, email: order.customer.email ?? undefined, origin: input.origin, returnPath: input.returnPath ?? `/store/${order.merchant.slug}/order/${order.id}?paymob=returned` });
 }
 
 async function requireSaudiMerchant(id: string) {
@@ -49,7 +49,7 @@ async function requireSaudiMerchant(id: string) {
   return merchant;
 }
 
-async function createIntention(input: { merchantId: string; purpose: string; referenceId: string; amountMinor: number; itemName: string; name: string; phone: string | null; origin: string; returnPath: string }) {
+async function createIntention(input: { merchantId: string; purpose: string; referenceId: string; amountMinor: number; itemName: string; name: string; phone: string | null; email?: string; origin: string; returnPath: string }) {
   const { gateway, config } = await getPaymobGateway();
   if (!gateway.status().enabled || !gateway.status().configured || (process.env.NODE_ENV === 'production' && config.mode !== 'LIVE')) throw new BusinessRuleError('الدفع عبر Paymob بانتظار تفعيل مفاتيح التشغيل.');
   const phone = paymobPhone(input.phone || '');
@@ -71,7 +71,7 @@ async function createIntention(input: { merchantId: string; purpose: string; ref
   try {
     const names = input.name.trim().split(/\s+/); const origin = new URL(input.origin).origin;
     const result = await gateway.createIntention({ reference: attempt.id, amountMinor: input.amountMinor, itemName: input.itemName,
-      firstName: names[0] || 'عميل', lastName: names.slice(1).join(' ') || names[0] || 'وصلة', phone,
+      firstName: names[0] || 'عميل', lastName: names.slice(1).join(' ') || names[0] || 'وصلة', phone, email: input.email,
       notificationUrl: `${origin}/api/paymob/webhook`, returnUrl: `${origin}${input.returnPath}` });
     await prisma.onlineCheckoutAttempt.update({ where: { id: attempt.id }, data: { status: 'READY', providerIntentionId: result.id, providerOrderId: result.orderId, checkoutSecretEncrypted: encryptSecret(result.clientSecret) } });
     return { provider: 'PAYMOB' as const, sessionId: result.id, checkoutUrl: gateway.checkoutUrl(result.clientSecret) };
@@ -92,8 +92,14 @@ export async function processPaymobWebhook(rawBody: string, signature: string | 
   if (identifier(remote.id) !== transactionId || identifier((remote.order as Record<string, unknown>)?.id) !== orderId
     || remote.currency !== callback.currency || remote.amount_cents !== callback.amount_cents || Number(remote.integration_id) !== Number(callback.integration_id)
     || String(remote.owner) !== String(callback.owner)) throw new ValidationError('Paymob inquiry does not match the signed callback');
-  const attempt = await prisma.onlineCheckoutAttempt.findUnique({ where: { providerOrderId: orderId } });
+  // A successful upstream creation can outlive a lost HTTP response. Only the
+  // authenticated inquiry may supply the fallback reference, never the unsigned
+  // merchant_order_id in the callback body.
+  const verifiedReference = identifier((remote.order as Record<string, unknown>)?.merchant_order_id);
+  const byOrder = await prisma.onlineCheckoutAttempt.findUnique({ where: { providerOrderId: orderId } });
+  const attempt = byOrder ?? (verifiedReference ? await prisma.onlineCheckoutAttempt.findUnique({ where: { id: verifiedReference } }) : null);
   if (!attempt || attempt.provider !== 'paymob') throw new NotFoundError('Paymob checkout');
+  if (!byOrder && (attempt.providerOrderId || attempt.status !== 'UNKNOWN')) throw new ConflictError('Paymob reference requires reconciliation');
   const parent = identifier(typeof remote.parent_transaction === 'object' && remote.parent_transaction ? (remote.parent_transaction as Record<string, unknown>).id : remote.parent_transaction);
   const originalId = attempt.providerTransactionId || (remote.has_parent_transaction === true ? parent : transactionId);
   if (!originalId) throw new ValidationError('Paymob parent transaction needs reconciliation');
@@ -115,13 +121,14 @@ export async function processPaymobWebhook(rawBody: string, signature: string | 
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM online_checkout_attempts WHERE id = ${attempt.id} FOR UPDATE`;
     const current = await tx.onlineCheckoutAttempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    if (current.providerOrderId && current.providerOrderId !== orderId) throw new ConflictError('Paymob order reference changed');
     const duplicate = current.status === 'SUCCEEDED';
     if (duplicate && current.providerTransactionId !== originalId) throw new ConflictError('A second payment requires reconciliation');
     if (!duplicate) {
       if (current.purpose === 'SUBSCRIPTION') await completeSubscription(tx, current, originalId);
       else if (current.purpose === 'ORDER') await completeOrder(tx, current, originalId, billing.onlineSettlementHoldDays);
       else throw new ValidationError('Unknown checkout purpose');
-      await tx.onlineCheckoutAttempt.update({ where: { id: current.id }, data: { status: 'SUCCEEDED', providerTransactionId: originalId, completedAt: new Date() } });
+      await tx.onlineCheckoutAttempt.update({ where: { id: current.id }, data: { status: 'SUCCEEDED', providerOrderId: orderId, providerTransactionId: originalId, completedAt: new Date() } });
     }
     const refundChanged = Number(refunded) > Number(current.refundedMinor);
     if (refundChanged) await applyVerifiedRefund(tx, current, originalId, Number(refunded), digest);
