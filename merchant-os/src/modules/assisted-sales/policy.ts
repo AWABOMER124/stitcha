@@ -38,10 +38,16 @@ export type QuoteItem = { productId: string; name: string; sku: string | null; q
 export type SavedQuote = { id: string; status: string; token: string | null; customerName: string; customerPhone: string; total: number; currency: string };
 
 export const checkoutInputSchema = z.object({
+  customerName: z.string().trim().min(2).max(120).optional(),
+  customerPhone: z.string().trim().transform(v => v.replace(/[\s()-]/g, '')).pipe(z.string().regex(/^\+?[0-9]{9,15}$/, 'أدخل رقم جوال صحيحًا مع رمز الدولة')).optional(),
+  state: z.string().trim().min(2).max(120).optional(),
   city: z.string().trim().min(2).max(120).optional(),
   district: z.string().trim().min(2).max(120).optional(),
   address: z.string().trim().min(5).max(500).optional(),
-});
+  description: z.string().trim().max(500).optional(),
+  lat: z.number().finite().min(-90).max(90).optional(),
+  lng: z.number().finite().min(-180).max(180).optional(),
+}).refine(v => (v.lat === undefined) === (v.lng === undefined), 'أرسل إحداثيات الموقع كاملة');
 
 export function priceQuote(items: QuoteItem[], deliveryFee: number) {
   const subtotalMinor = items.reduce((s, i) => s + Math.round(i.unitPrice * 100) * i.quantity, 0);

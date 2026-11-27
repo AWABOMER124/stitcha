@@ -29,7 +29,7 @@ export function PublicQuoteView({ quote, settings, token }: { quote: ViewQuote; 
         <p className="mt-3 text-xs leading-6 text-slate-500">الأسعار نهائية وتشمل أي ضريبة مطبقة. لا تُضاف رسوم أخرى في صفحة الدفع.</p>
         {quote.notes && <p className="mt-5 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-7">{quote.notes}</p>}
         {quote.terms && <details className="mt-5 text-sm"><summary className="cursor-pointer font-bold">شروط العرض</summary><p className="mt-3 whitespace-pre-wrap leading-7 text-slate-500">{quote.terms}</p></details>}
-        {!paid && !cashConfirmed && <PublicQuoteCheckout token={token} pickup={quote.deliveryMethod === 'PICKUP'} cash={quote.paymentMethod === 'CASH'} started={Boolean(quote.order)} expiresAt={quote.expiresAt.toISOString()} />}
+        {!paid && !cashConfirmed && <PublicQuoteCheckout token={token} pickup={quote.deliveryMethod === 'PICKUP'} cash={quote.paymentMethod === 'CASH'} started={Boolean(quote.order)} expiresAt={quote.expiresAt.toISOString()} customerName={quote.customerName} customerPhone={quote.customerPhone} />}
       </div>}
       <footer className="flex items-center justify-center gap-2 border-t border-slate-100 bg-slate-50 p-4 text-xs text-slate-500"><ShieldCheck size={16} />{quote.paymentMethod === 'ONLINE' ? 'الدفع عبر بوابة آمنة · لا تحتاج إلى إنشاء حساب' : 'طلب واضح ومبلغ ثابت · لا تحتاج إلى إنشاء حساب'}</footer></section>
     </div>

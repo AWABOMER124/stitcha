@@ -120,15 +120,19 @@ export async function checkoutQuote(token: string, input: unknown, origin: strin
     const items = quote.items as unknown as QuoteItem[];
     const active = await tx.product.count({ where: { merchantId: quote.merchantId, isActive: true, id: { in: items.map(i => i.productId) } } });
     if (active !== items.length) throw new BusinessRuleError('أحد المنتجات لم يعد متاحًا؛ تواصل مع موظف المبيعات.');
-    // Serialize customer creation for concurrent quotes for the same phone.
-    await tx.$queryRaw`SELECT 1::int AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${quote.merchantId + ':' + quote.customerPhone}))) AS sales_customer_lock`;
-    const customer = await tx.customer.findFirst({ where: { merchantId: quote.merchantId, phone: quote.customerPhone } })
-      ?? await tx.customer.create({ data: { merchantId: quote.merchantId, name: quote.customerName, phone: quote.customerPhone } });
+    const customerName = address.customerName ?? quote.customerName;
+    const customerPhone = address.customerPhone ?? quote.customerPhone;
+    // The recipient may correct contact details before order creation. A retry
+    // after creation retains the original order and its locked delivery details.
+    await tx.$queryRaw`SELECT 1::int AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${quote.merchantId + ':' + customerPhone}))) AS sales_customer_lock`;
+    const customer = await tx.customer.findFirst({ where: { merchantId: quote.merchantId, phone: customerPhone } })
+      ?? await tx.customer.create({ data: { merchantId: quote.merchantId, name: customerName, phone: customerPhone } });
     const created = await ordersRepo.create(quote.merchantId, {
       orderNumber: `SALE-${randomBytes(6).toString('hex').toUpperCase()}`, customerId: customer.id,
       subtotal: Number(quote.subtotal), deliveryFee: Number(quote.deliveryFee), total: Number(quote.total), currency: quote.currency,
-      customerName: quote.customerName, customerPhone: quote.customerPhone,
-      customerAddress: address.address, customerCity: address.city, customerDistrict: address.district,
+      customerName, customerPhone,
+      customerAddress: address.address, customerState: address.state, customerCity: address.city, customerDistrict: address.district,
+      customerAddressDescription: address.description, deliveryLat: address.lat, deliveryLng: address.lng,
       notes: quote.notes ?? undefined, deliveryMethod: quote.deliveryMethod, paymentMethod: quote.paymentMethod,
       items: items.map(i => ({ productId: i.productId, productSnapshot: { name: i.name, price: i.unitPrice, sku: i.sku, listPrice: i.listPrice },
         quantity: i.quantity, unitPrice: i.unitPrice, total: i.total })),
