@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const prismaMock = {
+  $transaction: vi.fn(),
+  $queryRaw: vi.fn(),
+  onlineCheckoutAttempt: { findFirst: vi.fn() },
+  merchantSubscriptionPayment: { findFirst: vi.fn() },
   merchant: { findUnique: vi.fn() },
   merchantSubscription: { findUnique: vi.fn() },
   merchantPlan: { findMany: vi.fn(), findFirst: vi.fn() },
@@ -9,6 +13,8 @@ const prismaMock = {
     findUnique: vi.fn(),
     findUniqueOrThrow: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
   },
 };
 const sendPlatformNotification = vi.fn();
@@ -22,6 +28,10 @@ const { parseEntitlements } = await import('./entitlements');
 
 describe('merchant SaaS entitlements', () => {
   beforeEach(() => {
+    prismaMock.$transaction.mockImplementation(async fn => fn(prismaMock));
+    prismaMock.$queryRaw.mockResolvedValue([]);
+    prismaMock.onlineCheckoutAttempt.findFirst.mockResolvedValue(null);
+    prismaMock.merchantSubscriptionPayment.findFirst.mockResolvedValue(null);
     prismaMock.merchantSubscription.findUnique.mockReset();
     prismaMock.merchantPlan.findMany.mockReset();
     prismaMock.merchantPlan.findFirst.mockReset();
@@ -124,6 +134,7 @@ describe('merchant SaaS entitlements', () => {
     prismaMock.merchantPlan.findFirst.mockResolvedValue({ id: 'pro_id', code: 'PRO', name: 'Pro', monthlyPrice: 10, currency: 'USD' });
     prismaMock.merchantSubscription.findUnique.mockResolvedValue({ status: 'ACTIVE', plan: { code: 'FREE' } });
     prismaMock.merchantPlanChangeRequest.findUnique.mockResolvedValue({ id: 'request_1', status: 'PENDING' });
+    prismaMock.merchantPlanChangeRequest.update.mockResolvedValue({ id: 'request_1', status: 'PENDING' });
 
     await expect(requestPlanChange('merchant_1', 'PRO')).resolves.toMatchObject({ status: 'PENDING' });
     expect(prismaMock.merchantPlanChangeRequest.create).not.toHaveBeenCalled();

@@ -163,13 +163,12 @@ describe('Verified Saudi payment and carrier lifecycle', () => {
     expect(first.provider).toBe('PAYMOB');
     expect(await createPaymobSubscriptionCheckout({ merchantId, origin: 'https://synthetic.example' })).toEqual(first);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    await prisma.merchantPlanChangeRequest.updateMany({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, data: { status: 'CANCELLED' } });
-    const next = await requestPlanChange(merchantId, 'SA_BUSINESS');
-    await expect(createPaymobSubscriptionCheckout({ merchantId, origin: 'https://synthetic.example' })).rejects.toThrow('قيد المتابعة');
+    await expect(requestPlanChange(merchantId, 'SA_BUSINESS')).rejects.toThrow('قيد المتابعة');
     expect(fetcher).toHaveBeenCalledTimes(1);
     // Explicit isolated fixture transition: another selection must not bypass
     // a payable checkout. The timeout scenario starts only after its closure.
     await prisma.onlineCheckoutAttempt.updateMany({ where: { merchantId, purpose: 'SUBSCRIPTION', status: 'READY' }, data: { status: 'FAILED' } });
+    const next = await requestPlanChange(merchantId, 'SA_BUSINESS');
     fetcher.mockReset().mockRejectedValue(new Error('synthetic timeout'));
     await expect(createPaymobSubscriptionCheckout({ merchantId, origin: 'https://synthetic.example' })).rejects.toThrow('لم تتأكد');
     await expect(createPaymobSubscriptionCheckout({ merchantId, origin: 'https://synthetic.example' })).rejects.toThrow('محاولة دفع');

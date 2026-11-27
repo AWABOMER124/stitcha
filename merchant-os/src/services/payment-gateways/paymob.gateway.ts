@@ -56,7 +56,9 @@ export class PaymobGateway {
         special_reference: input.reference, notification_url: input.notificationUrl, redirection_url: input.returnUrl, expiration: 3600,
       }),
     });
-    if ([400, 401, 403, 422].includes(response.status)) throw new PaymobCreationRejected('تعذر تجهيز الدفع. لم تبدأ عملية السداد؛ يمكنك إعادة المحاولة أو اختيار التحويل.');
+    // Paymob documents 404 here as an unknown/misconfigured integration ID.
+    // This is a rejected creation, not an indeterminate payment in progress.
+    if ([400, 401, 403, 404, 422].includes(response.status)) throw new PaymobCreationRejected('تعذر تجهيز الدفع. لم تبدأ عملية السداد؛ يمكنك إعادة المحاولة أو اختيار التحويل.');
     if (!response.ok) throw new BusinessRuleError('تعذر تأكيد تجهيز الدفع الآن.');
     const body = await response.json() as Record<string, unknown>;
     const id = identifier(body.id), orderId = identifier(body.intention_order_id);

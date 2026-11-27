@@ -21,6 +21,18 @@ async function merchant(market?: string) {
 afterAll(async () => { await prisma.onlineCheckoutAttempt.deleteMany({ where: { merchantId: { in: merchants } } }); await prisma.merchant.deleteMany({ where: { id: { in: merchants } } }); });
 
 describe('Saudi catalog and actual billing records', () => {
+  it('switches unpaid Saudi plans and intervals without retaining the first selection', async () => {
+    const id = await merchant('SA');
+    const first = await requestPlanChange(id, 'SA_GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
+    const second = await requestPlanChange(id, 'SA_PRO', undefined, 'YEARLY', { notifyPlatform: false });
+    const last = await requestPlanChange(id, 'SA_GROWTH', undefined, 'YEARLY', { notifyPlatform: false });
+    expect(last.id).not.toBe(first.id);
+    expect(Number(last.quotedAmount)).toBe(490);
+    expect(last.billingInterval).toBe('YEARLY');
+    expect(await prisma.merchantPlanChangeRequest.count({ where: { merchantId: id, status: { in: ['PENDING', 'CONTACTED'] } } })).toBe(1);
+    for (const previous of [first, second]) expect(await prisma.merchantPlanChangeRequest.findUnique({ where: { id: previous.id } })).toMatchObject({ status: 'CANCELLED', requestKey: null });
+    expect(await prisma.onlineCheckoutAttempt.count({ where: { merchantId: id } })).toBe(0);
+  });
   it('allows a new reference only after an authenticated Stripe session is expired and unpaid', async () => {
     const id = await merchant();
     const selected = await requestPlanChange(id, 'GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
@@ -46,13 +58,16 @@ describe('Saudi catalog and actual billing records', () => {
     await expect(createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' })).rejects.toThrow('business market');
     expect(gateway.createCheckoutSession).not.toHaveBeenCalled();
   });
-  it('pays the selected quote even after a newer selection, and rejects another merchant quote', async () => {
+  it('retires an unpaid selection and bills only the newly selected plan', async () => {
     const id = await merchant();
     const selected = await requestPlanChange(id, 'GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
-    await requestPlanChange(id, 'PRO', undefined, 'MONTHLY', { notifyPlatform: false });
+    const replacement = await requestPlanChange(id, 'PRO', undefined, 'MONTHLY', { notifyPlatform: false });
     gateway.createCheckoutSession.mockClear().mockResolvedValue({ sessionId: `cs_test_selected_${suffix}`, checkoutUrl: 'https://synthetic.example/checkout' });
-    await createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' });
-    expect(gateway.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ internalReference: selected.id, amount: Number(selected.quotedAmount), metadata: expect.objectContaining({ plan_change_request_id: selected.id, merchant_id: id }) }));
+    await expect(createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' })).rejects.toThrow();
+    expect(gateway.createCheckoutSession).not.toHaveBeenCalled();
+    await createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: replacement.id, origin: 'https://synthetic.example' });
+    expect(gateway.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ internalReference: replacement.id, amount: Number(replacement.quotedAmount), metadata: expect.objectContaining({ plan_change_request_id: replacement.id, merchant_id: id }) }));
+    await expect(requestPlanChange(id, 'GROWTH', undefined, 'MONTHLY', { notifyPlatform: false })).rejects.toThrow('قيد المتابعة');
     gateway.createCheckoutSession.mockClear();
     await expect(createSubscriptionStripeCheckout({ merchantId: await merchant(), planChangeRequestId: selected.id, origin: 'https://synthetic.example' })).rejects.toThrow('paid plan');
     expect(gateway.createCheckoutSession).not.toHaveBeenCalled();

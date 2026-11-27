@@ -141,6 +141,7 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
   try {
     return await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${merchantId} FOR UPDATE`;
+      if (!await tx.merchantPlanChangeRequest.findFirst({ where: { id: changeRequest.id, merchantId, status: { in: ['PENDING', 'CONTACTED'] } } })) throw new ConflictError('تغير اختيار الباقة. افتح إتمام الاشتراك من الباقة الجديدة.');
       const busy = await tx.onlineCheckoutAttempt.findFirst({ where: { merchantId, purpose: 'SUBSCRIPTION', status: { in: ['CREATING', 'READY', 'DECLINED', 'UNKNOWN'] } } });
       const duplicate = await tx.merchantSubscriptionPayment.findFirst({ where: { merchantId, OR: [{ status: 'PENDING' }, { planChangeRequestId: changeRequest.id, status: 'VERIFIED' }] } });
       if (busy || duplicate) throw new ConflictError('توجد عملية سداد قيد المتابعة. انتظر نتيجتها قبل التحويل.');

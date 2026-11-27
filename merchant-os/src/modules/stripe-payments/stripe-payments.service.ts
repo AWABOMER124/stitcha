@@ -136,6 +136,7 @@ export async function createSubscriptionStripeCheckout(input: {
   if (existing) throw new ConflictError('توجد عملية دفع قيد المتابعة. حدّث حالة الاشتراك.');
   const attempt = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${input.merchantId} FOR UPDATE`;
+    if (!await tx.merchantPlanChangeRequest.findFirst({ where: { id: request.id, merchantId: input.merchantId, status: { in: ['PENDING', 'CONTACTED'] } } })) throw new ConflictError('تغير اختيار الباقة. افتح إتمام الاشتراك من الباقة الجديدة.');
     const blocked = await tx.onlineCheckoutAttempt.findFirst({ where: { merchantId: input.merchantId, purpose: 'SUBSCRIPTION', status: { in: ['CREATING', 'READY', 'DECLINED', 'UNKNOWN'] } } });
     const manual = await tx.merchantSubscriptionPayment.findFirst({ where: { merchantId: input.merchantId, provider: 'manual', status: 'PENDING' } });
     if (blocked || manual) throw new ConflictError('توجد عملية دفع أو تحويل قيد المتابعة.');

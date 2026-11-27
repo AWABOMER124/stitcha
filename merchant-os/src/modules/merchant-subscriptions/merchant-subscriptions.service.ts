@@ -131,45 +131,48 @@ export async function requestPlanChange(
   }
 
   const requestKey = billingInterval === 'MONTHLY' ? `pending:${merchantId}:${targetPlan.id}` : `pending:${merchantId}:${targetPlan.id}:YEARLY`;
-  const existing = await prisma.merchantPlanChangeRequest.findUnique({
+  let created = false;
+  const request = await prisma.$transaction(async tx => {
+  await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${merchantId} FOR UPDATE`;
+  const [attempt, payment] = await Promise.all([
+    tx.onlineCheckoutAttempt.findFirst({ where: { merchantId, purpose: 'SUBSCRIPTION', status: { in: ['CREATING', 'READY', 'DECLINED', 'UNKNOWN'] } } }),
+    tx.merchantSubscriptionPayment.findFirst({ where: { merchantId, status: 'PENDING' } }),
+  ]);
+  const paymentRequestId = attempt?.referenceId ?? payment?.planChangeRequestId;
+  if (attempt || payment) {
+    const locked = paymentRequestId ? await tx.merchantPlanChangeRequest.findFirst({ where: { id: paymentRequestId, merchantId }, include: { targetPlan: { select: { code: true, name: true } } } }) : null;
+    if (locked?.targetPlanId === targetPlan.id && locked.billingInterval === billingInterval) return locked;
+    throw new ConflictError('توجد عملية سداد قيد المتابعة للباقة السابقة. افتح إتمام الاشتراك وتحقق من نتيجتها قبل تغيير الباقة لتجنب تكرار السداد.');
+  }
+  const existing = await tx.merchantPlanChangeRequest.findUnique({
     where: { requestKey },
     include: { targetPlan: { select: { code: true, name: true } } },
   });
   if (existing) {
-    if (merchant.subscriptionMarket !== 'SA' || ['PENDING', 'CONTACTED'].includes(existing.status)) return existing;
-    await prisma.merchantPlanChangeRequest.updateMany({ where: { id: existing.id, requestKey, status: { notIn: ['PENDING', 'CONTACTED'] } }, data: { requestKey: null } });
+    if (!['PENDING', 'CONTACTED'].includes(existing.status)) await tx.merchantPlanChangeRequest.update({ where: { id: existing.id }, data: { requestKey: null } });
   }
-
-  let request;
-  try {
-    request = await prisma.merchantPlanChangeRequest.create({
+  // A selection is a draft until payment starts. Preserve its audit record,
+  // but retire other unpaid drafts so the selected card and summary agree.
+  await tx.merchantPlanChangeRequest.updateMany({ where: { merchantId, status: { in: ['PENDING', 'CONTACTED'] }, ...(existing ? { id: { not: existing.id } } : {}) }, data: { status: 'CANCELLED', requestKey: null, resolvedAt: new Date() } });
+  if (existing && ['PENDING', 'CONTACTED'].includes(existing.status)) return tx.merchantPlanChangeRequest.update({ where: { id: existing.id }, data: { updatedAt: new Date() }, include: { targetPlan: { select: { code: true, name: true } } } });
+  created = true;
+  return tx.merchantPlanChangeRequest.create({
       data: { merchantId, targetPlanId: targetPlan.id, requestKey, note, billingInterval, quotedAmount: quote.amount, quotedCurrency: quote.currency },
       include: { targetPlan: { select: { code: true, name: true } } },
     });
-  } catch (error) {
-    if (!isUniqueConflict(error)) throw error;
-    request = await prisma.merchantPlanChangeRequest.findUniqueOrThrow({
-      where: { requestKey },
-      include: { targetPlan: { select: { code: true, name: true } } },
-    });
-    return request;
-  }
+  });
 
   logger.info('product_event', {
     event: 'upgrade_clicked', merchantId, targetPlanCode: targetPlan.code, requestId: request.id,
   });
 
-  if (options.notifyPlatform !== false) await platformNotifications.sendNotification({
+  if (created && options.notifyPlatform !== false) await platformNotifications.sendNotification({
     type: 'SYSTEM',
     title: 'Merchant plan upgrade request',
     body: `${merchant.name} requested the ${targetPlan.name} plan.`,
   }).catch((error) => console.error('[merchant-subscriptions] Failed to notify platform:', error));
 
   return request;
-}
-
-function isUniqueConflict(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 }
 
 function isEffective(
