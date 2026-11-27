@@ -29,10 +29,21 @@ export function ActionFeedbackGuard() {
         return;
       }
       event.preventDefault();
+      // Client submit handlers must not execute the cancelled original event.
+      event.stopImmediatePropagation();
       if (!window.confirm(`هل تريد المتابعة في إجراء: ${label}؟`)) return;
 
       form.dataset.actionGuardConfirmed = 'true';
-      form.requestSubmit(submitter instanceof HTMLElement ? submitter : undefined);
+      // Browsers suppress a nested requestSubmit while the original submit
+      // event is still dispatching. Submit in the next task, after that guard
+      // has cleared, so accepting the confirmation works on the first click.
+      window.setTimeout(() => {
+        try {
+          if (form.isConnected) form.requestSubmit(submitter instanceof HTMLElement ? submitter : undefined);
+        } finally {
+          delete form.dataset.actionGuardConfirmed;
+        }
+      }, 0);
     };
 
     document.addEventListener('submit', onSubmit, true);

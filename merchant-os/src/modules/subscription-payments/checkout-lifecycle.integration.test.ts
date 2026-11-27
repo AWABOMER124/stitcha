@@ -85,6 +85,14 @@ describe('subscription checkout lifecycle', () => {
     expect(subscription.billingInterval).toBe('YEARLY'); expect(subscription.currencyOverride).toBe('SAR'); expect(Number(subscription.priceOverride)).toBe(490);
     expect(subscription.currentPeriodEndsAt!.getTime() - subscription.currentPeriodStartsAt!.getTime()).toBeGreaterThan(360 * 86400_000);
     expect((await getSubscriptionCheckoutStatus(f.merchant.id, f.request.id)).state).toBe('ACTIVE');
+    // A verified historical transfer must not block a later purchase.
+    const nextPlan = await prisma.merchantPlan.findUniqueOrThrow({ where: { code: 'SA_PRO' } });
+    const nextRequest = await prisma.merchantPlanChangeRequest.create({ data: { merchantId: f.merchant.id, targetPlanId: nextPlan.id, billingInterval: 'MONTHLY', quotedAmount: 99, quotedCurrency: 'SAR' } });
+    const nextInput = { planChangeRequestId: nextRequest.id, paymentAccountId: account.id, transactionRef: `NEXT-${suffix}` };
+    const nextEvidence = { buffer: Buffer.from('next-synthetic-receipt'), filename: 'next.jpg', mimeType: 'image/jpeg' as const, sha256: `next-${suffix}` };
+    await submitManualSubscriptionPayment(f.merchant.id, nextInput, nextEvidence);
+    expect(await prisma.merchantSubscriptionPayment.count({ where: { merchantId: f.merchant.id } })).toBe(2);
+    await expect(submitManualSubscriptionPayment(f.merchant.id, { ...nextInput, transactionRef: `DUP-${suffix}` }, { ...nextEvidence, sha256: `dup-${suffix}` })).rejects.toThrow();
   });
   it('does not expose another merchant payment state', async () => {
     const f = await fixture();
