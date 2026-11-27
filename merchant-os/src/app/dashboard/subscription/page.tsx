@@ -46,6 +46,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const ar = locale === 'ar';
   const query = await searchParams;
   const stripeResult = query.stripe;
+  if (pending && (query.paymob === 'returned' || stripeResult === 'success' || stripeResult === 'cancelled')) redirect(`/dashboard/subscription/checkout?request=${pending.id}&payment=returned`);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">

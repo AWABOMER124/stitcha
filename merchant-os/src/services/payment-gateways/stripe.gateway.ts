@@ -104,6 +104,12 @@ export class StripeGateway implements PaymentGateway {
     return { provider: 'STRIPE', sessionId: payload.id, checkoutUrl: payload.url };
   }
 
+  async retrieveCheckoutSession(id: string): Promise<Record<string, unknown>> {
+    this.requireReady();
+    if (!/^cs_[A-Za-z0-9_]+$/.test(id)) throw new ValidationError('Invalid checkout reference');
+    return this.requestStripe(`/checkout/sessions/${encodeURIComponent(id)}`);
+  }
+
   async createConnectedAccount(input: { merchantId: string; country: string; email?: string }): Promise<StripeConnectedAccount> {
     this.requireReady();
     if (!/^[A-Za-z0-9_-]{1,100}$/.test(input.merchantId)) throw new ValidationError('Merchant reference is invalid');

@@ -16,6 +16,7 @@ import { PLATFORM_PERMISSIONS, requirePlatformPermission } from '@/lib/platform-
 
 const paymentAccountSchema = z.object({
   channel: z.enum(['BANKAK', 'MYCASHY', 'OTHER']),
+  currency: z.enum(['SDG', 'SAR']).default('SDG'),
   label: z.string().trim().min(2).max(80),
   accountName: z.string().trim().min(2).max(120),
   accountNumber: z.string().trim().min(3).max(100),

@@ -2,6 +2,9 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { BusinessRuleError, UnauthorizedError, ValidationError } from '@/lib/errors';
 
 export const PAYMOB_SA_ORIGIN = 'https://ksa.paymob.com';
+// Only an explicit creation rejection permits a fresh checkout. Network/5xx
+// failures remain indeterminate because creation may already have succeeded.
+export class PaymobCreationRejected extends BusinessRuleError {}
 export const PAYMOB_TRANSACTION_FIELDS = [
   'amount_cents', 'created_at', 'currency', 'error_occured', 'has_parent_transaction', 'id', 'integration_id',
   'is_3d_secure', 'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment', 'is_voided', 'order.id',
@@ -53,7 +56,8 @@ export class PaymobGateway {
         special_reference: input.reference, notification_url: input.notificationUrl, redirection_url: input.returnUrl, expiration: 3600,
       }),
     });
-    if (!response.ok) throw new BusinessRuleError(`Paymob رفض بدء الدفع (${response.status}).`);
+    if ([400, 401, 403, 422].includes(response.status)) throw new PaymobCreationRejected('تعذر تجهيز الدفع. لم تبدأ عملية السداد؛ يمكنك إعادة المحاولة أو اختيار التحويل.');
+    if (!response.ok) throw new BusinessRuleError('تعذر تأكيد تجهيز الدفع الآن.');
     const body = await response.json() as Record<string, unknown>;
     const id = identifier(body.id), orderId = identifier(body.intention_order_id);
     if (!id || !orderId || typeof body.client_secret !== 'string' || !body.client_secret || body.client_secret.length > 2048) {
@@ -104,6 +108,29 @@ export class PaymobGateway {
       // Transport errors may contain the inquiry URL, which carries a token.
       throw new BusinessRuleError('Paymob transaction verification is unavailable');
     }
+  }
+
+  async inquireOrder(reference: { orderId?: string | null; merchantOrderId: string }): Promise<Record<string, unknown> | null> {
+    if (!this.status().configured) throw new BusinessRuleError('Payment verification unavailable');
+    if (!identifier(reference.merchantOrderId) || (reference.orderId && !/^\d{1,30}$/.test(reference.orderId))) throw new ValidationError('Invalid payment reference');
+    try {
+      const authResponse = await this.fetcher(`${PAYMOB_SA_ORIGIN}/api/auth/tokens`, {
+        method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(10000),
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: this.config.apiKey }),
+      });
+      if (!authResponse.ok) throw new Error('auth');
+      const auth = await authResponse.json() as { token?: string };
+      if (!auth.token) throw new Error('auth');
+      const response = await this.fetcher(`${PAYMOB_SA_ORIGIN}/api/ecommerce/orders/transaction_inquiry`, {
+        method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(10000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth_token: auth.token, ...(reference.orderId ? { order_id: reference.orderId } : { merchant_order_id: reference.merchantOrderId }) }),
+      });
+      // No transaction found is not proof of cancellation or non-payment.
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error('inquiry');
+      return await response.json() as Record<string, unknown>;
+    } catch { throw new BusinessRuleError('تعذر تحديث حالة الدفع مؤقتًا.'); }
   }
 
   private requireReady() {

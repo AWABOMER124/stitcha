@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import prisma from '@/lib/db/prisma';
 import { getMerchantSubscriptionMarket, listPublicPlans, requestPlanChange } from './merchant-subscriptions.service';
-import { createSubscriptionStripeCheckout, processStripeWebhook } from '@/modules/stripe-payments/stripe-payments.service';
+import { createSubscriptionStripeCheckout, processStripeWebhook, reconcileStripeSubscriptionAttempt } from '@/modules/stripe-payments/stripe-payments.service';
 
 if (!process.env.DATABASE_URL?.includes('/wasla_comms_test')) throw new Error('Market tests require the isolated wasla_comms_test database');
-const gateway = vi.hoisted(() => ({ createCheckoutSession: vi.fn(), constructWebhookEvent: vi.fn(), retrieveSubscription: vi.fn() }));
+const gateway = vi.hoisted(() => ({ createCheckoutSession: vi.fn(), constructWebhookEvent: vi.fn(), retrieveSubscription: vi.fn(), retrieveCheckoutSession: vi.fn() }));
 vi.mock('@/services/payment-gateways', () => ({ createStripeGatewayFromEnv: () => gateway }));
 vi.mock('@/modules/platform-notifications/services/platform-notifications.service', () => ({ sendNotification: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/modules/merchant-referrals/merchant-referrals.service', () => ({ evaluateMerchantReferralInTransaction: vi.fn() }));
@@ -17,9 +17,23 @@ async function merchant(market?: string) {
   merchants.push(created.id);
   return created.id;
 }
-afterAll(async () => { await prisma.merchant.deleteMany({ where: { id: { in: merchants } } }); });
+afterAll(async () => { await prisma.onlineCheckoutAttempt.deleteMany({ where: { merchantId: { in: merchants } } }); await prisma.merchant.deleteMany({ where: { id: { in: merchants } } }); });
 
 describe('Saudi catalog and actual billing records', () => {
+  it('allows a new reference only after an authenticated Stripe session is expired and unpaid', async () => {
+    const id = await merchant();
+    const selected = await requestPlanChange(id, 'GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
+    const sessionId = `cs_test_expired_${suffix}`;
+    gateway.createCheckoutSession.mockResolvedValue({ sessionId, checkoutUrl: 'https://synthetic.example/checkout' });
+    await createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' });
+    gateway.retrieveCheckoutSession.mockResolvedValue({ id: sessionId, status: 'open', payment_status: 'unpaid', amount_total: Math.round(Number(selected.quotedAmount) * 100), currency: selected.quotedCurrency!.toLowerCase(), metadata: { kind: 'SUBSCRIPTION', merchant_id: id, plan_change_request_id: selected.id } });
+    await reconcileStripeSubscriptionAttempt(id, selected.id);
+    expect((await prisma.onlineCheckoutAttempt.findFirstOrThrow({ where: { merchantId: id } })).status).toBe('READY');
+    gateway.retrieveCheckoutSession.mockResolvedValue({ ...(await gateway.retrieveCheckoutSession()), status: 'expired' });
+    await reconcileStripeSubscriptionAttempt(id, selected.id);
+    expect((await prisma.onlineCheckoutAttempt.findFirstOrThrow({ where: { merchantId: id } })).status).toBe('EXPIRED');
+    expect(await prisma.merchantSubscriptionPayment.count({ where: { merchantId: id } })).toBe(0);
+  });
   it('does not send a historical Saudi quote to Stripe after a market change', async () => {
     const id = await merchant('SA');
     const selected = await requestPlanChange(id, 'SA_GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
@@ -32,7 +46,7 @@ describe('Saudi catalog and actual billing records', () => {
     const id = await merchant();
     const selected = await requestPlanChange(id, 'GROWTH', undefined, 'MONTHLY', { notifyPlatform: false });
     await requestPlanChange(id, 'PRO', undefined, 'MONTHLY', { notifyPlatform: false });
-    gateway.createCheckoutSession.mockClear().mockResolvedValue({ sessionId: 'synthetic-selected', checkoutUrl: 'https://synthetic.example/checkout' });
+    gateway.createCheckoutSession.mockClear().mockResolvedValue({ sessionId: `cs_test_selected_${suffix}`, checkoutUrl: 'https://synthetic.example/checkout' });
     await createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' });
     expect(gateway.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ internalReference: selected.id, amount: Number(selected.quotedAmount), metadata: expect.objectContaining({ plan_change_request_id: selected.id, merchant_id: id }) }));
     gateway.createCheckoutSession.mockClear();

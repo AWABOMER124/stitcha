@@ -9,6 +9,7 @@ import { planRequestQuote } from '@/modules/merchant-subscriptions/market-pricin
 
 export type PlatformPaymentAccountInput = {
   channel: 'BANKAK' | 'MYCASHY' | 'OTHER';
+  currency?: 'SDG' | 'SAR';
   label: string;
   accountName: string;
   accountNumber: string;
@@ -66,7 +67,7 @@ export async function createPlatformPaymentAccount(input: PlatformPaymentAccount
       // Kept as a legacy database field for older records; quotes now come
       // from the selected plan and the platform exchange-rate setting.
       monthlyAmount: 0,
-      currency: 'SDG',
+      currency: input.currency ?? 'SDG',
       sortOrder: input.sortOrder ?? 0,
     },
   });
@@ -78,8 +79,8 @@ export async function setPlatformPaymentAccountActive(id: string, isActive: bool
   return prisma.platformPaymentAccount.update({ where: { id }, data: { isActive } });
 }
 
-export async function listActivePaymentAccounts() {
-  const accounts = await prisma.platformPaymentAccount.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
+export async function listActivePaymentAccounts(currency?: string) {
+  const accounts = await prisma.platformPaymentAccount.findMany({ where: { isActive: true, ...(currency ? { currency } : {}) }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] });
   return accounts.map(account => ({ ...account, monthlyAmount: Number(account.monthlyAmount) }));
 }
 
@@ -88,7 +89,7 @@ export async function updatePlatformPaymentAccount(id: string, input: PlatformPa
   if (!account) throw new NotFoundError('Payment account');
   return prisma.platformPaymentAccount.update({ where: { id }, data: {
     channel: input.channel, label: input.label.trim(), accountName: input.accountName.trim(), accountNumber: input.accountNumber.trim(),
-    instructions: input.instructions?.trim() || null, sortOrder: input.sortOrder ?? 0,
+    instructions: input.instructions?.trim() || null, sortOrder: input.sortOrder ?? 0, currency: input.currency ?? 'SDG',
   } });
 }
 
@@ -98,10 +99,10 @@ export async function getManualPaymentQuote(merchantId: string, planChangeReques
     getPlatformBillingSettings(),
   ]);
   if (!request) return null;
-  if ((request.quotedCurrency ?? request.targetPlan.currency) === 'SAR' || request.billingInterval === 'YEARLY') return null;
   const locked = planRequestQuote(request);
-  const quote = quotePlanInSdg({ monthlyPrice: locked.amount, currency: locked.currency }, settings.usdToSdgRate);
-  return { planCode: request.targetPlan.code, planName: request.targetPlan.name, planCurrency: locked.currency, planMonthlyPrice: locked.amount, usdToSdgRate: settings.usdToSdgRate, amount: quote.amount, currency: 'SDG' };
+  const currency = locked.currency === 'SAR' ? 'SAR' : 'SDG';
+  const quote = currency === 'SAR' ? { amount: locked.amount } : quotePlanInSdg({ monthlyPrice: locked.amount, currency: locked.currency }, settings.usdToSdgRate);
+  return { planCode: request.targetPlan.code, planName: request.targetPlan.name, planCurrency: locked.currency, planMonthlyPrice: locked.amount, usdToSdgRate: settings.usdToSdgRate, amount: quote.amount, currency };
 }
 
 export async function listMerchantPayments(merchantId: string) {
@@ -117,7 +118,7 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
   const [account, changeRequest, currentPayment, settings, stripeSubscription] = await Promise.all([
     prisma.platformPaymentAccount.findFirst({ where: { id: input.paymentAccountId, isActive: true } }),
     prisma.merchantPlanChangeRequest.findFirst({ where: { id: input.planChangeRequestId, merchantId, status: { in: ['PENDING', 'CONTACTED'] } }, include: { targetPlan: { select: { monthlyPrice: true, yearlyPrice: true, currency: true } } }, orderBy: { createdAt: 'desc' } }),
-    prisma.merchantSubscriptionPayment.findFirst({ where: { merchantId, status: { in: ['PENDING', 'VERIFIED'] } } }),
+    prisma.merchantSubscriptionPayment.findFirst({ where: { merchantId, OR: [{ status: 'PENDING' }, { planChangeRequestId: input.planChangeRequestId, status: 'VERIFIED' }] } }),
     getPlatformBillingSettings(),
     prisma.merchantSubscription.findFirst({ where: { merchantId, billingProvider: 'stripe', externalSubscriptionId: { not: null }, status: { not: 'CANCELLED' } }, select: { id: true } }),
   ]);
@@ -125,9 +126,10 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
   if (!changeRequest) throw new ValidationError('Request a Pro upgrade before submitting payment');
   if (currentPayment) throw new ConflictError('A subscription payment is already under review or verified');
   if (stripeSubscription) throw new ConflictError('Cancel the active Stripe subscription before paying by transfer');
-  if (changeRequest.billingInterval === 'YEARLY') throw new ValidationError('Annual subscriptions use online checkout');
   const locked = planRequestQuote(changeRequest);
-  const quote = quotePlanInSdg({ monthlyPrice: locked.amount, currency: locked.currency }, settings.usdToSdgRate);
+  const currency = locked.currency === 'SAR' ? 'SAR' : 'SDG';
+  const quote = currency === 'SAR' ? { amount: locked.amount } : quotePlanInSdg({ monthlyPrice: locked.amount, currency: locked.currency }, settings.usdToSdgRate);
+  if (account.currency !== currency) throw new ValidationError('اختر حساب تحويل بعملة الباقة.');
 
   const transactionRef = input.transactionRef.trim().toUpperCase();
   if (transactionRef.length < 4 || transactionRef.length > 100) throw new ValidationError('Transaction reference is invalid');
@@ -137,14 +139,19 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
   if (input.transferredAt && input.transferredAt.getTime() > Date.now() + 24 * 60 * 60_000) throw new ValidationError('Transfer date cannot be in the future');
   const storageKey = await privateStorageService.upload(evidence.buffer, evidence.filename, evidence.mimeType, `${merchantId}-subscription-payments`);
   try {
-    return await prisma.merchantSubscriptionPayment.create({
+    return await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${merchantId} FOR UPDATE`;
+      const busy = await tx.onlineCheckoutAttempt.findFirst({ where: { merchantId, purpose: 'SUBSCRIPTION', status: { in: ['CREATING', 'READY', 'DECLINED', 'UNKNOWN'] } } });
+      const duplicate = await tx.merchantSubscriptionPayment.findFirst({ where: { merchantId, OR: [{ status: 'PENDING' }, { planChangeRequestId: changeRequest.id, status: 'VERIFIED' }] } });
+      if (busy || duplicate) throw new ConflictError('توجد عملية سداد قيد المتابعة. انتظر نتيجتها قبل التحويل.');
+      return tx.merchantSubscriptionPayment.create({
       data: {
         merchantId,
         targetPlanId: changeRequest.targetPlanId,
         planChangeRequestId: changeRequest.id,
         paymentAccountId: account.id,
         amount: quote.amount,
-        currency: 'SDG',
+        currency,
         channel: account.channel,
         transactionRef,
         senderName: input.senderName?.trim() || null,
@@ -155,6 +162,7 @@ export async function submitManualSubscriptionPayment(merchantId: string, input:
         proofSha256: evidence.sha256,
       },
       select: { id: true, status: true },
+    });
     });
   } catch (error) {
     await privateStorageService.delete(storageKey).catch(() => undefined);
@@ -187,13 +195,22 @@ export async function reviewSubscriptionPayment(paymentId: string, reviewerId: s
       return { success: true };
     }
 
+    await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${payment.merchantId} FOR UPDATE`;
+    const request = payment.planChangeRequestId ? await tx.merchantPlanChangeRequest.findUnique({ where: { id: payment.planChangeRequestId } }) : null;
+    if (request && !['PENDING', 'CONTACTED'].includes(request.status)) throw new ConflictError('طلب الباقة تمت معالجته بالفعل.');
+    const current = await tx.merchantSubscription.findUnique({ where: { merchantId: payment.merchantId } });
+    if (current?.externalSubscriptionId && current.status !== 'CANCELLED') throw new ConflictError('راجع الاشتراك الإلكتروني القائم قبل تفعيل التحويل.');
+    const interval = request?.billingInterval ?? 'MONTHLY';
+    const start = current?.billingProvider === 'manual' && current.planId === payment.targetPlanId && current.currentPeriodEndsAt && current.currentPeriodEndsAt > now ? current.currentPeriodEndsAt : now;
     const verified = await tx.merchantSubscriptionPayment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'VERIFIED', reviewedById: reviewerId, reviewedAt: now } });
     if (verified.count !== 1) throw new ConflictError('Payment was already reviewed');
-    const periodEnd = new Date(now); periodEnd.setMonth(periodEnd.getMonth() + 1);
+    const periodEnd = new Date(start); const day = periodEnd.getUTCDate(); periodEnd.setUTCDate(1);
+    periodEnd.setUTCMonth(periodEnd.getUTCMonth() + (interval === 'YEARLY' ? 12 : 1));
+    periodEnd.setUTCDate(Math.min(day, new Date(Date.UTC(periodEnd.getUTCFullYear(), periodEnd.getUTCMonth() + 1, 0)).getUTCDate()));
     const subscription = await tx.merchantSubscription.upsert({
       where: { merchantId: payment.merchantId },
-      update: { planId: payment.targetPlanId, status: 'ACTIVE', billingInterval: 'MONTHLY', billingProvider: 'manual', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, trialStartedAt: null, trialEndsAt: null, graceEndsAt: null, cancelledAt: null, cancelAtPeriodEnd: false, priceOverride: payment.amount, currencyOverride: payment.currency, isGrandfathered: false },
-      create: { merchantId: payment.merchantId, planId: payment.targetPlanId, status: 'ACTIVE', billingInterval: 'MONTHLY', billingProvider: 'manual', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, priceOverride: payment.amount, currencyOverride: payment.currency },
+      update: { planId: payment.targetPlanId, status: 'ACTIVE', billingInterval: interval, billingProvider: 'manual', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, trialStartedAt: null, trialEndsAt: null, graceEndsAt: null, cancelledAt: null, cancelAtPeriodEnd: false, priceOverride: payment.amount, currencyOverride: payment.currency, isGrandfathered: false },
+      create: { merchantId: payment.merchantId, planId: payment.targetPlanId, status: 'ACTIVE', billingInterval: interval, billingProvider: 'manual', startsAt: now, currentPeriodStartsAt: now, currentPeriodEndsAt: periodEnd, priceOverride: payment.amount, currencyOverride: payment.currency },
     });
     await tx.merchantSubscriptionEvent.create({
       data: {
@@ -205,7 +222,7 @@ export async function reviewSubscriptionPayment(paymentId: string, reviewerId: s
         metadata: { paymentId: payment.id, planId: payment.targetPlanId },
       },
     });
-    if (payment.planChangeRequestId) await tx.merchantPlanChangeRequest.update({ where: { id: payment.planChangeRequestId }, data: { status: 'COMPLETED', resolvedAt: now } });
+    if (payment.planChangeRequestId) await tx.merchantPlanChangeRequest.update({ where: { id: payment.planChangeRequestId }, data: { status: 'COMPLETED', resolvedAt: now, requestKey: null } });
     await evaluateMerchantReferralInTransaction(tx, payment.merchantId, now, payment.id);
     await evaluateMarketerReferralInTransaction(tx, payment.merchantId, now, payment.id);
     return { success: true };

@@ -5,7 +5,7 @@ import { recordAssistedSalePayment } from '@/modules/assisted-sales/payment-even
 import { decryptSecret, encryptSecret } from '@/lib/crypto/secret';
 import { BusinessRuleError, ConflictError, NotFoundError, ValidationError } from '@/lib/errors';
 import { getPaymobGateway } from './paymob-settings.service';
-import { identifier } from '@/services/payment-gateways/paymob.gateway';
+import { PaymobCreationRejected, identifier } from '@/services/payment-gateways/paymob.gateway';
 import { planRequestQuote } from '@/modules/merchant-subscriptions/market-pricing';
 import { isMerchantEligibleForCentralStripe } from '@/modules/stripe-payments/stripe-payments.service';
 import { getPlatformBillingSettings } from '@/modules/subscription-payments/subscription-payments.service';
@@ -28,7 +28,7 @@ export async function createPaymobSubscriptionCheckout(input: { planChangeReques
   if (quote.currency !== 'SAR' || !request.targetPlan.code.startsWith('SA_')) throw new ValidationError('الباقة لا تطابق سوق السعودية.');
   return createIntention({ merchantId: merchant.id, purpose: 'SUBSCRIPTION', referenceId: request.id, amountMinor: sarMinor(quote.amount),
     itemName: `WASLA ${request.targetPlan.name}`, name: merchant.name, phone: merchant.phone, email: input.customerEmail ?? undefined, origin: input.origin,
-    returnPath: '/dashboard/subscription?paymob=returned' });
+    returnPath: `/dashboard/subscription/checkout?request=${request.id}&payment=returned` });
 }
 
 export async function createPaymobOrderCheckout(input: { merchantId: string; orderId: string; origin: string; returnPath?: string }) {
@@ -58,12 +58,20 @@ async function createIntention(input: { merchantId: string; purpose: string; ref
   let attempt = await prisma.onlineCheckoutAttempt.findUnique({ where: key });
   if (attempt) {
     if (attempt.merchantId !== input.merchantId || Number(attempt.amountMinor) !== input.amountMinor || attempt.currency !== 'SAR') throw new ConflictError('تغيرت قيمة الطلب. راجع حالة الدفع القائمة.');
-    if (attempt.status === 'READY' && attempt.checkoutSecretEncrypted && attempt.expiresAt > new Date()) return { provider: 'PAYMOB' as const, sessionId: attempt.providerIntentionId!, checkoutUrl: gateway.checkoutUrl(decryptSecret(attempt.checkoutSecretEncrypted)) };
+    if (['READY', 'DECLINED'].includes(attempt.status) && attempt.checkoutSecretEncrypted && attempt.expiresAt > new Date()) return { provider: 'PAYMOB' as const, sessionId: attempt.providerIntentionId!, checkoutUrl: gateway.checkoutUrl(decryptSecret(attempt.checkoutSecretEncrypted)) };
     throw new ConflictError('توجد محاولة دفع لهذا الطلب. راجع نتيجتها قبل إنشاء محاولة أخرى.');
   }
   try {
-    attempt = await prisma.onlineCheckoutAttempt.create({ data: { provider: 'paymob', merchantId: input.merchantId, purpose: input.purpose, referenceId: input.referenceId,
-      amountMinor: BigInt(input.amountMinor), currency: 'SAR', mode: config.mode, integrationIds: config.integrationIds, expiresAt: new Date(Date.now() + 3600_000) } });
+    attempt = await prisma.$transaction(async tx => {
+      if (input.purpose === 'SUBSCRIPTION') {
+        await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${input.merchantId} FOR UPDATE`;
+        const blocked = await tx.onlineCheckoutAttempt.findFirst({ where: { merchantId: input.merchantId, purpose: 'SUBSCRIPTION', status: { in: ['CREATING', 'READY', 'DECLINED', 'UNKNOWN'] } } });
+        const manual = await tx.merchantSubscriptionPayment.findFirst({ where: { merchantId: input.merchantId, provider: 'manual', status: 'PENDING' } });
+        if (blocked || manual) throw new ConflictError('توجد عملية دفع قيد المتابعة. افتح حالة اشتراكك قبل بدء عملية أخرى.');
+      }
+      return tx.onlineCheckoutAttempt.create({ data: { provider: 'paymob', merchantId: input.merchantId, purpose: input.purpose, referenceId: input.referenceId,
+      amountMinor: BigInt(input.amountMinor), currency: 'SAR', mode: config.mode, integrationIds: config.integrationIds, expiresAt: new Date(Date.now() + 3900_000) } });
+    });
   } catch (error) {
     if (uniqueConflict(error)) throw new ConflictError('الدفع قيد التجهيز. انتظر نتيجة المحاولة الحالية.');
     throw error;
@@ -73,12 +81,14 @@ async function createIntention(input: { merchantId: string; purpose: string; ref
     const result = await gateway.createIntention({ reference: attempt.id, amountMinor: input.amountMinor, itemName: input.itemName,
       firstName: names[0] || 'عميل', lastName: names.slice(1).join(' ') || names[0] || 'وصلة', phone, email: input.email,
       notificationUrl: `${origin}/api/paymob/webhook`, returnUrl: `${origin}${input.returnPath}` });
-    await prisma.onlineCheckoutAttempt.update({ where: { id: attempt.id }, data: { status: 'READY', providerIntentionId: result.id, providerOrderId: result.orderId, checkoutSecretEncrypted: encryptSecret(result.clientSecret) } });
+    const saved = await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'CREATING' }, data: { status: 'READY', providerIntentionId: result.id, providerOrderId: result.orderId, checkoutSecretEncrypted: encryptSecret(result.clientSecret) } });
+    if (saved.count !== 1) throw new ConflictError('تعذر تأكيد حفظ جلسة الدفع.');
     return { provider: 'PAYMOB' as const, sessionId: result.id, checkoutUrl: gateway.checkoutUrl(result.clientSecret) };
-  } catch {
+  } catch (error) {
     // A timeout may follow successful creation upstream. Never create another
     // intention automatically, and never cancel a possibly paid internal order.
-    await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'CREATING' }, data: { status: 'UNKNOWN' } });
+    await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'CREATING' }, data: { status: error instanceof PaymobCreationRejected ? 'FAILED' : 'UNKNOWN' } });
+    if (error instanceof PaymobCreationRejected) throw error;
     throw new BusinessRuleError('لم تتأكد نتيجة تجهيز الدفع. الطلب محفوظ؛ راجع حالة الدفع قبل المحاولة مجددًا.');
   }
 }
@@ -92,6 +102,13 @@ export async function processPaymobWebhook(rawBody: string, signature: string | 
   if (identifier(remote.id) !== transactionId || identifier((remote.order as Record<string, unknown>)?.id) !== orderId
     || remote.currency !== callback.currency || remote.amount_cents !== callback.amount_cents || Number(remote.integration_id) !== Number(callback.integration_id)
     || String(remote.owner) !== String(callback.owner)) throw new ValidationError('Paymob inquiry does not match the signed callback');
+  return applyAuthenticatedPaymobTransaction(remote);
+}
+
+async function applyAuthenticatedPaymobTransaction(remote: Record<string, unknown>) {
+  const { gateway } = await getPaymobGateway();
+  const transactionId = identifier(remote.id); const orderId = identifier((remote.order as Record<string, unknown>)?.id);
+  if (!transactionId || !orderId) throw new ValidationError('Invalid verified transaction');
   // A successful upstream creation can outlive a lost HTTP response. Only the
   // authenticated inquiry may supply the fallback reference, never the unsigned
   // merchant_order_id in the callback body.
@@ -105,7 +122,7 @@ export async function processPaymobWebhook(rawBody: string, signature: string | 
   if (!originalId) throw new ValidationError('Paymob parent transaction needs reconciliation');
   if (attempt.providerTransactionId && attempt.providerTransactionId !== transactionId && remote.has_parent_transaction !== true) throw new ConflictError('A second payment requires reconciliation');
   const original = originalId === transactionId ? remote : await gateway.retrieveTransaction(originalId);
-  if (identifier(original.id) !== originalId || identifier((original.order as Record<string, unknown>)?.id) !== orderId || String(original.owner) !== String(callback.owner)
+  if (identifier(original.id) !== originalId || identifier((original.order as Record<string, unknown>)?.id) !== orderId || String(original.owner) !== String(remote.owner)
     || attempt.currency !== 'SAR' || original.currency !== 'SAR' || Number(attempt.amountMinor) !== original.amount_cents || !Array.isArray(attempt.integrationIds) || !attempt.integrationIds.includes(Number(original.integration_id))) throw new ValidationError('Paymob payment does not match the locked quote');
   if (typeof original.is_live === 'boolean' && original.is_live !== (attempt.mode === 'LIVE')) throw new ValidationError('Paymob payment mode mismatch');
   if (typeof original.is_test === 'boolean' && original.is_test !== (attempt.mode === 'TEST')) throw new ValidationError('Paymob payment mode mismatch');
@@ -116,7 +133,7 @@ export async function processPaymobWebhook(rawBody: string, signature: string | 
   const refunded = original.is_voided === true ? Number(attempt.amountMinor) : original.refunded_amount_cents ?? 0;
   if (!Number.isSafeInteger(refunded) || Number(refunded) < 0 || Number(refunded) > Number(attempt.amountMinor) || (original.is_refunded === true && Number(refunded) === 0)) throw new ValidationError('Paymob refund amount needs reconciliation');
   const eventKey = `${originalId}:paid`;
-  const digest = createHash('sha256').update(rawBody).digest('hex');
+  const digest = createHash('sha256').update(JSON.stringify(remote)).digest('hex');
   const billing = await getPlatformBillingSettings();
   return prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM online_checkout_attempts WHERE id = ${attempt.id} FOR UPDATE`;
@@ -155,7 +172,7 @@ async function applyVerifiedRefund(tx: Prisma.TransactionClient, attempt: Online
       if (full && original.payoutBlocked) await tx.merchantSettlementEntry.updateMany({ where: { orderId: attempt.referenceId, provider: 'paymob', payoutBlocked: true }, data: { payoutBlocked: false } });
     }
   } else {
-    const payment = await tx.merchantSubscriptionPayment.findUniqueOrThrow({ where: { externalCheckoutId: `paymob:${attempt.providerIntentionId}` } });
+    const payment = await tx.merchantSubscriptionPayment.findUniqueOrThrow({ where: { externalCheckoutId: `paymob:${attempt.providerIntentionId || attempt.id}` } });
     const latest = await tx.merchantSubscriptionPayment.findFirst({ where: { merchantId: attempt.merchantId, provider: 'paymob', status: 'VERIFIED' }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { id: true } });
     if (full) {
       await tx.merchantSubscriptionPayment.update({ where: { id: payment.id }, data: { status: 'REFUNDED' } });
@@ -221,7 +238,7 @@ async function completeSubscription(tx: Prisma.TransactionClient, attempt: Onlin
     startsAt: existing.startsAt.toISOString(), periodStartsAt: existing.currentPeriodStartsAt?.toISOString() ?? existing.startsAt.toISOString(),
     periodEndsAt: existing.currentPeriodEndsAt!.toISOString(), price: existing.priceOverride == null ? null : Number(existing.priceOverride), currency: existing.currencyOverride } : null;
   const payment = await tx.merchantSubscriptionPayment.create({ data: { merchantId: attempt.merchantId, targetPlanId: request.targetPlanId, planChangeRequestId: request.id,
-    amount: quote.amount, currency: 'SAR', transactionRef: `paymob:${transactionId}`, provider: attempt.mode === 'TEST' ? 'paymob_test' : 'paymob', externalCheckoutId: `paymob:${attempt.providerIntentionId}`,
+    amount: quote.amount, currency: 'SAR', transactionRef: `paymob:${transactionId}`, provider: attempt.mode === 'TEST' ? 'paymob_test' : 'paymob', externalCheckoutId: `paymob:${attempt.providerIntentionId || attempt.id}`,
     externalPaymentId: transactionId, status: 'VERIFIED', reviewedAt: now } });
   const values = { planId: request.targetPlanId, status: 'ACTIVE' as const, billingProvider: 'paymob', billingInterval: quote.billingInterval, startsAt: now,
     currentPeriodStartsAt: now, currentPeriodEndsAt: end, priceOverride: quote.amount, currencyOverride: 'SAR', externalSubscriptionId: null, externalCustomerId: null,
@@ -264,3 +281,40 @@ export function sarMinor(amount: number) {
   return minor;
 }
 function uniqueConflict(error: unknown) { return Boolean(error && typeof error === 'object' && 'code' in error && error.code === 'P2002'); }
+
+// Server-only reconciliation. Browser query parameters never establish payment.
+export async function reconcilePaymobSubscriptionAttempt(merchantId: string, requestId: string) {
+  const attempt = await prisma.onlineCheckoutAttempt.findUnique({ where: { provider_purpose_referenceId: { provider: 'paymob', purpose: 'SUBSCRIPTION', referenceId: requestId } } });
+  if (!attempt || attempt.merchantId !== merchantId || ['SUCCEEDED', 'FAILED', 'EXPIRED'].includes(attempt.status)) return;
+  if (attempt.status === 'CREATING' && attempt.updatedAt.getTime() > Date.now() - 60000) return;
+  if (attempt.status === 'CREATING') await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'CREATING' }, data: { status: 'UNKNOWN' } });
+  const { gateway } = await getPaymobGateway();
+  const remote = await gateway.inquireOrder({ orderId: attempt.providerOrderId, merchantOrderId: attempt.id });
+  if (!remote) {
+    // Creation is the only transition into UNKNOWN, and it never returns a
+    // checkout URL unless READY was persisted first. An expired UNKNOWN with
+    // no stored provider identity/secret therefore never delivered a payment
+    // page. Authenticated "not found" plus expiry can close this *unstarted*
+    // attempt; a READY or identifiable payment always requires reconciliation.
+    if (attempt.status === 'UNKNOWN' && !attempt.providerIntentionId && !attempt.providerOrderId && !attempt.providerTransactionId && !attempt.checkoutSecretEncrypted
+      && attempt.expiresAt.getTime() + 5 * 60_000 < Date.now()) {
+      await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'UNKNOWN', providerIntentionId: null, providerOrderId: null, providerTransactionId: null, checkoutSecretEncrypted: null }, data: { status: 'EXPIRED', completedAt: new Date() } });
+    }
+    return;
+  }
+  const order = remote.order as Record<string, unknown> | undefined;
+  if (!order || (attempt.providerOrderId ? identifier(order.id) !== attempt.providerOrderId : identifier(order.merchant_order_id) !== attempt.id)
+    || remote.currency !== attempt.currency || remote.amount_cents !== Number(attempt.amountMinor)
+    || !Array.isArray(attempt.integrationIds) || !attempt.integrationIds.includes(Number(remote.integration_id))
+    || (typeof remote.is_live === 'boolean' && remote.is_live !== (attempt.mode === 'LIVE'))
+    || (typeof remote.is_test === 'boolean' && remote.is_test !== (attempt.mode === 'TEST'))) throw new ValidationError('Payment inquiry mismatch');
+  if (remote.pending === false && remote.success === true) { await applyAuthenticatedPaymobTransaction(remote); return; }
+  if (attempt.expiresAt > new Date() && remote.pending === false && remote.success === false && remote.is_auth === false && remote.has_parent_transaction === false) {
+    await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'READY' }, data: { status: 'DECLINED' } });
+  }
+  // A declined transaction on an unexpired hosted page can still be retried
+  // there. Only a final decline after its expiry unlocks a new payment method.
+  if (attempt.expiresAt <= new Date() && remote.pending === false && remote.success === false && remote.is_auth === false && remote.has_parent_transaction === false) {
+    await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: { in: ['READY', 'DECLINED', 'UNKNOWN'] } }, data: { status: 'FAILED', completedAt: new Date() } });
+  }
+}

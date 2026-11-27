@@ -1,3 +1,4 @@
+import { reconcilePendingSubscriptionPayments } from '@/modules/subscription-payments/checkout-status.service';
 import { randomUUID } from 'node:crypto';
 import { billingJobHandlers, enqueueSubscriptionBilling } from './billing.jobs';
 import { processOutboxBatch, type OutboxHandlers } from './outbox.service';
@@ -23,10 +24,11 @@ export async function runScheduledJobs(now = new Date()) {
     generateWeeklyOnlineSettlements(now),
     enqueueAutomations(now).catch(() => { console.error('[communications] Automation scan deferred'); return 0; }),
   ]);
+  const subscriptionPaymentsChecked = await reconcilePendingSubscriptionPayments(now).catch(() => { console.error('[subscription-payments] Status verification deferred'); return 0; });
   const result = await processOutboxBatch({
     workerId: `scheduler-${randomUUID()}`,
     handlers,
   });
   const deadLetters = await prisma.outboxJob.count({ where: { status: 'FAILED' } });
-  return { ...result, deadLetters, expiredAiReservations, onlineSettlements, communicationQueued };
+  return { ...result, deadLetters, expiredAiReservations, onlineSettlements, communicationQueued, subscriptionPaymentsChecked };
 }

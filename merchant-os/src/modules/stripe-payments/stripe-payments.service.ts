@@ -1,3 +1,4 @@
+import { decryptSecret, encryptSecret } from '@/lib/crypto/secret';
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
@@ -128,7 +129,19 @@ export async function createSubscriptionStripeCheckout(input: {
     select: { id: true },
   });
   if (pendingManual) throw new ConflictError('A bank transfer is already under review');
-  return createStripeGatewayFromEnv().createCheckoutSession({
+  const key = { provider_purpose_referenceId: { provider: PROVIDER, purpose: 'SUBSCRIPTION', referenceId: request.id } };
+  const existing = await prisma.onlineCheckoutAttempt.findUnique({ where: key });
+  if (existing?.merchantId === input.merchantId && existing.status === 'READY' && existing.checkoutSecretEncrypted && existing.expiresAt > new Date()) return { provider: 'STRIPE' as const, sessionId: existing.providerIntentionId!, checkoutUrl: decryptSecret(existing.checkoutSecretEncrypted) };
+  if (existing) throw new ConflictError('توجد عملية دفع قيد المتابعة. حدّث حالة الاشتراك.');
+  const attempt = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${input.merchantId} FOR UPDATE`;
+    const blocked = await tx.onlineCheckoutAttempt.findFirst({ where: { merchantId: input.merchantId, purpose: 'SUBSCRIPTION', status: { in: ['CREATING', 'READY', 'DECLINED', 'UNKNOWN'] } } });
+    const manual = await tx.merchantSubscriptionPayment.findFirst({ where: { merchantId: input.merchantId, provider: 'manual', status: 'PENDING' } });
+    if (blocked || manual) throw new ConflictError('توجد عملية دفع أو تحويل قيد المتابعة.');
+    return tx.onlineCheckoutAttempt.create({ data: { provider: PROVIDER, merchantId: input.merchantId, purpose: 'SUBSCRIPTION', referenceId: request.id, amountMinor: BigInt(toMinorUnits(quote.amount, quote.currency)), currency: quote.currency, mode: 'LIVE', integrationIds: [], expiresAt: new Date(Date.now() + 24 * 3600_000) } });
+  });
+  try {
+  const result = await createStripeGatewayFromEnv().createCheckoutSession({
     mode: 'subscription',
     recurringInterval: quote.billingInterval === 'YEARLY' ? 'year' : 'month',
     internalReference: request.id,
@@ -137,14 +150,20 @@ export async function createSubscriptionStripeCheckout(input: {
     amount,
     currency: quote.currency,
     customerEmail: input.customerEmail ?? undefined,
-    successUrl: `${input.origin}/dashboard/subscription?stripe=success`,
-    cancelUrl: `${input.origin}/dashboard/subscription?stripe=cancelled`,
+    successUrl: `${input.origin}/dashboard/subscription/checkout?request=${request.id}&payment=returned`,
+    cancelUrl: `${input.origin}/dashboard/subscription/checkout?request=${request.id}&payment=cancelled`,
     metadata: {
       kind: 'SUBSCRIPTION',
       merchant_id: input.merchantId,
       plan_change_request_id: request.id,
     },
   });
+  await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'CREATING' }, data: { status: 'READY', providerIntentionId: result.sessionId, checkoutSecretEncrypted: encryptSecret(result.checkoutUrl) } });
+  return result;
+  } catch {
+    await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: 'CREATING' }, data: { status: 'UNKNOWN' } });
+    throw new BusinessRuleError('نتحقق من تجهيز الدفع. راجع الحالة قبل المحاولة مجددًا.');
+  }
 }
 
 export async function createOrderStripeCheckout(input: { orderId: string; merchantId: string; origin: string; returnPath?: string }) {
@@ -241,6 +260,7 @@ async function processCompletedCheckout(object: Record<string, unknown>, gateway
   const customerId = typeof object.customer === 'string' ? object.customer : snapshot.customerId;
 
   await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${merchantId} FOR UPDATE`;
     const request = await tx.merchantPlanChangeRequest.findFirst({
       where: { id: requestId, merchantId },
       include: { targetPlan: true },
@@ -317,7 +337,19 @@ async function processCompletedCheckout(object: Record<string, unknown>, gateway
     await evaluateMerchantReferralInTransaction(tx, merchantId, now, payment.id);
     await evaluateMarketerReferralInTransaction(tx, merchantId, now, payment.id);
   });
+  await prisma.onlineCheckoutAttempt.updateMany({ where: { provider: PROVIDER, merchantId, purpose: 'SUBSCRIPTION', referenceId: requestId }, data: { status: 'SUCCEEDED', completedAt: new Date() } });
   return true;
+}
+
+export async function reconcileStripeSubscriptionAttempt(merchantId: string, requestId: string) {
+  const attempt = await prisma.onlineCheckoutAttempt.findUnique({ where: { provider_purpose_referenceId: { provider: PROVIDER, purpose: 'SUBSCRIPTION', referenceId: requestId } } });
+  if (!attempt || attempt.merchantId !== merchantId || !attempt.providerIntentionId || ['SUCCEEDED', 'FAILED', 'EXPIRED'].includes(attempt.status)) return;
+  const gateway = createStripeGatewayFromEnv();
+  const remote = await gateway.retrieveCheckoutSession(attempt.providerIntentionId);
+  const metadata = readMetadata(remote.metadata);
+  if (remote.id !== attempt.providerIntentionId || metadata.merchant_id !== merchantId || metadata.plan_change_request_id !== requestId || remote.amount_total !== Number(attempt.amountMinor) || String(remote.currency).toUpperCase() !== attempt.currency.toUpperCase()) throw new ValidationError('Payment inquiry mismatch');
+  if (remote.payment_status === 'paid') { await processCompletedCheckout(remote, gateway); return; }
+  if (remote.status === 'expired' && remote.payment_status === 'unpaid') await prisma.onlineCheckoutAttempt.updateMany({ where: { id: attempt.id, status: { in: ['READY', 'DECLINED', 'UNKNOWN'] } }, data: { status: 'EXPIRED', completedAt: new Date() } });
 }
 
 async function completeOrderPayment(object: Record<string, unknown>, metadata: Record<string, string>, gateway: ReturnType<typeof createStripeGatewayFromEnv>) {
