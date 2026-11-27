@@ -131,6 +131,7 @@ export async function createSubscriptionStripeCheckout(input: {
   if (pendingManual) throw new ConflictError('A bank transfer is already under review');
   const key = { provider_purpose_referenceId: { provider: PROVIDER, purpose: 'SUBSCRIPTION', referenceId: request.id } };
   const existing = await prisma.onlineCheckoutAttempt.findUnique({ where: key });
+  if (existing && (existing.merchantId !== input.merchantId || Number(existing.amountMinor) !== toMinorUnits(quote.amount, quote.currency) || existing.currency !== quote.currency)) throw new ConflictError('تغيرت قيمة الباقة. راجع حالة الدفع القائمة.');
   if (existing?.merchantId === input.merchantId && existing.status === 'READY' && existing.checkoutSecretEncrypted && existing.expiresAt > new Date()) return { provider: 'STRIPE' as const, sessionId: existing.providerIntentionId!, checkoutUrl: decryptSecret(existing.checkoutSecretEncrypted) };
   if (existing) throw new ConflictError('توجد عملية دفع قيد المتابعة. حدّث حالة الاشتراك.');
   const attempt = await prisma.$transaction(async tx => {

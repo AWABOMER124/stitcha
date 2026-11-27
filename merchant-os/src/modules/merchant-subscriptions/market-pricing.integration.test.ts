@@ -27,6 +27,9 @@ describe('Saudi catalog and actual billing records', () => {
     const sessionId = `cs_test_expired_${suffix}`;
     gateway.createCheckoutSession.mockResolvedValue({ sessionId, checkoutUrl: 'https://synthetic.example/checkout' });
     await createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' });
+    await prisma.merchantPlanChangeRequest.update({ where: { id: selected.id }, data: { quotedAmount: Number(selected.quotedAmount) + 1 } });
+    await expect(createSubscriptionStripeCheckout({ merchantId: id, planChangeRequestId: selected.id, origin: 'https://synthetic.example' })).rejects.toThrow('تغيرت');
+    await prisma.merchantPlanChangeRequest.update({ where: { id: selected.id }, data: { quotedAmount: selected.quotedAmount } });
     gateway.retrieveCheckoutSession.mockResolvedValue({ id: sessionId, status: 'open', payment_status: 'unpaid', amount_total: Math.round(Number(selected.quotedAmount) * 100), currency: selected.quotedCurrency!.toLowerCase(), metadata: { kind: 'SUBSCRIPTION', merchant_id: id, plan_change_request_id: selected.id } });
     await reconcileStripeSubscriptionAttempt(id, selected.id);
     expect((await prisma.onlineCheckoutAttempt.findFirstOrThrow({ where: { merchantId: id } })).status).toBe('READY');

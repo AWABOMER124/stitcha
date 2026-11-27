@@ -42,6 +42,7 @@ describe('subscription checkout lifecycle', () => {
     expect((await getSubscriptionCheckoutStatus(f.merchant.id, f.request.id)).canRetry).toBe(true);
     const retry = await retrySubscriptionCheckout(f.merchant.id, f.request.id);
     expect(retry.id).not.toBe(f.request.id);
+    await expect(retrySubscriptionCheckout(f.merchant.id, f.request.id)).rejects.toThrow();
     expect((await prisma.onlineCheckoutAttempt.findUniqueOrThrow({ where: { id: f.attempt.id } })).status).toBe('EXPIRED');
   });
   it('never treats not-found or time alone as failure for a delivered checkout', async () => {

@@ -58,7 +58,7 @@ export async function retrySubscriptionCheckout(merchantId: string, requestId: s
       tx.onlineCheckoutAttempt.findFirst({ where: { merchantId, purpose: 'SUBSCRIPTION', status: { in: ['CREATING', 'READY', 'DECLINED', 'UNKNOWN'] } } }),
       tx.merchantSubscriptionPayment.findFirst({ where: { merchantId, status: 'PENDING' } }),
     ]);
-    if (unresolved || manual || payment?.status === 'VERIFIED' || request.status === 'COMPLETED'
+    if (unresolved || manual || payment?.status === 'VERIFIED' || !['PENDING', 'CONTACTED'].includes(request.status)
       || !(payment?.status === 'REJECTED' || attempt && ['FAILED', 'EXPIRED'].includes(attempt.status))) throw new ConflictError('نتيجة الدفع لم تتأكد بعد. لا تبدأ عملية أخرى.');
     await tx.merchantPlanChangeRequest.update({ where: { id: request.id }, data: { status: 'REJECTED', requestKey: null, resolvedAt: new Date() } });
     return { code: request.targetPlan.code, interval: request.billingInterval === 'YEARLY' ? 'YEARLY' as const : 'MONTHLY' as const };
