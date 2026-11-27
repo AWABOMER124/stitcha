@@ -10,6 +10,8 @@ import { getPlatformBillingSettings } from '@/modules/subscription-payments/subs
 import { recordOnlinePaymentEntry, recordRefundEntry } from '@/modules/online-settlements/online-settlements.service';
 import { planBelongsToMarket, planRequestQuote, resolveMarket } from '@/modules/merchant-subscriptions/market-pricing';
 import { paymentProviderForMarket } from '@/services/payment-gateways/market-policy';
+import { getMerchantPlanSnapshot } from '@/modules/merchant-subscriptions/merchant-subscriptions.service';
+import { FREE_PLAN_CODE } from '@/modules/merchant-subscriptions/entitlements';
 
 const PROVIDER = 'stripe';
 
@@ -18,7 +20,7 @@ export function getStripeStatus() {
 }
 
 export async function isMerchantEligibleForCentralStripe(merchantId: string) {
-  const merchant = await prisma.merchant.findUnique({
+  const [plan, merchant] = await Promise.all([getMerchantPlanSnapshot(merchantId), prisma.merchant.findUnique({
     where: { id: merchantId },
     select: {
       isActive: true,
@@ -26,9 +28,10 @@ export async function isMerchantEligibleForCentralStripe(merchantId: string) {
       identityVerification: { select: { status: true } },
       referralPayoutProfile: { select: { id: true } },
     },
-  });
+  })]);
   return Boolean(
-    merchant?.isActive
+    plan.code !== FREE_PLAN_CODE
+    && merchant?.isActive
     && merchant.status === 'ACTIVE'
     && merchant.identityVerification?.status === 'APPROVED'
     && merchant.referralPayoutProfile,

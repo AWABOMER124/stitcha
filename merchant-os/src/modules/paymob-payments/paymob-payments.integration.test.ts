@@ -56,6 +56,29 @@ async function callback(transaction: Record<string, unknown>, remote = transacti
   return processPaymobWebhook(raw, createHmac('sha512', hmac).update(paymobSignatureText(transaction)).digest('hex'));
 }
 describe('Verified Saudi payment and carrier lifecycle', () => {
+  it('recovers a paid attempt after an upstream response was lost using only the authenticated inquiry reference', async () => {
+    const id = await order();
+    await prisma.payment.update({ where: { orderId: id }, data: { method: 'ONLINE' } });
+    await prisma.order.update({ where: { id }, data: { paymentMethod: 'ONLINE' } });
+    const { attempt, transaction } = await checkout(id);
+    await prisma.onlineCheckoutAttempt.update({ where: { id: attempt.id }, data: { status: 'UNKNOWN', providerIntentionId: null, providerOrderId: null } });
+    const verified = { ...transaction, order: { ...transaction.order, merchant_order_id: attempt.id } };
+    await callback(transaction, verified);
+    const saved = await prisma.onlineCheckoutAttempt.findUniqueOrThrow({ where: { id: attempt.id } });
+    expect(saved.status).toBe('SUCCEEDED');
+    expect(saved.providerOrderId).toBe(String(transaction.order.id));
+    await callback(transaction, verified);
+    expect(await prisma.merchantSettlementEntry.count({ where: { orderId: id, type: 'ONLINE_PAYMENT' } })).toBe(1);
+  });
+  it('does not recover an unknown attempt from an unsigned callback reference', async () => {
+    const id = await order();
+    const { attempt, transaction } = await checkout(id);
+    await prisma.onlineCheckoutAttempt.update({ where: { id: attempt.id }, data: { status: 'UNKNOWN', providerIntentionId: null, providerOrderId: null } });
+    await expect(callback({ ...transaction, order: { ...transaction.order, merchant_order_id: attempt.id } }, transaction)).rejects.toThrow();
+    expect((await prisma.onlineCheckoutAttempt.findUniqueOrThrow({ where: { id: attempt.id } })).status).toBe('UNKNOWN');
+    expect((await prisma.payment.findUniqueOrThrow({ where: { orderId: id } })).status).toBe('PENDING');
+  });
+
   it('does not add merchant logistics charges to the customer invoice; COD commission excludes customer delivery charges', async () => {
     const id = await order();
     await prisma.order.update({ where: { id }, data: { deliveryFee: 35, total: 135, payment: { update: { amount: 135 } }, delivery: { update: { fee: 35 } } } });

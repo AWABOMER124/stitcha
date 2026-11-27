@@ -38,6 +38,11 @@ class ReleaseTests(unittest.TestCase):
         self.control.rollback()
         self.assertEqual(self.control.state()["active"]["release"], "release-blue")
 
+    def test_promotion_preserves_tcp_transport_policy(self):
+        self.control.promote("blue")
+        routing = json.loads((self.root / "routing.yml").read_text())
+        self.assertEqual(routing["http"]["middlewares"]["wasla-release-platform-host"]["headers"]["customResponseHeaders"]["Alt-Svc"], "clear")
+
     def test_failed_serving_check_restores_exact_previous_route(self):
         self.control.promote("blue")
         before = (self.root / "routing.yml").read_bytes()

@@ -56,8 +56,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
         </p>
       </header>
 
-      {query.paymob === 'returned' && <p role="status" className="rounded-xl bg-blue-50 p-4 text-sm font-semibold text-blue-900">{ar ? 'تجري مطابقة نتيجة الدفع مع Paymob. تُحدّث الباقة بعد التأكيد، وليس بمجرد العودة من شاشة الدفع.' : 'Verifying your payment with Paymob. Your plan updates after confirmation.'}</p>}
-      {stripeResult === 'success' && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{ar ? 'اكتمل الدفع في Stripe. قد يستغرق تحديث الباقة بضع ثوانٍ؛ حدّث الصفحة إذا لم تظهر فوراً.' : 'Stripe payment completed. The plan may take a few seconds to update.'}</p>}
+      {query.paymob === 'returned' && <p role="status" className="rounded-xl bg-blue-50 p-4 text-sm font-semibold text-blue-900">{ar ? 'تجري مطابقة نتيجة الدفع. تُحدّث الباقة بعد التأكيد، وليس بمجرد العودة من شاشة الدفع.' : 'Verifying your payment. Your plan updates after confirmation.'}</p>}
+      {stripeResult === 'success' && <p role="status" className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{ar ? 'تجري مطابقة نتيجة الدفع. تُفعّل الباقة بعد التأكيد، وليس بمجرد العودة من شاشة الدفع.' : 'Your payment is being verified. Your plan activates after confirmation.'}</p>}
       {stripeResult === 'cancelled' && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900">{ar ? 'تم إلغاء الدفع ولم يتم تغيير باقتك.' : 'Payment was cancelled and your plan was not changed.'}</p>}
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5" aria-labelledby="current-plan-title">
@@ -105,6 +105,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                     <strong>{formatFeature(plan.entitlements[key], ar)}</strong>
                   </li>
                 ))}
+                <li className="flex items-center justify-between gap-3 text-sm"><span>{ar ? 'استقبال الدفع الإلكتروني' : 'Accept online payments'}</span><strong>{plan.code === 'FREE' ? '—' : '✓'}</strong></li>
               </ul>
               <div className="mt-auto">{plan.code !== 'FREE' && (!selected || market === 'SA') ? <UpgradeButton renewal={selected} locale={locale} planCode={plan.code} planName={displayPlanName(plan.code, plan.name, ar)} yearlyPrice={plan.code.startsWith('SA_') ? plan.yearlyPrice : null} /> : <span className="flex min-h-11 items-center justify-center rounded-xl bg-[var(--muted)] p-3 text-sm font-bold">{selected ? (ar ? 'باقتك الحالية' : 'Your current plan') : (ar ? 'الباقة المجانية' : 'Free plan')}</span>}</div>
             </section>
@@ -114,7 +115,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 
       <Suspense fallback={<div className="h-24 animate-pulse rounded-2xl bg-[var(--muted)]" aria-label={ar ? 'تحميل الاستخدام' : 'Loading usage'}/>}><AiUsageSection merchantId={session.user.merchantId} ar={ar}/></Suspense>
 
-      {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount?.label ?? (payment.provider.startsWith('paymob') ? 'Paymob' : 'Stripe')} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
+      {payments.length > 0 && <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6"><h2 className="mb-4 text-lg font-black">{ar ? 'عمليات السداد' : 'Payment submissions'}</h2><div className="space-y-3">{payments.map(payment => <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] p-3"><div><strong>{payment.amount.toLocaleString()} {payment.currency}</strong><p className="text-xs text-[var(--muted-foreground)]">{payment.paymentAccount?.label ?? (ar ? 'دفع إلكتروني' : 'Online payment')} · {payment.transactionRef}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : payment.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-900'}`}>{payment.status}</span>{payment.rejectionReason && <p className="w-full text-sm text-red-700">{payment.rejectionReason}</p>}</div>)}</div></section>}
 
       <p className="text-xs leading-6 text-[var(--muted-foreground)]">
         {ar
