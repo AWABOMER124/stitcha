@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import prisma from '@/lib/db/prisma';
 import { getMerchantSubscriptionMarket, listPublicPlans, requestPlanChange } from './merchant-subscriptions.service';
 import { createSubscriptionStripeCheckout, processStripeWebhook, reconcileStripeSubscriptionAttempt } from '@/modules/stripe-payments/stripe-payments.service';
@@ -12,6 +12,7 @@ vi.mock('@/modules/merchant-referrals/merchant-referrals.service', () => ({ eval
 vi.mock('@/modules/marketer-referrals/marketer-referrals.service', () => ({ evaluateMarketerReferralInTransaction: vi.fn() }));
 const suffix = randomUUID().slice(0, 8);
 const merchants: string[] = [];
+beforeAll(() => { process.env.SECRETS_ENCRYPTION_KEY = 'synthetic-market-checkout-key-only'; });
 async function merchant(market?: string) {
   const created = await prisma.merchant.create({ data: { name: 'Synthetic market test', slug: `market-${suffix}-${merchants.length}`, businessType: 'RETAIL', ...(market ? { subscriptionMarket: market } : {}) } });
   merchants.push(created.id);
